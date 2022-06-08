@@ -4,11 +4,18 @@ import { MigrationBuilder, ColumnDefinitions } from "node-pg-migrate"
 export const shorthands: ColumnDefinitions | undefined = undefined
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
+  pgm.createTable("metadata", {
+    id: { type: "uuid", notNull: true, primaryKey: true, default: pgm.func("uuid_generate_v4()") },
+    category: { type: "text", notNull: true },
+    search_text: { type: "text", notNull: true },
+    created_at: { type: "timestamp", notNull: true },
+  })
+
   pgm.createTable("rentals", {
     id: { type: "uuid", notNull: true, primaryKey: true, default: pgm.func("uuid_generate_v4()") },
     metadata_id: { type: "uuid", notNull: true, unique: false, references: "metadata(id)", onDelete: "CASCADE" },
     network: { type: "text", notNull: true },
-    chain_id: { type: "string", notNull: true },
+    chain_id: { type: "integer", notNull: true },
     expiration: { type: "timestamp", notNull: true },
     signature: { type: "text", notNull: true },
     raw_data: { type: "text", notNull: true },
@@ -22,13 +29,6 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
   })
 
-  pgm.createTable("metadata", {
-    id: { type: "uuid", notNull: true, primaryKey: true, default: pgm.func("uuid_generate_v4()") },
-    category: { type: "text", notNull: true },
-    search_text: { type: "text", notNull: true },
-    created_at: { type: "timestamp", notNull: true },
-  })
-
   pgm.createTable("periods", {
     id: { type: "uuid", primaryKey: true, default: pgm.func("uuid_generate_v4()") },
     min: { type: "integer", notNull: true },
@@ -39,6 +39,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
   pgm.createIndex("periods", "rental_id")
   pgm.createIndex("rentals", "metadata_id")
+  // Ensure that there won't be more than one open rental per token
+  pgm.createIndex("rentals", ["token_id", "contract_address", "status"], { where: "status = 'open'", unique: true })
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
