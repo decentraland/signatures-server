@@ -3,12 +3,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node --trace-warnings --abort-on-uncaught-exception --unhandled-rejections=strict dist/index.js",
+    "start-dev": "ts-node src/index.ts",
     "migrate": "node-pg-migrate --database-url-var CONNECTION_STRING --envPath .env -j ts --tsconfig tsconfig.json -m ./migrations",
     "test": "jest --forceExit --detectOpenHandles --coverage --verbose"
   },
   "devDependencies": {
     "@types/node": "^14.17.33",
     "@well-known-components/test-helpers": "^1.3.0",
+    "ts-node": "^10.8.1",
     "typescript": "^4.6.4"
   },
   "prettier": {
@@ -16,13 +18,18 @@
     "semi": false
   },
   "dependencies": {
+    "@dcl/schemas": "^4.14.1",
     "@well-known-components/env-config-provider": "^1.1.1",
     "@well-known-components/http-server": "^1.1.1",
     "@well-known-components/interfaces": "^1.1.1",
     "@well-known-components/logger": "^1.1.0",
     "@well-known-components/metrics": "^1.1.3",
+    "@well-known-components/pg-component": "^0.1.0",
+    "@well-known-components/thegraph-component": "^1.1.0",
+    "ajv": "^8.11.0",
+    "ajv-formats": "^2.1.1",
     "node-pg-migrate": "^6.2.1",
     "pg": "^8.7.3",
-    "ts-node": "^10.8.1"
+    "sql-template-strings": "^2.2.2"
   }
 }
