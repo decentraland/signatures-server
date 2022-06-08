@@ -26,7 +26,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     contract_address: { type: "text", notNull: true },
     rental_contract_address: { type: "text", notNull: true },
     lessor: { type: "text", notNull: true },
-    tenant: { type: "text", notNull: true },
+    tenant: { type: "text", notNull: false },
     status: { type: "text", notNull: true },
     created_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
