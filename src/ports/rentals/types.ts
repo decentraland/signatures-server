@@ -7,12 +7,19 @@ export type IRentalsComponent = {
 export type RentalCreation = {
   network: Network
   chainId: ChainId
-  expiration: Date
+  expiration: number
   signature: string
   rawData: string
   tokenId: string
   contractAddress: string
   rentalContractAddress: string
+  periods: PeriodCreation[]
+}
+
+export type PeriodCreation = {
+  min: number
+  max: number
+  price: string
 }
 
 export enum Status {
@@ -25,7 +32,7 @@ export type Rental = {
   id: string
   network: Network
   chainId: ChainId
-  expiration: Date
+  expiration: number
   signature: string
   rawData: string
   tokenId: string
@@ -42,7 +49,7 @@ export type DBRental = {
   id: string
   network: Network
   chain_id: ChainId
-  expiration: Date
+  expiration: number
   signature: string
   raw_data: string
   token_id: string

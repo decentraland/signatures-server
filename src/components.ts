@@ -23,10 +23,10 @@ export async function initComponents(): Promise<AppComponents> {
   const statusChecks = await createStatusCheckComponent({ server, config })
   const fetch = await createFetchComponent()
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
-  const graph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
+  const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
   const database = await createPgComponent({ config, logs, metrics })
   const validator = await createValidatorComponent()
-  const rentals = await createRentalsComponent({ database, metrics, logs, graph })
+  const rentals = await createRentalsComponent({ database, metrics, logs, marketplaceSubgraph })
 
   return {
     config,
@@ -36,7 +36,7 @@ export async function initComponents(): Promise<AppComponents> {
     fetch,
     metrics,
     database,
-    graph,
+    marketplaceSubgraph,
     validator,
     rentals,
   }

@@ -1,16 +1,25 @@
 import { ChainId, Network } from "@dcl/schemas"
+import { JSONSchemaType } from "ajv"
+import { RentalCreation } from "../types"
+import { PeriodCreationSchema } from "./PeriodCreation.schema"
 
-export const RentalCreationSchema = Object.freeze({
+export const RentalCreationSchema: JSONSchemaType<RentalCreation> = {
   type: "object",
   properties: {
-    network: Network.schema,
-    chainId: ChainId.schema,
-    expiration: { type: "number" },
+    network: Network.schema as JSONSchemaType<Network>,
+    chainId: ChainId.schema as JSONSchemaType<ChainId>,
+    expiration: { type: "integer" },
     signature: { type: "string" },
     rawData: { type: "string" },
     tokenId: { type: "string" },
     contractAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
     rentalContractAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+    periods: {
+      type: "array",
+      minItems: 1,
+      uniqueItems: true,
+      items: PeriodCreationSchema,
+    },
   },
   additionalProperties: false,
   required: [
@@ -22,5 +31,6 @@ export const RentalCreationSchema = Object.freeze({
     "tokenId",
     "contractAddress",
     "rentalContractAddress",
+    "periods",
   ],
-})
+}

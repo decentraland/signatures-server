@@ -1,5 +1,5 @@
 import { Router } from "@well-known-components/http-server"
-import { RentalCreationSchema } from "../ports/validator/schemas/RentalCreation.schema"
+import { RentalCreationSchema } from "../ports/rentals"
 import { pingHandler } from "./handlers/ping-handler"
 import { createRentalsHandler } from "./handlers/rentals-handlers"
 import { withSchemaValidatorMiddleware } from "../logic/schema-validator-middleware"

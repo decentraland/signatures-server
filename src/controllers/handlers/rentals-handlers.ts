@@ -1,4 +1,4 @@
-import { NFTNotFound, UnauthorizedToRent } from "../../ports/rentals/errors"
+import { NFTNotFound, UnauthorizedToRent } from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 // handlers arguments only type what they need, to make unit testing easier
@@ -14,7 +14,7 @@ export async function createRentalsHandler(
   const body = await request.clone().json()
 
   try {
-    const rental = await rentals.createRental(body, "anAddress")
+    const rental = await rentals.createRental(body, "0x9abdcb8825696cc2ef3a0a955f99850418847f5d")
     return {
       status: StatusCode.CREATED,
       body: {
