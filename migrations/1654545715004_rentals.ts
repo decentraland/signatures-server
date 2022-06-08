@@ -4,6 +4,9 @@ import { MigrationBuilder, ColumnDefinitions } from "node-pg-migrate"
 export const shorthands: ColumnDefinitions | undefined = undefined
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
+  // Add the UUID generation extension if it doesn't exist
+  pgm.createExtension("uuid-ossp", { ifNotExists: true })
+
   pgm.createTable("metadata", {
     id: { type: "string", notNull: true, primaryKey: true },
     category: { type: "text", notNull: true },
@@ -13,7 +16,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
   pgm.createTable("rentals", {
     id: { type: "uuid", notNull: true, primaryKey: true, default: pgm.func("uuid_generate_v4()") },
-    metadata_id: { type: "uuid", notNull: true, unique: false, references: "metadata(id)", onDelete: "CASCADE" },
+    metadata_id: { type: "text", notNull: true, unique: false, references: "metadata(id)", onDelete: "CASCADE" },
     network: { type: "text", notNull: true },
     chain_id: { type: "integer", notNull: true },
     expiration: { type: "timestamp", notNull: true },
@@ -44,7 +47,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
+  pgm.dropTable("periods")
   pgm.dropTable("rentals")
   pgm.dropTable("metadata")
-  pgm.dropTable("periods")
 }
