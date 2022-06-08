@@ -5,7 +5,7 @@ export const shorthands: ColumnDefinitions | undefined = undefined
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.createTable("metadata", {
-    id: { type: "uuid", notNull: true, primaryKey: true, default: pgm.func("uuid_generate_v4()") },
+    id: { type: "string", notNull: true, primaryKey: true },
     category: { type: "text", notNull: true },
     search_text: { type: "text", notNull: true },
     created_at: { type: "timestamp", notNull: true },
