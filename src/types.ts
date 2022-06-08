@@ -6,6 +6,10 @@ import type {
   IBaseComponent,
   IMetricsComponent,
 } from "@well-known-components/interfaces"
+import { IPgComponent } from "@well-known-components/pg-component"
+import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { IValidatorComponent } from "./ports/validator/types"
+import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
 
 export type GlobalContext = {
@@ -19,6 +23,10 @@ export type BaseComponents = {
   server: IHttpServerComponent<GlobalContext>
   fetch: IFetchComponent
   metrics: IMetricsComponent<keyof typeof metricDeclarations>
+  database: IPgComponent
+  graph: ISubgraphComponent
+  validator: IValidatorComponent
+  rentals: IRentalsComponent
 }
 
 // components used in runtime
@@ -44,3 +52,14 @@ export type HandlerContextWithPath<
 >
 
 export type Context<Path extends string = any> = IHttpServerComponent.PathAwareContext<GlobalContext, Path>
+
+export enum StatusCode {
+  OK = 200,
+  CREATED = 201,
+  BAD_REQUEST = 400,
+  UNAUTHORIZED = 401,
+  NOT_FOUND = 404,
+  LOCKED = 423,
+  CONFLICT = 409,
+  ERROR = 500,
+}
