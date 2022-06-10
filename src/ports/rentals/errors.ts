@@ -9,3 +9,15 @@ export class NFTNotFound extends Error {
     super("The NFT was not found")
   }
 }
+
+export class RentalAlreadyExists extends Error {
+  constructor(public contractAddress: string, public tokenId: string) {
+    super("An open rental already exists for this token")
+  }
+}
+
+export class InvalidSignature extends Error {
+  constructor() {
+    super("The provided signature is invalid")
+  }
+}

@@ -1,7 +1,7 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 
 export type IRentalsComponent = {
-  createRental(rental: RentalCreation, lessorAddress: string): Promise<Rental>
+  createRental(rental: RentalCreation, lessorAddress: string): Promise<DBRental>
 }
 
 export type RentalCreation = {
@@ -13,6 +13,7 @@ export type RentalCreation = {
   tokenId: string
   contractAddress: string
   rentalContractAddress: string
+  nonces: string[]
   periods: PeriodCreation[]
 }
 
@@ -26,23 +27,6 @@ export enum Status {
   OPEN = "open",
   CANCELLED = "cancelled",
   EXECUTED = "executed",
-}
-
-export type Rental = {
-  id: string
-  network: Network
-  chainId: ChainId
-  expiration: number
-  signature: string
-  rawData: string
-  tokenId: string
-  contractAddress: string
-  rentalContractAddress: string
-  lessor: string | null
-  tenant: string | null
-  status: Status
-  createdAt: string
-  updatedAt: string
 }
 
 export type DBRental = {
@@ -60,4 +44,15 @@ export type DBRental = {
   status: Status
   created_at: string
   updated_at: string
+}
+
+export type NFT = {
+  id: string
+  category: NFTCategory
+  contractAddress: string
+  tokenId: string
+  owner: { address: string }
+  searchText: string
+  createdAt: string
+  updatedAt: string
 }
