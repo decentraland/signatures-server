@@ -12,6 +12,14 @@ export const RentalCreationSchema: JSONSchemaType<RentalCreation> = {
     signature: { type: "string" },
     rawData: { type: "string" },
     tokenId: { type: "string" },
+    nonces: {
+      type: "array",
+      items: {
+        minLength: 3,
+        maxLength: 3,
+        type: "string",
+      },
+    },
     contractAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
     rentalContractAddress: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
     periods: {

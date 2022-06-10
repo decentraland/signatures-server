@@ -1,3 +1,4 @@
+// import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBRentalToRental } from "../../adapters/rentals"
 import { NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
@@ -11,6 +12,9 @@ export async function createRentalsHandler(
     components: { rentals },
   } = context
   const body = await request.clone().json()
+  // const auth: string | undefined = (request as any).verification.auth
+
+  // console.log("Authorized", auth)
 
   try {
     const rental = await rentals.createRental(body, "0x9abdcb8825696cc2ef3a0a955f99850418847f5d")
