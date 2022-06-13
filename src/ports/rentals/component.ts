@@ -1,9 +1,19 @@
 import SQL from "sql-template-strings"
-import { fromRentalCreationToContractRentalListing } from "../../adapters/rentals"
-import { verifyRentalsListingSignature } from "../../logic/rentals"
+// import { fromRentalCreationToContractRentalListing } from "../../adapters/rentals"
+// import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
-import { InvalidSignature, NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
-import { IRentalsComponent, RentalCreation, Status, DBRental, NFT } from "./types"
+// import { InvalidSignature, NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
+import { NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
+import {
+  IRentalsComponent,
+  RentalListingCreation,
+  Status,
+  DBRentalListing,
+  NFT,
+  DBRental,
+  DBPeriods,
+  DBInsertedRentalListing,
+} from "./types"
 
 export function createRentalsComponent(
   components: Pick<AppComponents, "database" | "metrics" | "logs" | "marketplaceSubgraph">
@@ -42,21 +52,24 @@ export function createRentalsComponent(
     return queryResult.nfts[0] ?? null
   }
 
-  async function createRental(rental: RentalCreation, lessorAddress: string): Promise<DBRental> {
+  async function createRentalListing(
+    rental: RentalListingCreation,
+    lessorAddress: string
+  ): Promise<DBInsertedRentalListing> {
     const buildLogMessageForRental = (event: string) =>
       buildLogMessage("Creating", event, rental.contractAddress, rental.tokenId, lessorAddress)
 
     logger.info(buildLogMessageForRental("Started"))
 
     // Verifying the signature
-    const isSignatureValid = await verifyRentalsListingSignature(
-      fromRentalCreationToContractRentalListing(lessorAddress, rental),
-      rental.chainId,
-      rental.signature
-    )
-    if (!isSignatureValid) {
-      throw new InvalidSignature()
-    }
+    // const isSignatureValid = await verifyRentalsListingSignature(
+    //   fromRentalCreationToContractRentalListing(lessorAddress, rental),
+    //   rental.chainId,
+    //   rental.signature
+    // )
+    // if (!isSignatureValid) {
+    //   throw new InvalidSignature()
+    // }
 
     // Verify that there's no open rental in the contract
     // TODO: Query the graph for this
@@ -79,43 +92,48 @@ export function createRentalsComponent(
 
     // Inserting the new rental
     try {
-      await database.query(SQL`BEGIN;`)
+      await database.query(SQL`BEGIN\n`)
       await database.query(
         SQL`INSERT INTO metadata (id, category, search_text, created_at) VALUES (${nft.id}, ${nft.category}, ${
           nft.searchText
-        }, ${new Date(Number(nft.createdAt))}) ON CONFLICT DO NOTHING;`
+        }, ${new Date(Number(nft.createdAt))}) ON CONFLICT DO NOTHING\n`
       )
       logger.debug(buildLogMessageForRental("Inserted metadata"))
 
       const createdRental = await database.query<DBRental>(
-        SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, raw_data, token_id, contract_address, rental_contract_address, lessor, status) VALUES (${
+        SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status) VALUES (${
           nft.id
         }, ${rental.network}, ${rental.chainId}, ${new Date(rental.expiration)}, ${rental.signature}, ${
-          rental.rawData
-        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${lessorAddress}, ${
-          Status.OPEN
-        }) RETURNING *;`
+          rental.nonces
+        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${Status.OPEN}) RETURNING *\n`
       )
       logger.debug(buildLogMessageForRental("Inserted rental"))
 
-      const insertPeriodsQuery = SQL`INSERT INTO periods (min, max, price, rental_id) VALUES `
+      const createdRentalListing = await database.query<DBRentalListing>(
+        SQL`INSERT INTO rentals_listings (id, lessor) VALUES (${createdRental.rows[0].id}, ${lessorAddress}) RETURNING *\n`
+      )
+
+      logger.debug(buildLogMessageForRental("Inserted rental listing"))
+
+      const insertPeriodsQuery = SQL`INSERT INTO periods (min_days, max_days, price_per_day, rental_id) VALUES `
       rental.periods.forEach((period, index, periods) => {
         insertPeriodsQuery.append(
-          SQL`(${period.min}, ${period.max}, ${period.price}, ${createdRental.rows[0].id})`.append(
-            index !== periods.length - 1 ? "," : ";"
+          SQL`(${period.minDays}, ${period.maxDays}, ${period.pricePerDay}, ${createdRental.rows[0].id})`.append(
+            index !== periods.length - 1 ? "," : ""
           )
         )
       })
+      insertPeriodsQuery.append(SQL` RETURNING *\n`)
 
-      await database.query(insertPeriodsQuery)
+      const createdPeriods = await database.query<DBPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
 
-      await database.query(SQL`COMMIT;`)
+      await database.query(SQL`COMMIT`)
 
-      return createdRental.rows[0]
+      return { ...createdRental.rows[0], ...createdRentalListing.rows[0], periods: createdPeriods.rows }
     } catch (error) {
       logger.info(buildLogMessageForRental("Rolled-back query"))
-      await database.query(SQL`ROLLBACK;`)
+      await database.query(SQL`ROLLBACK`)
 
       if ((error as any).constraint === "rentals_token_id_contract_address_status_unique_index") {
         throw new RentalAlreadyExists(nft.contractAddress, nft.tokenId)
@@ -126,6 +144,6 @@ export function createRentalsComponent(
   }
 
   return {
-    createRental,
+    createRental: createRentalListing,
   }
 }

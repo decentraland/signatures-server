@@ -1,5 +1,5 @@
 // import * as authorizationMiddleware from "decentraland-crypto-middleware"
-import { fromDBRentalToRental } from "../../adapters/rentals"
+import { fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import { NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
@@ -22,7 +22,7 @@ export async function createRentalsHandler(
       status: StatusCode.CREATED,
       body: {
         ok: true,
-        data: fromDBRentalToRental(rental),
+        data: fromDBInsertedRentalListingToRental(rental),
       },
     }
   } catch (error) {

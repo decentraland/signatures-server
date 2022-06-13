@@ -1,17 +1,16 @@
 import { ChainId, Network } from "@dcl/schemas"
 import { JSONSchemaType } from "ajv"
-import { RentalCreation } from "../types"
+import { RentalListingCreation } from "../types"
 import { PeriodCreationSchema } from "./PeriodCreation.schema"
 
-export const RentalCreationSchema: JSONSchemaType<RentalCreation> = {
+export const RentalCreationSchema: JSONSchemaType<RentalListingCreation> = {
   type: "object",
   properties: {
     network: Network.schema as JSONSchemaType<Network>,
     chainId: ChainId.schema as JSONSchemaType<ChainId>,
-    expiration: { type: "integer" },
-    signature: { type: "string" },
-    rawData: { type: "string" },
-    tokenId: { type: "string" },
+    expiration: { type: "integer", minimum: 0 },
+    signature: { type: "string", minLength: 1 },
+    tokenId: { type: "string", minLength: 1 },
     nonces: {
       type: "array",
       items: {
@@ -25,6 +24,7 @@ export const RentalCreationSchema: JSONSchemaType<RentalCreation> = {
     periods: {
       type: "array",
       minItems: 1,
+      maxItems: 100,
       uniqueItems: true,
       items: PeriodCreationSchema,
     },
@@ -35,7 +35,7 @@ export const RentalCreationSchema: JSONSchemaType<RentalCreation> = {
     "chainId",
     "expiration",
     "signature",
-    "rawData",
+    "nonces",
     "tokenId",
     "contractAddress",
     "rentalContractAddress",
