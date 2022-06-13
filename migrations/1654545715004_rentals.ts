@@ -36,8 +36,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     id: { type: "uuid", notNull: true, primaryKey: true, references: "rentals(id)", onDelete: "CASCADE" },
     fingerprint: { type: "string", notNull: true },
     tenant: { type: "text", notNull: true },
-    price_per_day: { type: "numeric(78)", notNull: true },
-    rental_days: { type: "integer", notNull: true },
+    price_per_day: { type: "numeric(78)", notNull: true, check: "price_per_day >= 0" },
+    rental_days: { type: "integer", notNull: true, check: "rental_days > 0" },
     operator: { type: "string", notNull: true },
   })
 
@@ -49,9 +49,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
   pgm.createTable("periods", {
     id: { type: "uuid", primaryKey: true, default: pgm.func("uuid_generate_v4()") },
-    min_days: { type: "integer", notNull: true },
-    max_days: { type: "integer", notNull: true },
-    price_per_day: { type: "numeric(78)", notNull: true },
+    min_days: { type: "integer", notNull: true, check: "min_days >= 0" },
+    max_days: { type: "integer", notNull: true, check: "max_days >= min_days" },
+    price_per_day: { type: "numeric(78)", notNull: true, check: "price_per_day >= 0" },
     rental_id: { type: "uuid", notNull: true, unique: false, references: "rentals_listings(id)", onDelete: "CASCADE" },
   })
 
