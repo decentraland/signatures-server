@@ -7,7 +7,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // Add the UUID generation extension if it doesn't exist
   pgm.createExtension("uuid-ossp", { ifNotExists: true })
 
-  pgm.createType("rental_status", ["open", "executed", "cancelled"])
+  pgm.createType("status", ["open", "executed", "cancelled"])
 
   pgm.createTable("metadata", {
     id: { type: "string", notNull: true, primaryKey: true },
@@ -27,7 +27,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     nonces: { type: "text[3]", notNull: true },
     signature: { type: "text", notNull: true },
     rental_contract_address: { type: "text", notNull: true },
-    status: { type: "rental_status", notNull: true, default: "open" },
+    status: { type: "status", notNull: true, default: "open" },
     created_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
   })
