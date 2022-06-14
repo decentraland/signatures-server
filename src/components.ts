@@ -7,7 +7,7 @@ import { createMetricsComponent } from "@well-known-components/metrics"
 import { AppComponents, GlobalContext } from "./types"
 import { createFetchComponent } from "./ports/fetch"
 import { metricDeclarations } from "./metrics"
-import { createValidatorComponent } from "./ports/validator/component"
+import { createSchemaValidatorComponent } from "./ports/schema-validator"
 import { createRentalsComponent } from "./ports/rentals/component"
 
 // Initialize all the components of the app
@@ -25,7 +25,7 @@ export async function initComponents(): Promise<AppComponents> {
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
   const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
   const database = await createPgComponent({ config, logs, metrics })
-  const validator = await createValidatorComponent()
+  const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, metrics, logs, marketplaceSubgraph })
 
   return {
@@ -37,7 +37,7 @@ export async function initComponents(): Promise<AppComponents> {
     metrics,
     database,
     marketplaceSubgraph,
-    validator,
+    schemaValidator,
     rentals,
   }
 }

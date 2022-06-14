@@ -8,7 +8,7 @@ import type {
 } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { IValidatorComponent } from "./ports/validator/types"
+import { ISchemaValidatorComponent } from "./ports/schema-validator"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
 
@@ -25,7 +25,7 @@ export type BaseComponents = {
   metrics: IMetricsComponent<keyof typeof metricDeclarations>
   database: IPgComponent
   marketplaceSubgraph: ISubgraphComponent
-  validator: IValidatorComponent
+  schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
 }
 

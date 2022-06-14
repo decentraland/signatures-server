@@ -1,7 +1,6 @@
 import { Router } from "@well-known-components/http-server"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { RentalCreationSchema } from "../ports/rentals"
-import { withSchemaValidatorMiddleware } from "../logic/schema-validator-middleware"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"
 import { createRentalsHandler } from "./handlers/rentals-handlers"
@@ -11,12 +10,13 @@ export async function setupRouter(
   globalContext: GlobalContext
 ): Promise<Router<GlobalContext & authorizationMiddleware.DecentralandSignatureContext>> {
   const router = new Router<GlobalContext & authorizationMiddleware.DecentralandSignatureContext>()
+  const { components } = globalContext
 
   router.get("/ping", pingHandler)
   router.post(
     "/rentals",
     authorizationMiddleware.wellKnownComponents({}),
-    withSchemaValidatorMiddleware(globalContext.components, RentalCreationSchema),
+    components.schemaValidator.withSchemaValidatorMiddleware(RentalCreationSchema),
     createRentalsHandler
   )
 
