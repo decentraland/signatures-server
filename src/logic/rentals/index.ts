@@ -1,2 +1,2 @@
-export * from "./rentals-ethereum"
+export * from "./ethereum"
 export * from "./types"

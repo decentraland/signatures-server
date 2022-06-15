@@ -1,7 +1,7 @@
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 
 export type IRentalsComponent = {
-  createRental(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
+  createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
 }
 
 export type RentalListingCreation = {

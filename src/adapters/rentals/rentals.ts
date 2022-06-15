@@ -1,8 +1,8 @@
 import { ContractRentalListing } from "../../logic/rentals/types"
 import { DBPeriods, RentalListingCreation, DBInsertedRentalListing } from "../../ports/rentals"
-import { Period, Rental } from "./types"
+import { Period, RentalListing } from "./types"
 
-export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): Rental {
+export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
   return {
     id: DBRental.id,
     network: DBRental.network,
@@ -22,7 +22,7 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
   }
 }
 
-export function fromDBPeriodToPeriod(DBPeriod: DBPeriods): Period {
+function fromDBPeriodToPeriod(DBPeriod: DBPeriods): Period {
   return {
     id: DBPeriod.id,
     minDays: DBPeriod.min_days,

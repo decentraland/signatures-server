@@ -4,7 +4,7 @@ import { NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "../../port
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 // handlers arguments only type what they need, to make unit testing easier
-export async function createRentalsListingsHandler(
+export async function rentalsListingsCreationHandler(
   context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "request" | "components"> &
     authorizationMiddleware.DecentralandSignatureContext
 ) {
@@ -22,13 +22,13 @@ export async function createRentalsListingsHandler(
       body: {
         ok: false,
         message: "Unauthorized",
-        data: {},
+        data: undefined,
       },
     }
   }
 
   try {
-    const rental = await rentals.createRental(body, signerAddress)
+    const rental = await rentals.createRentalListing(body, signerAddress)
     return {
       status: StatusCode.CREATED,
       body: {

@@ -26,7 +26,7 @@ export async function initComponents(): Promise<AppComponents> {
   const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
   const database = await createPgComponent({ config, logs, metrics })
   const schemaValidator = await createSchemaValidatorComponent()
-  const rentals = await createRentalsComponent({ database, metrics, logs, marketplaceSubgraph })
+  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph })
 
   return {
     config,

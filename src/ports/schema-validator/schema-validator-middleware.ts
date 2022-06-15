@@ -38,7 +38,8 @@ export function createSchemaValidatorComponent(): ISchemaValidatorComponent {
           status: StatusCode.BAD_REQUEST,
           body: {
             ok: false,
-            message: validation.errors,
+            message: "Invalid JSON body",
+            data: validation.errors,
           },
         }
       }

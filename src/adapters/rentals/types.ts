@@ -1,7 +1,7 @@
 import { ChainId, Network } from "@dcl/schemas"
 import { Status } from "../../ports/rentals"
 
-export type Rental = {
+export type RentalListing = {
   id: string
   network: Network
   chainId: ChainId

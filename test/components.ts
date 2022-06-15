@@ -2,10 +2,15 @@
 // Here we define the test components to be used in the testing environment
 
 import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
+import { ILoggerComponent } from "@well-known-components/interfaces"
+import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { IPgComponent } from "@well-known-components/pg-component"
 
 import { main } from "../src/service"
 import { TestComponents } from "../src/types"
 import { initComponents as originalInitComponents } from "../src/components"
+// import { IPgComponent } from "@well-known-components/pg-component"
+import { IRentalsComponent } from "../src/ports/rentals"
 
 /**
  * Behaves like Jest "describe" function, used to describe a test for a
@@ -27,5 +32,57 @@ async function initComponents(): Promise<TestComponents> {
   return {
     ...components,
     localFetch: await createLocalFetchCompoment(config),
+  }
+}
+
+export function createTestConsoleLogComponent(
+  { log = jest.fn(), debug = jest.fn(), error = jest.fn(), warn = jest.fn(), info = jest.fn() } = {
+    log: jest.fn(),
+    debug: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  }
+): ILoggerComponent {
+  return {
+    getLogger: () => ({
+      log,
+      debug,
+      error,
+      warn,
+      info,
+    }),
+  }
+}
+
+export function createTestSubgraphComponent({ query = jest.fn() } = { query: jest.fn() }): ISubgraphComponent {
+  return {
+    query,
+  }
+}
+
+export function createTestRentalsComponent(
+  { createRentalListing = jest.fn() } = { createRentalListing: jest.fn() }
+): IRentalsComponent {
+  return {
+    createRentalListing,
+  }
+}
+
+export function createTestDbComponent(
+  { query = jest.fn(), start = jest.fn(), streamQuery = jest.fn(), getPool = jest.fn(), stop = jest.fn() } = {
+    query: jest.fn(),
+    start: jest.fn(),
+    streamQuery: jest.fn(),
+    getPool: jest.fn(),
+    stop: jest.fn(),
+  }
+): IPgComponent {
+  return {
+    start,
+    streamQuery,
+    query,
+    getPool,
+    stop,
   }
 }

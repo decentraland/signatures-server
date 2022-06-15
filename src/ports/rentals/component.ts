@@ -16,7 +16,7 @@ import {
 } from "./types"
 
 export function createRentalsComponent(
-  components: Pick<AppComponents, "database" | "metrics" | "logs" | "marketplaceSubgraph">
+  components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph">
 ): IRentalsComponent {
   const { database, marketplaceSubgraph, logs } = components
   const logger = logs.getLogger("rentals")
@@ -144,6 +144,6 @@ export function createRentalsComponent(
   }
 
   return {
-    createRental: createRentalListing,
+    createRentalListing,
   }
 }
