@@ -1,39 +1,39 @@
 // This file is the "test-environment" analogous for src/components.ts
 // Here we define the test components to be used in the testing environment
 
-import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
+// import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
 import { IPgComponent } from "@well-known-components/pg-component"
 
-import { main } from "../src/service"
-import { TestComponents } from "../src/types"
-import { initComponents as originalInitComponents } from "../src/components"
+// import { main } from "../src/service"
+// import { TestComponents } from "../src/types"
+// import { initComponents as originalInitComponents } from "../src/components"
 // import { IPgComponent } from "@well-known-components/pg-component"
 import { IRentalsComponent } from "../src/ports/rentals"
 
-/**
- * Behaves like Jest "describe" function, used to describe a test for a
- * use case, it creates a whole new program and components to run an
- * isolated test.
- *
- * State is persistent within the steps of the test.
- */
-export const test = createRunner<TestComponents>({
-  main,
-  initComponents,
-})
+// /**
+//  * Behaves like Jest "describe" function, used to describe a test for a
+//  * use case, it creates a whole new program and components to run an
+//  * isolated test.
+//  *
+//  * State is persistent within the steps of the test.
+//  */
+// export const test = createRunner<TestComponents>({
+//   main,
+//   initComponents,
+// })
 
-async function initComponents(): Promise<TestComponents> {
-  const components = await originalInitComponents()
+// async function initComponents(): Promise<TestComponents> {
+//   // const components = await originalInitComponents()
 
-  const { config } = components
+//   const { config } = components
 
-  return {
-    ...components,
-    localFetch: await createLocalFetchCompoment(config),
-  }
-}
+//   return {
+//     ...components,
+//     localFetch: await createLocalFetchCompoment(config),
+//   }
+// }
 
 export function createTestConsoleLogComponent(
   { log = jest.fn(), debug = jest.fn(), error = jest.fn(), warn = jest.fn(), info = jest.fn() } = {
