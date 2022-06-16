@@ -1,3 +1,4 @@
+import path from "path"
 import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
 import { createServerComponent, createStatusCheckComponent } from "@well-known-components/http-server"
 import { createLogComponent } from "@well-known-components/logger"
@@ -24,7 +25,18 @@ export async function initComponents(): Promise<AppComponents> {
   const fetch = await createFetchComponent()
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
   const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
-  const database = await createPgComponent({ config, logs, metrics })
+  const database = await createPgComponent(
+    { config, logs, metrics },
+    {
+      migration: {
+        databaseUrl: await config.requireString("PG_COMPONENT_PSQL_CONNECTION_STRING"),
+        dir: path.resolve(__dirname, "migrations"),
+        migrationsTable: "pgmigrations",
+        ignorePattern: ".*\\.map", // avoid sourcemaps
+        direction: "up",
+      },
+    }
+  )
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph })
 
