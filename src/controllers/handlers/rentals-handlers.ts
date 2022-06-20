@@ -1,7 +1,70 @@
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
-import { fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
-import { NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "../../ports/rentals"
+import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
+import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
+import {
+  FilterByCategory,
+  NFTNotFound,
+  RentalAlreadyExists,
+  RentalsListingsSortBy,
+  SortDirection,
+  Status,
+  UnauthorizedToRent,
+} from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
+
+export async function getRentalsListingsHandler(
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "request" | "url" | "components"> &
+    authorizationMiddleware.DecentralandSignatureContext
+) {
+  const {
+    url,
+    components: { rentals },
+  } = context
+
+  const { page, limit } = getPaginationParams(url.searchParams)
+
+  try {
+    const sortBy = getTypedStringQueryParameter(Object.values(RentalsListingsSortBy), url.searchParams, "sortBy")
+    const sortDirection = getTypedStringQueryParameter(Object.values(SortDirection), url.searchParams, "sortDirection")
+    const filterBy = {
+      category:
+        getTypedStringQueryParameter(Object.values(FilterByCategory), url.searchParams, "filterBy") ?? undefined,
+      text: url.searchParams.get("text") ?? undefined,
+      lessor: url.searchParams.get("lessor") ?? undefined,
+      tenant: url.searchParams.get("tenant") ?? undefined,
+      status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
+      // TODO: periods
+    }
+
+    const rental = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
+    // results: T[]
+    // total: number
+    // page: number
+    // pages: number
+    // limit: number
+
+    return {
+      status: StatusCode.OK,
+      data: {
+        results: fromDBGetRentalsListingsToRentalListings(rental),
+        total: rental.length > 0 ? rental[0].rentals_listings_count : 0,
+        page,
+        // Use big numbers for this because we don't know the total number of pages
+        pages: rental.length > 0 ? Math.ceil(rental[0].rentals_listings_count / limit) : 0,
+        limit,
+      },
+    }
+  } catch (error) {
+    if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        message: error.message,
+      }
+    }
+
+    throw error
+  }
+}
 
 // handlers arguments only type what they need, to make unit testing easier
 export async function rentalsListingsCreationHandler(
@@ -22,7 +85,6 @@ export async function rentalsListingsCreationHandler(
       body: {
         ok: false,
         message: "Unauthorized",
-        data: undefined,
       },
     }
   }

@@ -1,4 +1,4 @@
-import SQL from "sql-template-strings"
+import SQL, { SQLStatement } from "sql-template-strings"
 // import { fromRentalCreationToContractRentalListing } from "../../adapters/rentals"
 // import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
@@ -13,6 +13,10 @@ import {
   DBRental,
   DBPeriods,
   DBInsertedRentalListing,
+  RentalsListingsSortBy,
+  FilterBy,
+  SortDirection,
+  DBGetRentalListings,
 } from "./types"
 
 export function createRentalsComponent(
@@ -143,7 +147,72 @@ export function createRentalsComponent(
     }
   }
 
+  async function getRentalsListings(params: {
+    sortBy: RentalsListingsSortBy | null
+    sortDirection: SortDirection | null
+    page: number
+    limit: number
+    filterBy: FilterBy | null
+  }): Promise<DBGetRentalListings[]> {
+    const { sortBy, page, limit, filterBy, sortDirection } = params
+
+    const sortByParam = sortBy ?? RentalsListingsSortBy.RECENTLY_LISTED
+    const sortDirectionParam = sortDirection ?? SortDirection.ASC
+
+    // TODO: Add table
+    const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}` : SQL``
+    const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}` : SQL``
+    const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}` : SQL``
+    const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}` : SQL``
+    const filterBySearchText = filterBy?.text ? SQL`AND metadata.search_text ILIKE %${filterBy.text}%` : SQL``
+    // TODO: Do period filtering by time and price
+    // const filterByPeriod
+
+    let sortByQuery: SQLStatement
+    switch (sortByParam) {
+      case RentalsListingsSortBy.NAME:
+        sortByQuery = SQL`ORDER BY metadata.search_text`
+        break
+      case RentalsListingsSortBy.RECENTLY_LISTED:
+        sortByQuery = SQL`ORDER BY rentals.created_at DESC`
+        break
+      case RentalsListingsSortBy.CHEAPEST_TO_RENT:
+        // TODO: This type of query should be done only with the max and min days because on theory, that can change the price of the rent.
+        sortByQuery = SQL`ORDER BY periods.price_per_day`
+        break
+      case RentalsListingsSortBy.NEWEST:
+        // TODO: Is newest and recently listed related to the lands and estates?
+        sortByQuery = SQL``
+        break
+      default:
+        // TODO: case RentalsListingsSortBy.RECENTLY_RENTED:
+        // Should we take this from the blockchain or should we store this in the DB?
+        sortByQuery = SQL``
+        break
+    }
+
+    const results = await database.query<DBGetRentalListings>(
+      SQL`SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at,
+      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.id, periods.min_days, periods.max_days, periods.price_per_day] ORDER BY min_days, max_days) as periods
+      FROM rentals, rentals_listings, metadata, periods WHERE  
+      rentals.id = rentals_listings.id AND
+      metadata.id = rentals.metadata_id AND
+      periods.rental_id = rentals.id
+      ${filterByCategory}
+      ${filterByStatus}
+      ${filterByLessor}
+      ${filterByTenant}
+      ${filterBySearchText}
+      ${sortByQuery} ${sortDirectionParam}
+      GROUP BY rentals.id, rentals_listings.id, metadata.id
+      LIMIT ${limit} OFFSET ${page}`
+    )
+
+    return results.rows
+  }
+
   return {
     createRentalListing,
+    getRentalsListings,
   }
 }

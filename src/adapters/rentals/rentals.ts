@@ -1,5 +1,5 @@
 import { ContractRentalListing } from "../../logic/rentals/types"
-import { DBPeriods, RentalListingCreation, DBInsertedRentalListing } from "../../ports/rentals"
+import { DBPeriods, RentalListingCreation, DBInsertedRentalListing, DBGetRentalListings } from "../../ports/rentals"
 import { Period, RentalListing } from "./types"
 
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
@@ -46,4 +46,29 @@ export function fromRentalCreationToContractRentalListing(
     minDays: rental.periods.map((period) => period.minDays.toString()),
     signature: rental.signature,
   }
+}
+
+export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalListings[]): RentalListing[] {
+  return DBRentals.map((rental) => ({
+    id: rental.id,
+    network: rental.network,
+    chainId: rental.chain_id,
+    expiration: rental.expiration,
+    signature: rental.signature,
+    nonces: rental.nonces,
+    tokenId: rental.token_id,
+    contractAddress: rental.contract_address,
+    rentalContractAddress: rental.rental_contract_address,
+    lessor: rental.lessor,
+    tenant: rental.tenant,
+    status: rental.status,
+    createdAt: rental.created_at,
+    updatedAt: rental.updated_at,
+    periods: rental.periods.map((period) => ({
+      id: period[0],
+      minDays: period[1],
+      maxDays: period[2],
+      pricePerDay: period[3],
+    })),
+  }))
 }
