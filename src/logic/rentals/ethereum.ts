@@ -29,18 +29,19 @@ async function buildRentalListingSignatureData(
     ],
   }
 
+  const { signature, ...values } = rentalListing
+
   return {
     domain,
     types,
-    values: rentalListing,
+    values,
     signature: rentalListing.signature,
   }
 }
 
 export async function verifyRentalsListingSignature(
   rentalListing: ContractRentalListing,
-  chainId: number,
-  address: string
+  chainId: number
 ): Promise<boolean> {
   const rentalListingSignatureData = await buildRentalListingSignatureData(rentalListing, chainId)
   const signingAddress = ethers.utils.verifyTypedData(
@@ -50,5 +51,5 @@ export async function verifyRentalsListingSignature(
     rentalListingSignatureData.signature
   )
 
-  return signingAddress == address
+  return signingAddress === rentalListingSignatureData.values.signer
 }

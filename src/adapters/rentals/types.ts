@@ -1,8 +1,10 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import { Status } from "../../ports/rentals"
 
 export type RentalListing = {
   id: string
+  category: NFTCategory
+  search_text: string
   network: Network
   chainId: ChainId
   expiration: number

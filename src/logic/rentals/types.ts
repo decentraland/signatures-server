@@ -16,6 +16,6 @@ export type ContractRentalListing = {
 export type RentalListingSignatureData = {
   domain: TypedDataDomain
   types: Record<string, Array<TypedDataField>>
-  values: ContractRentalListing
+  values: Omit<ContractRentalListing, "signature">
   signature: SignatureLike
 }

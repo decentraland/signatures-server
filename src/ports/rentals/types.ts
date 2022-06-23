@@ -28,6 +28,13 @@ export enum Status {
   EXECUTED = "executed",
 }
 
+export type DBMetadata = {
+  id: string
+  category: NFTCategory
+  search_text: string
+  created_at: Date
+}
+
 export type DBRental = {
   id: string
   metadata_id: string
@@ -58,7 +65,8 @@ export type DBPeriods = {
   rental_id: string
 }
 
-export type DBInsertedRentalListing = DBRental & DBRentalListing & { periods: DBPeriods[] }
+export type DBInsertedRentalListing = DBRental &
+  DBRentalListing & { periods: DBPeriods[] } & Pick<DBMetadata, "category" | "search_text">
 
 export type NFT = {
   id: string
@@ -69,4 +77,19 @@ export type NFT = {
   searchText: string
   createdAt: string
   updatedAt: string
+}
+
+export type BlockchainRental = {
+  id: string
+  contractAddress: string
+  tokenId: string
+  lessor: string
+  tenant: string
+  operator: string
+  rentalDays: string
+  startedAt: string
+  pricePerDay: string
+  sender: string
+  ownerHasClaimedAsset: boolean
+  last: boolean
 }

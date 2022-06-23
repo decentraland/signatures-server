@@ -1,4 +1,4 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental, RentalListing } from "../../src/adapters/rentals"
 import { rentalsListingsCreationHandler } from "../../src/controllers/handlers/rentals-handlers"
@@ -156,6 +156,8 @@ describe("when creating a new rental listing", () => {
     beforeEach(() => {
       createdListing = {
         id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+        category: NFTCategory.PARCEL,
+        search_text: "someText",
         metadata_id: "someId",
         network: Network.ETHEREUM,
         chain_id: ChainId.ETHEREUM_GOERLI,

@@ -24,6 +24,7 @@ beforeEach(async () => {
     metrics: createTestMetricsComponent({}),
     database: createTestDbComponent(),
     marketplaceSubgraph: createTestSubgraphComponent(),
+    rentalsSubgraph: createTestSubgraphComponent(),
     schemaValidator: createSchemaValidatorComponent(),
   }
   middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({

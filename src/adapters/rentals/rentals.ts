@@ -5,6 +5,8 @@ import { Period, RentalListing } from "./types"
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
   return {
     id: DBRental.id,
+    category: DBRental.category,
+    search_text: DBRental.search_text,
     network: DBRental.network,
     chainId: DBRental.chain_id,
     expiration: DBRental.expiration,

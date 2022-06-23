@@ -1,4 +1,4 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import {
   fromDBInsertedRentalListingToRental,
   fromRentalCreationToContractRentalListing,
@@ -14,6 +14,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
   beforeEach(() => {
     dbRentalListing = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+      category: NFTCategory.PARCEL,
+      search_text: "someText",
       metadata_id: "someId",
       network: Network.ETHEREUM,
       chain_id: ChainId.ETHEREUM_GOERLI,
@@ -40,6 +42,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
     }
     rentalListing = {
       id: dbRentalListing.id,
+      category: dbRentalListing.category,
+      search_text: dbRentalListing.search_text,
       network: dbRentalListing.network,
       chainId: dbRentalListing.chain_id,
       expiration: dbRentalListing.expiration,
@@ -77,6 +81,8 @@ describe("when transforming a rental creation to a contract rental listing", () 
   beforeEach(() => {
     rentalCreation = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+      category: NFTCategory.PARCEL,
+      search_text: "someText",
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
       expiration: Date.now(),

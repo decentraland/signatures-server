@@ -25,6 +25,7 @@ export type BaseComponents = {
   metrics: IMetricsComponent<keyof typeof metricDeclarations>
   database: IPgComponent
   marketplaceSubgraph: ISubgraphComponent
+  rentalsSubgraph: ISubgraphComponent
   schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
 }

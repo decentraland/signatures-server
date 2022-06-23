@@ -14,9 +14,13 @@ import { createRentalsComponent } from "./ports/rentals/component"
 // Initialize all the components of the app
 export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
-  const SUBGRAPH_URL = await config.getString("SUBGRAPH_URL")
-  if (!SUBGRAPH_URL) {
-    throw new Error("Subgraph URL not set")
+  const MARKETPLACE_SUBGRAPH_URL = await config.getString("MARKETPLACE_SUBGRAPH_URL")
+  if (!MARKETPLACE_SUBGRAPH_URL) {
+    throw new Error("Marketplace subgraph URL not set")
+  }
+  const RENTALS_SUBGRAPH_URL = await config.getString("RENTALS_SUBGRAPH_URL")
+  if (!RENTALS_SUBGRAPH_URL) {
+    throw new Error("Rentals subgraph URL not set")
   }
 
   const logs = createLogComponent()
@@ -24,13 +28,14 @@ export async function initComponents(): Promise<AppComponents> {
   const statusChecks = await createStatusCheckComponent({ server, config })
   const fetch = await createFetchComponent()
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
-  const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, SUBGRAPH_URL)
+  const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, MARKETPLACE_SUBGRAPH_URL)
+  const rentalsSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, RENTALS_SUBGRAPH_URL)
   const database = await createPgComponent(
     { config, logs, metrics },
     {
       migration: {
         databaseUrl: await config.requireString("PG_COMPONENT_PSQL_CONNECTION_STRING"),
-        dir: path.resolve(__dirname, "migrations"),
+        dir: path.resolve(__dirname, "../migrations"),
         migrationsTable: "pgmigrations",
         ignorePattern: ".*\\.map", // avoid sourcemaps
         direction: "up",
@@ -38,7 +43,7 @@ export async function initComponents(): Promise<AppComponents> {
     }
   )
   const schemaValidator = await createSchemaValidatorComponent()
-  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph })
+  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
 
   return {
     config,
@@ -49,6 +54,7 @@ export async function initComponents(): Promise<AppComponents> {
     metrics,
     database,
     marketplaceSubgraph,
+    rentalsSubgraph,
     schemaValidator,
     rentals,
   }
