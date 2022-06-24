@@ -161,7 +161,7 @@ describe("when creating a new rental listing", () => {
         metadata_id: "someId",
         network: Network.ETHEREUM,
         chain_id: ChainId.ETHEREUM_GOERLI,
-        expiration: Date.now(),
+        expiration: new Date(),
         signature: "0x0",
         nonces: ["0x0", "0x1", "0x2"],
         token_id: "1",

@@ -7,7 +7,8 @@ export type RentalListing = {
   search_text: string
   network: Network
   chainId: ChainId
-  expiration: number
+  /** ISO date of the signature's expiration */
+  expiration: string
   signature: string
   nonces: string[]
   tokenId: string
@@ -16,7 +17,9 @@ export type RentalListing = {
   lessor: string | null
   tenant: string | null
   status: Status
+  /** ISO date of the time the signature was created */
   createdAt: string
+  /** ISO date of the time the signature was updated */
   updatedAt: string
   periods: Period[]
 }

@@ -1,5 +1,6 @@
 import { ContractRentalListing } from "../../logic/rentals/types"
 import { DBPeriods, RentalListingCreation, DBInsertedRentalListing } from "../../ports/rentals"
+import { fromMillisecondsToSeconds } from "./time"
 import { Period, RentalListing } from "./types"
 
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
@@ -9,7 +10,7 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     search_text: DBRental.search_text,
     network: DBRental.network,
     chainId: DBRental.chain_id,
-    expiration: DBRental.expiration,
+    expiration: DBRental.expiration.toISOString(),
     signature: DBRental.signature,
     nonces: DBRental.nonces,
     tokenId: DBRental.token_id,
@@ -41,9 +42,7 @@ export function fromRentalCreationToContractRentalListing(
     signer: lessor,
     contractAddress: rental.contractAddress,
     tokenId: rental.tokenId,
-    // The rental must be specified in seconds since epoch
-    // TODO: This should return an ISO date and then we must convert it to what it should be.
-    expiration: rental.expiration.toString(),
+    expiration: fromMillisecondsToSeconds(new Date(rental.expiration).getTime()).toString(),
     nonces: rental.nonces,
     pricePerDay: rental.periods.map((period) => period.pricePerDay),
     maxDays: rental.periods.map((period) => period.maxDays.toString()),
