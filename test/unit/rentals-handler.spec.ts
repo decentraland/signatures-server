@@ -35,7 +35,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return an unauthorized response", async () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.UNAUTHORIZED,
         body: {
           ok: false,
@@ -61,7 +61,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message signaling that the NFT was not found", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -90,7 +90,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with an unauthorized status code and a message signaling that the user is not authorized to rent the asset", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.UNAUTHORIZED,
         body: {
           ok: false,
@@ -119,7 +119,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a conflict status code and a message signaling that there's already a rental for the asset", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.CONFLICT,
         body: {
           ok: false,
@@ -143,7 +143,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should propagate the error", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).rejects.toThrowError(
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).rejects.toThrowError(
         "An unknown error"
       )
     })
@@ -170,8 +170,8 @@ describe("when creating a new rental listing", () => {
         lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
         tenant: null,
         status: Status.OPEN,
-        created_at: "2022-06-13T22:56:36.755Z",
-        updated_at: "2022-06-13T22:56:36.755Z",
+        created_at: new Date("2022-06-13T22:56:36.755Z"),
+        updated_at: new Date("2022-06-13T22:56:36.755Z"),
         periods: [
           {
             id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
@@ -191,7 +191,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a created status code with the created rental listing", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.CREATED,
         body: {
           ok: true,

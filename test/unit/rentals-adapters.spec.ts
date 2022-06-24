@@ -1,7 +1,9 @@
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import {
   fromDBInsertedRentalListingToRental,
+  fromMillisecondsToSeconds,
   fromRentalCreationToContractRentalListing,
+  fromSecondsToMilliseconds,
   RentalListing,
 } from "../../src/adapters/rentals"
 import { ContractRentalListing } from "../../src/logic/rentals/types"
@@ -28,8 +30,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
       status: Status.OPEN,
-      created_at: "2022-06-13T22:56:36.755Z",
-      updated_at: "2022-06-13T22:56:36.755Z",
+      created_at: new Date("2022-06-13T22:56:36.755Z"),
+      updated_at: new Date("2022-06-13T22:56:36.755Z"),
       periods: [
         {
           id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
@@ -55,8 +57,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: dbRentalListing.lessor,
       tenant: null,
       status: dbRentalListing.status,
-      createdAt: dbRentalListing.created_at,
-      updatedAt: dbRentalListing.updated_at,
+      createdAt: dbRentalListing.created_at.toISOString(),
+      updatedAt: dbRentalListing.updated_at.toISOString(),
       periods: [
         {
           id: dbRentalListing.periods[0].id,
@@ -121,5 +123,28 @@ describe("when transforming a rental creation to a contract rental listing", () 
 
   it("should return the transformed contract rental listing", () => {
     expect(fromRentalCreationToContractRentalListing(lessor, rentalCreation)).toEqual(contractRentalListing)
+  })
+})
+
+describe("when converting from milliseconds to seconds", () => {
+  describe("and the conversion to milliseconds ends up in a splitted second timestamp", () => {
+    it("should return the timestamp ", () => {
+      const time = 1656105118092
+      expect(fromMillisecondsToSeconds(time)).toEqual(1656105118)
+    })
+  })
+
+  describe("and the conversion to milliseconds ends up in a round second timestamp", () => {
+    it("should return the timestamp ", () => {
+      const time = 1656105118000
+      expect(fromMillisecondsToSeconds(time)).toEqual(1656105118)
+    })
+  })
+})
+
+describe("when converting from seconds to milliseconds", () => {
+  it("should return a timestamp in seconds to milliseconds", () => {
+    const time = Date.now()
+    expect(fromSecondsToMilliseconds(time)).toEqual(time * 1000)
   })
 })

@@ -18,8 +18,8 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     lessor: DBRental.lessor,
     tenant: DBRental.tenant,
     status: DBRental.status,
-    createdAt: DBRental.created_at,
-    updatedAt: DBRental.updated_at,
+    createdAt: DBRental.created_at.toISOString(),
+    updatedAt: DBRental.updated_at.toISOString(),
     periods: DBRental.periods.map(fromDBPeriodToPeriod),
   }
 }
@@ -41,6 +41,8 @@ export function fromRentalCreationToContractRentalListing(
     signer: lessor,
     contractAddress: rental.contractAddress,
     tokenId: rental.tokenId,
+    // The rental must be specified in seconds since epoch
+    // TODO: This should return an ISO date and then we must convert it to what it should be.
     expiration: rental.expiration.toString(),
     nonces: rental.nonces,
     pricePerDay: rental.periods.map((period) => period.pricePerDay),

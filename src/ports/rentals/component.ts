@@ -1,6 +1,10 @@
 import SQL from "sql-template-strings"
 import { ethers } from "ethers"
-import { fromRentalCreationToContractRentalListing } from "../../adapters/rentals"
+import {
+  fromRentalCreationToContractRentalListing,
+  fromMillisecondsToSeconds,
+  fromSecondsToMilliseconds,
+} from "../../adapters/rentals"
 import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
 import { InvalidSignature, NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
@@ -102,12 +106,7 @@ export function createRentalsComponent(
 
     // Verify that there's no open rental in the contract
     const blockChainRental = await getLastBlockchainRental(rental.contractAddress, rental.tokenId)
-    if (
-      blockChainRental &&
-      ethers.BigNumber.from(blockChainRental.startedAt)
-        .add(ethers.BigNumber.from(blockChainRental.rentalDays).mul(1000 * 60 * 60 * 24))
-        .gt(Date.now())
-    ) {
+    if (blockChainRental && ethers.BigNumber.from(blockChainRental.endsAt).gt(fromMillisecondsToSeconds(Date.now()))) {
       throw new RentalAlreadyExists(rental.contractAddress, rental.tokenId)
     }
 
@@ -129,13 +128,13 @@ export function createRentalsComponent(
 
     // Inserting the new rental
     try {
-      await database.query(SQL`BEGIN\n`)
+      await database.query(SQL`BEGIN`)
       const createdMetadata = await database.query<DBMetadata>(
         SQL`INSERT INTO metadata (id, category, search_text, created_at) VALUES (${nft.id}, ${nft.category}, ${
           nft.searchText
-        }, ${new Date(Number(nft.createdAt))}) ON CONFLICT (id) DO UPDATE SET search_text = ${
-          nft.searchText
-        } RETURNING *`
+        }, ${new Date(
+          fromSecondsToMilliseconds(Number(nft.createdAt))
+        )}) ON CONFLICT (id) DO UPDATE SET search_text = ${nft.searchText} RETURNING *`
       )
       logger.debug(buildLogMessageForRental("Inserted metadata"))
 
@@ -162,7 +161,7 @@ export function createRentalsComponent(
           )
         )
       })
-      insertPeriodsQuery.append(SQL` RETURNING *\n`)
+      insertPeriodsQuery.append(SQL` RETURNING *`)
 
       const createdPeriods = await database.query<DBPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
