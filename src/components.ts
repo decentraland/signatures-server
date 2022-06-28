@@ -14,14 +14,8 @@ import { createRentalsComponent } from "./ports/rentals/component"
 // Initialize all the components of the app
 export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
-  const MARKETPLACE_SUBGRAPH_URL = await config.getString("MARKETPLACE_SUBGRAPH_URL")
-  if (!MARKETPLACE_SUBGRAPH_URL) {
-    throw new Error("Marketplace subgraph URL not set")
-  }
-  const RENTALS_SUBGRAPH_URL = await config.getString("RENTALS_SUBGRAPH_URL")
-  if (!RENTALS_SUBGRAPH_URL) {
-    throw new Error("Rentals subgraph URL not set")
-  }
+  const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
+  const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
 
   const logs = createLogComponent()
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})

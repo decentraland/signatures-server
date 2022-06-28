@@ -36,7 +36,7 @@ export type AppComponents = BaseComponents & {
 }
 
 // components used in tests
-export type TestComponents = BaseComponents & {
+export type TestComponents = AppComponents & {
   // A fetch component that only hits the test server
   localFetch: IFetchComponent
 }
