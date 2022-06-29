@@ -1,23 +1,19 @@
 import { ethers } from "ethers"
+import { ChainId } from "@dcl/schemas"
 import { _TypedDataEncoder } from "@ethersproject/hash"
+import { ContractData, ContractName, getContract } from "decentraland-transactions"
 import { ContractRentalListing, RentalListingSignatureData } from "./types"
 
 async function buildRentalListingSignatureData(
   rentalListing: ContractRentalListing,
-  chainId: number
+  chainId: ChainId
 ): Promise<RentalListingSignatureData> {
-  // const rentalsContract: ContractData = getContract(
-  //   ContractName.RentalsContract,
-  //   rentalListing.chainId
-  // )
+  const rentalsContract: ContractData = getContract(ContractName.Rentals, chainId)
 
   const domain = {
-    // name: rentalsContract.name,
-    name: "Rentals contract name",
-    // verifyingContract: rentalsContract.address,
-    verifyingContract: "Rentals contract address",
-    // version: rentalsContract.version,
-    version: "v1",
+    name: rentalsContract.name,
+    verifyingContract: rentalsContract.address,
+    version: rentalsContract.version,
     salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
   }
   const types = {
@@ -33,18 +29,19 @@ async function buildRentalListingSignatureData(
     ],
   }
 
+  const { signature, ...values } = rentalListing
+
   return {
     domain,
     types,
-    values: rentalListing,
+    values,
     signature: rentalListing.signature,
   }
 }
 
 export async function verifyRentalsListingSignature(
   rentalListing: ContractRentalListing,
-  chainId: number,
-  address: string
+  chainId: number
 ): Promise<boolean> {
   const rentalListingSignatureData = await buildRentalListingSignatureData(rentalListing, chainId)
   const signingAddress = ethers.utils.verifyTypedData(
@@ -54,5 +51,5 @@ export async function verifyRentalsListingSignature(
     rentalListingSignatureData.signature
   )
 
-  return signingAddress == address
+  return signingAddress === rentalListingSignatureData.values.signer
 }

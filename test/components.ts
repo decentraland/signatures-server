@@ -1,39 +1,99 @@
 // This file is the "test-environment" analogous for src/components.ts
 // Here we define the test components to be used in the testing environment
 
-// import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
+import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
-import { ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { IPgComponent } from "@well-known-components/pg-component"
+import { createSubgraphComponent, ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
+import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
+import { createServerComponent, createStatusCheckComponent, IFetchComponent } from "@well-known-components/http-server"
+import { createMetricsComponent } from "@well-known-components/metrics"
+import { createSchemaValidatorComponent } from "../src/ports/schema-validator"
+import { main } from "../src/service"
+import { metricDeclarations } from "../src/metrics"
+import { GlobalContext, TestComponents } from "../src/types"
+import { createRentalsComponent, IRentalsComponent } from "../src/ports/rentals"
 
-// import { main } from "../src/service"
-// import { TestComponents } from "../src/types"
-// import { initComponents as originalInitComponents } from "../src/components"
-// import { IPgComponent } from "@well-known-components/pg-component"
-import { IRentalsComponent } from "../src/ports/rentals"
+let lastUsedPort = 19000 + parseInt(process.env.JEST_WORKER_ID || "1") * 1000
+function getFreePort() {
+  return lastUsedPort + 1
+}
 
-// /**
-//  * Behaves like Jest "describe" function, used to describe a test for a
-//  * use case, it creates a whole new program and components to run an
-//  * isolated test.
-//  *
-//  * State is persistent within the steps of the test.
-//  */
-// export const test = createRunner<TestComponents>({
-//   main,
-//   initComponents,
-// })
+/**
+ * Behaves like Jest "describe" function, used to describe a test for a
+ * use case, it creates a whole new program and components to run an
+ * isolated test.
+ *
+ * State is persistent within the steps of the test.
+ */
+export const test = createRunner<TestComponents>({
+  main,
+  initComponents,
+})
 
-// async function initComponents(): Promise<TestComponents> {
-//   // const components = await originalInitComponents()
+export async function initComponents(): Promise<TestComponents> {
+  const currentPort = getFreePort()
+  const defaultConfig = {
+    HTTP_SERVER_PORT: (currentPort + 1).toString(),
+    HTTP_SERVER_HOST: "localhost",
+    MARKETPLACE_SUBGRAPH_URL: "https://some-url.com",
+    RENTALS_SUBGRAPH_URL: "https://some-url.com",
+  }
 
-//   const { config } = components
+  const config = await createDotEnvConfigComponent({}, defaultConfig)
+  const cors = {
+    origin: await config.getString("CORS_ORIGIN"),
+    method: await config.getString("CORS_METHOD"),
+  }
 
-//   return {
-//     ...components,
-//     localFetch: await createLocalFetchCompoment(config),
-//   }
-// }
+  const logs = createTestConsoleLogComponent()
+  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors, compression: {} })
+  const fetcher = await createTestFetchComponent()
+  const metrics = await createMetricsComponent(metricDeclarations, {
+    server,
+    config,
+  })
+  const marketplaceSubgraph = await createSubgraphComponent(
+    { config, logs, fetch: fetcher, metrics },
+    await config.requireString("MARKETPLACE_SUBGRAPH_URL")
+  )
+  const rentalsSubgraph = await createSubgraphComponent(
+    { config, logs, fetch: fetcher, metrics },
+    await config.requireString("RENTALS_SUBGRAPH_URL")
+  )
+  const database = await createPgComponent({ logs, config, metrics })
+  const rentals = createRentalsComponent({
+    logs,
+    database,
+    marketplaceSubgraph,
+    rentalsSubgraph,
+  })
+  const schemaValidator = await createSchemaValidatorComponent()
+  const statusChecks = await createStatusCheckComponent({ server, config })
+  // Mock the start function to avoid connecting to a local database
+  jest.spyOn(database, "start").mockResolvedValue()
+
+  return {
+    config,
+    logs,
+    server,
+    statusChecks,
+    fetch: fetcher,
+    metrics,
+    database,
+    marketplaceSubgraph,
+    rentalsSubgraph,
+    schemaValidator,
+    rentals,
+    localFetch: await createLocalFetchCompoment(config),
+  }
+}
+
+export function createTestFetchComponent({ fetch = jest.fn() } = { fetch: jest.fn() }): IFetchComponent {
+  return {
+    fetch,
+  }
+}
 
 export function createTestConsoleLogComponent(
   { log = jest.fn(), debug = jest.fn(), error = jest.fn(), warn = jest.fn(), info = jest.fn() } = {

@@ -1,7 +1,9 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import {
   fromDBInsertedRentalListingToRental,
+  fromMillisecondsToSeconds,
   fromRentalCreationToContractRentalListing,
+  fromSecondsToMilliseconds,
   RentalListing,
 } from "../../src/adapters/rentals"
 import { ContractRentalListing } from "../../src/logic/rentals/types"
@@ -14,10 +16,12 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
   beforeEach(() => {
     dbRentalListing = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+      category: NFTCategory.PARCEL,
+      search_text: "someText",
       metadata_id: "someId",
       network: Network.ETHEREUM,
       chain_id: ChainId.ETHEREUM_GOERLI,
-      expiration: Date.now(),
+      expiration: new Date(),
       signature: "0x0",
       nonces: ["0x0", "0x1", "0x2"],
       token_id: "1",
@@ -26,8 +30,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
       status: Status.OPEN,
-      created_at: "2022-06-13T22:56:36.755Z",
-      updated_at: "2022-06-13T22:56:36.755Z",
+      created_at: new Date("2022-06-13T22:56:36.755Z"),
+      updated_at: new Date("2022-06-13T22:56:36.755Z"),
       periods: [
         {
           id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
@@ -40,9 +44,11 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
     }
     rentalListing = {
       id: dbRentalListing.id,
+      category: dbRentalListing.category,
+      search_text: dbRentalListing.search_text,
       network: dbRentalListing.network,
       chainId: dbRentalListing.chain_id,
-      expiration: dbRentalListing.expiration,
+      expiration: dbRentalListing.expiration.toISOString(),
       signature: dbRentalListing.signature,
       nonces: dbRentalListing.nonces,
       tokenId: dbRentalListing.token_id,
@@ -51,8 +57,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: dbRentalListing.lessor,
       tenant: null,
       status: dbRentalListing.status,
-      createdAt: dbRentalListing.created_at,
-      updatedAt: dbRentalListing.updated_at,
+      createdAt: dbRentalListing.created_at.toISOString(),
+      updatedAt: dbRentalListing.updated_at.toISOString(),
       periods: [
         {
           id: dbRentalListing.periods[0].id,
@@ -77,9 +83,11 @@ describe("when transforming a rental creation to a contract rental listing", () 
   beforeEach(() => {
     rentalCreation = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+      category: NFTCategory.PARCEL,
+      search_text: "someText",
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
-      expiration: Date.now(),
+      expiration: new Date().toISOString(),
       signature: "0x0",
       nonces: ["0x0", "0x1", "0x2"],
       tokenId: "1",
@@ -104,7 +112,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
       signer: lessor!,
       contractAddress: rentalCreation.contractAddress,
       tokenId: rentalCreation.tokenId,
-      expiration: rentalCreation.expiration.toString(),
+      expiration: fromMillisecondsToSeconds(new Date(rentalCreation.expiration).getTime()).toString(),
       nonces: rentalCreation.nonces,
       pricePerDay: [rentalCreation.periods[0].pricePerDay],
       maxDays: [rentalCreation.periods[0].maxDays.toString()],
@@ -115,5 +123,28 @@ describe("when transforming a rental creation to a contract rental listing", () 
 
   it("should return the transformed contract rental listing", () => {
     expect(fromRentalCreationToContractRentalListing(lessor, rentalCreation)).toEqual(contractRentalListing)
+  })
+})
+
+describe("when converting from milliseconds to seconds", () => {
+  describe("and the conversion to milliseconds ends up in a splitted second timestamp", () => {
+    it("should return the timestamp ", () => {
+      const time = 1656105118092
+      expect(fromMillisecondsToSeconds(time)).toEqual(1656105118)
+    })
+  })
+
+  describe("and the conversion to milliseconds ends up in a round second timestamp", () => {
+    it("should return the timestamp ", () => {
+      const time = 1656105118000
+      expect(fromMillisecondsToSeconds(time)).toEqual(1656105118)
+    })
+  })
+})
+
+describe("when converting from seconds to milliseconds", () => {
+  it("should return a timestamp in seconds to milliseconds", () => {
+    const time = Date.now()
+    expect(fromSecondsToMilliseconds(time)).toEqual(time * 1000)
   })
 })

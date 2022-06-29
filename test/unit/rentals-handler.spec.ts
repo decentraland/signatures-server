@@ -1,4 +1,4 @@
-import { ChainId, Network } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental, RentalListing } from "../../src/adapters/rentals"
 import { rentalsListingsCreationHandler } from "../../src/controllers/handlers/rentals-handlers"
@@ -35,7 +35,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return an unauthorized response", async () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.UNAUTHORIZED,
         body: {
           ok: false,
@@ -61,7 +61,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message signaling that the NFT was not found", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -90,7 +90,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with an unauthorized status code and a message signaling that the user is not authorized to rent the asset", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.UNAUTHORIZED,
         body: {
           ok: false,
@@ -119,7 +119,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a conflict status code and a message signaling that there's already a rental for the asset", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.CONFLICT,
         body: {
           ok: false,
@@ -143,7 +143,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should propagate the error", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).rejects.toThrowError(
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).rejects.toThrowError(
         "An unknown error"
       )
     })
@@ -156,10 +156,12 @@ describe("when creating a new rental listing", () => {
     beforeEach(() => {
       createdListing = {
         id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+        category: NFTCategory.PARCEL,
+        search_text: "someText",
         metadata_id: "someId",
         network: Network.ETHEREUM,
         chain_id: ChainId.ETHEREUM_GOERLI,
-        expiration: Date.now(),
+        expiration: new Date(),
         signature: "0x0",
         nonces: ["0x0", "0x1", "0x2"],
         token_id: "1",
@@ -168,8 +170,8 @@ describe("when creating a new rental listing", () => {
         lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
         tenant: null,
         status: Status.OPEN,
-        created_at: "2022-06-13T22:56:36.755Z",
-        updated_at: "2022-06-13T22:56:36.755Z",
+        created_at: new Date("2022-06-13T22:56:36.755Z"),
+        updated_at: new Date("2022-06-13T22:56:36.755Z"),
         periods: [
           {
             id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
@@ -189,7 +191,7 @@ describe("when creating a new rental listing", () => {
     })
 
     it("should return a response with a created status code with the created rental listing", () => {
-      expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
         status: StatusCode.CREATED,
         body: {
           ok: true,

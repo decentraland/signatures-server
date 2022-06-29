@@ -5,6 +5,7 @@ export type ContractRentalListing = {
   signer: string
   contractAddress: string
   tokenId: string
+  /** Timestamp when the signature expires in seconds since epoch */
   expiration: string
   nonces: string[]
   pricePerDay: string[]
@@ -16,6 +17,6 @@ export type ContractRentalListing = {
 export type RentalListingSignatureData = {
   domain: TypedDataDomain
   types: Record<string, Array<TypedDataField>>
-  values: ContractRentalListing
+  values: Omit<ContractRentalListing, "signature">
   signature: SignatureLike
 }

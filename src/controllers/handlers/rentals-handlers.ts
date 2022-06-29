@@ -50,7 +50,7 @@ export async function getRentalsListingsHandler(
         total: rental.length > 0 ? rental[0].rentals_listings_count : 0,
         page,
         // Use big numbers for this because we don't know the total number of pages
-        pages: rental.length > 0 ? Math.ceil(rental[0].rentals_listings_count / limit) : 0,
+        pages: rental.length > 0 ? Math.ceil(Number(rental[0].rentals_listings_count) / limit) : 0,
         limit,
       },
     }
