@@ -122,9 +122,13 @@ export function createTestSubgraphComponent({ query = jest.fn() } = { query: jes
 }
 
 export function createTestRentalsComponent(
-  { createRentalListing = jest.fn() } = { createRentalListing: jest.fn() }
+  { createRentalListing = jest.fn(), getRentalsListings = jest.fn() } = {
+    createRentalListing: jest.fn(),
+    getRentalsListings: jest.fn(),
+  }
 ): IRentalsComponent {
   return {
+    getRentalsListings,
     createRentalListing,
   }
 }

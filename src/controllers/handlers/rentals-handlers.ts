@@ -13,7 +13,7 @@ import {
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 export async function getRentalsListingsHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "request" | "url" | "components"> &
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "url" | "components"> &
     authorizationMiddleware.DecentralandSignatureContext
 ) {
   const {
@@ -28,20 +28,18 @@ export async function getRentalsListingsHandler(
     const sortDirection = getTypedStringQueryParameter(Object.values(SortDirection), url.searchParams, "sortDirection")
     const filterBy = {
       category:
-        getTypedStringQueryParameter(Object.values(FilterByCategory), url.searchParams, "filterBy") ?? undefined,
+        getTypedStringQueryParameter(Object.values(FilterByCategory), url.searchParams, "category") ?? undefined,
       text: url.searchParams.get("text") ?? undefined,
       lessor: url.searchParams.get("lessor") ?? undefined,
       tenant: url.searchParams.get("tenant") ?? undefined,
       status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
     }
-
     const rentalListings = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
-
     return {
       status: StatusCode.OK,
       data: {
         results: fromDBGetRentalsListingsToRentalListings(rentalListings),
-        total: rentalListings.length > 0 ? rentalListings[0].rentals_listings_count : 0,
+        total: rentalListings.length > 0 ? Number(rentalListings[0].rentals_listings_count) : 0,
         page,
         pages: rentalListings.length > 0 ? Math.ceil(Number(rentalListings[0].rentals_listings_count) / limit) : 0,
         limit,
@@ -51,7 +49,10 @@ export async function getRentalsListingsHandler(
     if (error instanceof InvalidParameterError) {
       return {
         status: StatusCode.BAD_REQUEST,
-        message: error.message,
+        body: {
+          ok: false,
+          message: error.message,
+        },
       }
     }
 
