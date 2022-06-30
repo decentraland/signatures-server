@@ -33,24 +33,17 @@ export async function getRentalsListingsHandler(
       lessor: url.searchParams.get("lessor") ?? undefined,
       tenant: url.searchParams.get("tenant") ?? undefined,
       status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
-      // TODO: periods
     }
 
-    const rental = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
-    // results: T[]
-    // total: number
-    // page: number
-    // pages: number
-    // limit: number
+    const rentalListings = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
 
     return {
       status: StatusCode.OK,
       data: {
-        results: fromDBGetRentalsListingsToRentalListings(rental),
-        total: rental.length > 0 ? rental[0].rentals_listings_count : 0,
+        results: fromDBGetRentalsListingsToRentalListings(rentalListings),
+        total: rentalListings.length > 0 ? rentalListings[0].rentals_listings_count : 0,
         page,
-        // Use big numbers for this because we don't know the total number of pages
-        pages: rental.length > 0 ? Math.ceil(Number(rental[0].rentals_listings_count) / limit) : 0,
+        pages: rentalListings.length > 0 ? Math.ceil(Number(rentalListings[0].rentals_listings_count) / limit) : 0,
         limit,
       },
     }
@@ -66,7 +59,6 @@ export async function getRentalsListingsHandler(
   }
 }
 
-// handlers arguments only type what they need, to make unit testing easier
 export async function rentalsListingsCreationHandler(
   context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "request" | "components"> &
     authorizationMiddleware.DecentralandSignatureContext

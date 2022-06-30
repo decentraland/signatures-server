@@ -8,7 +8,7 @@ export type IRentalsComponent = {
     page: number
     limit: number
     filterBy: FilterBy | null
-  }): Promise<DBGetRentalListings[]>
+  }): Promise<DBGetRentalListing[]>
 }
 
 export type RentalListingCreation = {
@@ -73,11 +73,12 @@ export type DBPeriods = {
   rental_id: string
 }
 
-export type DBGetRentalListings = DBRental &
+export type DBGetRentalListing = DBRental &
   DBRentalListing &
   DBMetadata & {
+    /** An array containing [id, min_days, max_days, price_per_day] */
     periods: [string, number, number, string][]
-    metadata_created_at: string
+    metadata_created_at: Date
     rentals_listings_count: string
   }
 export type DBInsertedRentalListing = DBRental &

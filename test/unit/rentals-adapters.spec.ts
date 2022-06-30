@@ -1,5 +1,6 @@
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import {
+  fromDBGetRentalsListingsToRentalListings,
   fromDBInsertedRentalListingToRental,
   fromMillisecondsToSeconds,
   fromRentalCreationToContractRentalListing,
@@ -7,14 +8,14 @@ import {
   RentalListing,
 } from "../../src/adapters/rentals"
 import { ContractRentalListing } from "../../src/logic/rentals/types"
-import { DBInsertedRentalListing, Status } from "../../src/ports/rentals"
+import { DBGetRentalListing, DBInsertedRentalListing, Status } from "../../src/ports/rentals"
 
 describe("when transforming a DB inserted rental listing to a rental listing", () => {
-  let dbRentalListing: DBInsertedRentalListing
+  let dbInsertedRentalListing: DBInsertedRentalListing
   let rentalListing: RentalListing
 
   beforeEach(() => {
-    dbRentalListing = {
+    dbInsertedRentalListing = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
       category: NFTCategory.PARCEL,
       search_text: "someText",
@@ -43,35 +44,100 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       ],
     }
     rentalListing = {
-      id: dbRentalListing.id,
-      category: dbRentalListing.category,
-      search_text: dbRentalListing.search_text,
-      network: dbRentalListing.network,
-      chainId: dbRentalListing.chain_id,
-      expiration: dbRentalListing.expiration.toISOString(),
-      signature: dbRentalListing.signature,
-      nonces: dbRentalListing.nonces,
-      tokenId: dbRentalListing.token_id,
-      contractAddress: dbRentalListing.contract_address,
-      rentalContractAddress: dbRentalListing.rental_contract_address,
-      lessor: dbRentalListing.lessor,
+      id: dbInsertedRentalListing.id,
+      category: dbInsertedRentalListing.category,
+      search_text: dbInsertedRentalListing.search_text,
+      network: dbInsertedRentalListing.network,
+      chainId: dbInsertedRentalListing.chain_id,
+      expiration: dbInsertedRentalListing.expiration.toISOString(),
+      signature: dbInsertedRentalListing.signature,
+      nonces: dbInsertedRentalListing.nonces,
+      tokenId: dbInsertedRentalListing.token_id,
+      contractAddress: dbInsertedRentalListing.contract_address,
+      rentalContractAddress: dbInsertedRentalListing.rental_contract_address,
+      lessor: dbInsertedRentalListing.lessor,
       tenant: null,
-      status: dbRentalListing.status,
-      createdAt: dbRentalListing.created_at.toISOString(),
-      updatedAt: dbRentalListing.updated_at.toISOString(),
+      status: dbInsertedRentalListing.status,
+      createdAt: dbInsertedRentalListing.created_at.toISOString(),
+      updatedAt: dbInsertedRentalListing.updated_at.toISOString(),
       periods: [
         {
-          id: dbRentalListing.periods[0].id,
-          minDays: dbRentalListing.periods[0].min_days,
-          maxDays: dbRentalListing.periods[0].max_days,
-          pricePerDay: dbRentalListing.periods[0].price_per_day,
+          id: dbInsertedRentalListing.periods[0].id,
+          minDays: dbInsertedRentalListing.periods[0].min_days,
+          maxDays: dbInsertedRentalListing.periods[0].max_days,
+          pricePerDay: dbInsertedRentalListing.periods[0].price_per_day,
         },
       ],
     }
   })
 
   it("should return the transformed rental listing", () => {
-    expect(fromDBInsertedRentalListingToRental(dbRentalListing)).toEqual(rentalListing)
+    expect(fromDBInsertedRentalListingToRental(dbInsertedRentalListing)).toEqual(rentalListing)
+  })
+})
+
+describe("when transforming DB retrieved rental listings to rental listings", () => {
+  let dbGetRentalListings: DBGetRentalListing[]
+  let rentalListings: RentalListing[]
+
+  beforeEach(() => {
+    dbGetRentalListings = [
+      {
+        id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+        category: NFTCategory.PARCEL,
+        search_text: "someText",
+        metadata_id: "someId",
+        network: Network.ETHEREUM,
+        chain_id: ChainId.ETHEREUM_GOERLI,
+        expiration: new Date(),
+        signature: "0x0",
+        nonces: ["0x0", "0x1", "0x2"],
+        token_id: "1",
+        contract_address: "0x959e104e1a4db6317fa58f8295f586e1a978c297",
+        rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
+        lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
+        tenant: null,
+        status: Status.OPEN,
+        created_at: new Date("2022-06-13T22:56:36.755Z"),
+        updated_at: new Date("2022-06-13T22:56:36.755Z"),
+        periods: [["anId", 30, 50, "1000000000"]],
+        metadata_created_at: new Date(),
+        rentals_listings_count: "1",
+      },
+    ]
+
+    rentalListings = [
+      {
+        id: dbGetRentalListings[0].id,
+        category: dbGetRentalListings[0].category,
+        search_text: dbGetRentalListings[0].search_text,
+        network: dbGetRentalListings[0].network,
+        chainId: dbGetRentalListings[0].chain_id,
+        expiration: dbGetRentalListings[0].expiration.toISOString(),
+        signature: dbGetRentalListings[0].signature,
+        nonces: dbGetRentalListings[0].nonces,
+        tokenId: dbGetRentalListings[0].token_id,
+        contractAddress: dbGetRentalListings[0].contract_address,
+        rentalContractAddress: dbGetRentalListings[0].rental_contract_address,
+        lessor: dbGetRentalListings[0].lessor,
+        tenant: dbGetRentalListings[0].tenant,
+        status: dbGetRentalListings[0].status,
+        createdAt: dbGetRentalListings[0].created_at.toISOString(),
+        updatedAt: dbGetRentalListings[0].updated_at.toISOString(),
+        periods: [
+          {
+            id: dbGetRentalListings[0].periods[0][0],
+            minDays: dbGetRentalListings[0].periods[0][1],
+            maxDays: dbGetRentalListings[0].periods[0][2],
+            pricePerDay: dbGetRentalListings[0].periods[0][3],
+          },
+        ],
+      },
+    ]
+  })
+
+  it("should return the transformed rental listing", () => {
+    expect(fromDBGetRentalsListingsToRentalListings(dbGetRentalListings)).toEqual(rentalListings)
   })
 })
 

@@ -1,5 +1,5 @@
 import { ContractRentalListing } from "../../logic/rentals/types"
-import { DBPeriods, RentalListingCreation, DBInsertedRentalListing, DBGetRentalListings } from "../../ports/rentals"
+import { DBPeriods, RentalListingCreation, DBInsertedRentalListing, DBGetRentalListing } from "../../ports/rentals"
 import { fromMillisecondsToSeconds } from "./time"
 import { Period, RentalListing } from "./types"
 
@@ -51,7 +51,7 @@ export function fromRentalCreationToContractRentalListing(
   }
 }
 
-export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalListings[]): RentalListing[] {
+export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalListing[]): RentalListing[] {
   return DBRentals.map((rental) => ({
     id: rental.id,
     category: rental.category,
