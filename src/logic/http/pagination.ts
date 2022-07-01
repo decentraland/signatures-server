@@ -7,7 +7,7 @@ export const getPaginationParams = (params: URLSearchParams): { limit: number; p
   const parsedLimit = parseInt(limit as string, 10)
   const parsedPage = parseInt(page as string, 10)
   return {
-    limit: limit && !isNaN(parsedLimit) && parsedLimit <= MAX_LIMIT ? parsedLimit : MAX_LIMIT,
-    page: page && !isNaN(parsedPage) ? parsedPage : DEFAULT_PAGE,
+    limit: limit && !isNaN(parsedLimit) && parsedLimit <= MAX_LIMIT && parsedLimit > 0 ? parsedLimit : MAX_LIMIT,
+    page: page && !isNaN(parsedPage) && parsedPage >= 0 ? parsedPage : DEFAULT_PAGE,
   }
 }

@@ -129,10 +129,9 @@ export enum SortDirection {
 }
 
 export enum RentalsListingsSortBy {
-  CHEAPEST_TO_RENT = "cheapest_to_rent",
-  RECENTLY_LISTED = "recently_listed",
-  RECENTLY_RENTED = "recently_rented",
-  NEWEST = "newest",
+  RENTAL_PRICE = "rental_price",
+  RENTAL_LISTING_DATE = "rental_listing_date",
+  RENTAL_DATE = "rented_date",
   NAME = "name",
 }
 

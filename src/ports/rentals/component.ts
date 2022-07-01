@@ -200,7 +200,7 @@ export function createRentalsComponent(
   }): Promise<DBGetRentalListing[]> {
     const { sortBy, page, limit, filterBy, sortDirection } = params
 
-    const sortByParam = sortBy ?? RentalsListingsSortBy.RECENTLY_LISTED
+    const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? SortDirection.ASC
 
     const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}` : SQL``
@@ -215,23 +215,15 @@ export function createRentalsComponent(
       case RentalsListingsSortBy.NAME:
         sortByQuery = SQL`ORDER BY metadata.search_text`
         break
-      case RentalsListingsSortBy.RECENTLY_LISTED:
-        // I would redesign the filters. Sort by listingDate and then I would use sortOrder as DESC
-        sortByQuery = SQL`ORDER BY rentals.created_at DESC`
+      case RentalsListingsSortBy.RENTAL_LISTING_DATE:
+        sortByQuery = SQL`ORDER BY rentals.created_at`
         break
-      case RentalsListingsSortBy.CHEAPEST_TO_RENT:
-        // TODO: This type of query should be done only with the max and min days because on theory, that can change the price of the rent.
-        // I would redesign the filters. Sort by price to rent and then I would use sortOrder as DESC
+      case RentalsListingsSortBy.RENTAL_PRICE:
+        // TODO: check how is it returned after the query.
         sortByQuery = SQL`ORDER BY periods.price_per_day`
         break
-      case RentalsListingsSortBy.NEWEST:
-        // TODO: Is newest and recently listed related to the lands and estates?
-        sortByQuery = SQL``
-        break
       default:
-        // TODO: case RentalsListingsSortBy.RECENTLY_RENTED:
-        // Should we take this from the blockchain or should we store this in the DB?
-        sortByQuery = SQL``
+        sortByQuery = SQL`ORDER BY rentals.created_at`
         break
     }
     sortByQuery = sortByQuery && sortByQuery.sql !== "" ? sortByQuery.append(" " + sortDirectionParam) : sortByQuery
