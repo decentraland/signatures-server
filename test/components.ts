@@ -2,10 +2,22 @@
 // Here we define the test components to be used in the testing environment
 
 import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
-
+import { ILoggerComponent } from "@well-known-components/interfaces"
+import { createSubgraphComponent, ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
+import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
+import { createServerComponent, createStatusCheckComponent, IFetchComponent } from "@well-known-components/http-server"
+import { createMetricsComponent } from "@well-known-components/metrics"
+import { createSchemaValidatorComponent } from "../src/ports/schema-validator"
 import { main } from "../src/service"
-import { TestComponents } from "../src/types"
-import { initComponents as originalInitComponents } from "../src/components"
+import { metricDeclarations } from "../src/metrics"
+import { GlobalContext, TestComponents } from "../src/types"
+import { createRentalsComponent, IRentalsComponent } from "../src/ports/rentals"
+
+let lastUsedPort = 19000 + parseInt(process.env.JEST_WORKER_ID || "1") * 1000
+function getFreePort() {
+  return lastUsedPort + 1
+}
 
 /**
  * Behaves like Jest "describe" function, used to describe a test for a
@@ -19,13 +31,118 @@ export const test = createRunner<TestComponents>({
   initComponents,
 })
 
-async function initComponents(): Promise<TestComponents> {
-  const components = await originalInitComponents()
+export async function initComponents(): Promise<TestComponents> {
+  const currentPort = getFreePort()
+  const defaultConfig = {
+    HTTP_SERVER_PORT: (currentPort + 1).toString(),
+    HTTP_SERVER_HOST: "localhost",
+    MARKETPLACE_SUBGRAPH_URL: "https://some-url.com",
+    RENTALS_SUBGRAPH_URL: "https://some-url.com",
+  }
 
-  const { config } = components
+  const config = await createDotEnvConfigComponent({}, defaultConfig)
+  const cors = {
+    origin: await config.getString("CORS_ORIGIN"),
+    method: await config.getString("CORS_METHOD"),
+  }
+
+  const logs = createTestConsoleLogComponent()
+  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors, compression: {} })
+  const fetcher = await createTestFetchComponent()
+  const metrics = await createMetricsComponent(metricDeclarations, {
+    server,
+    config,
+  })
+  const marketplaceSubgraph = await createSubgraphComponent(
+    { config, logs, fetch: fetcher, metrics },
+    await config.requireString("MARKETPLACE_SUBGRAPH_URL")
+  )
+  const rentalsSubgraph = await createSubgraphComponent(
+    { config, logs, fetch: fetcher, metrics },
+    await config.requireString("RENTALS_SUBGRAPH_URL")
+  )
+  const database = await createPgComponent({ logs, config, metrics })
+  const rentals = createRentalsComponent({
+    logs,
+    database,
+    marketplaceSubgraph,
+    rentalsSubgraph,
+  })
+  const schemaValidator = await createSchemaValidatorComponent()
+  const statusChecks = await createStatusCheckComponent({ server, config })
+  // Mock the start function to avoid connecting to a local database
+  jest.spyOn(database, "start").mockResolvedValue()
 
   return {
-    ...components,
+    config,
+    logs,
+    server,
+    statusChecks,
+    fetch: fetcher,
+    metrics,
+    database,
+    marketplaceSubgraph,
+    rentalsSubgraph,
+    schemaValidator,
+    rentals,
     localFetch: await createLocalFetchCompoment(config),
+  }
+}
+
+export function createTestFetchComponent({ fetch = jest.fn() } = { fetch: jest.fn() }): IFetchComponent {
+  return {
+    fetch,
+  }
+}
+
+export function createTestConsoleLogComponent(
+  { log = jest.fn(), debug = jest.fn(), error = jest.fn(), warn = jest.fn(), info = jest.fn() } = {
+    log: jest.fn(),
+    debug: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  }
+): ILoggerComponent {
+  return {
+    getLogger: () => ({
+      log,
+      debug,
+      error,
+      warn,
+      info,
+    }),
+  }
+}
+
+export function createTestSubgraphComponent({ query = jest.fn() } = { query: jest.fn() }): ISubgraphComponent {
+  return {
+    query,
+  }
+}
+
+export function createTestRentalsComponent(
+  { createRentalListing = jest.fn() } = { createRentalListing: jest.fn() }
+): IRentalsComponent {
+  return {
+    createRentalListing,
+  }
+}
+
+export function createTestDbComponent(
+  { query = jest.fn(), start = jest.fn(), streamQuery = jest.fn(), getPool = jest.fn(), stop = jest.fn() } = {
+    query: jest.fn(),
+    start: jest.fn(),
+    streamQuery: jest.fn(),
+    getPool: jest.fn(),
+    stop: jest.fn(),
+  }
+): IPgComponent {
+  return {
+    start,
+    streamQuery,
+    query,
+    getPool,
+    stop,
   }
 }
