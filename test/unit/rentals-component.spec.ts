@@ -51,7 +51,7 @@ describe("when creating a rental listing", () => {
       rentalContractAddress: "0x0",
       contractAddress: "0x0",
       tokenId: "0",
-      expiration: new Date(Date.now() + 2000000).toISOString(),
+      expiration: Date.now() + 2000000,
       nonces: ["0x0", "0x0", "0x0"],
       periods: [
         {

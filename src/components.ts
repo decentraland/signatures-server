@@ -29,13 +29,14 @@ export async function initComponents(): Promise<AppComponents> {
     {
       migration: {
         databaseUrl: await config.requireString("PG_COMPONENT_PSQL_CONNECTION_STRING"),
-        dir: path.resolve(__dirname, "../migrations"),
+        dir: path.resolve(__dirname, "migrations"),
         migrationsTable: "pgmigrations",
         ignorePattern: ".*\\.map", // avoid sourcemaps
         direction: "up",
       },
     }
   )
+  // const database = {} as any
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
 

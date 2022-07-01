@@ -49,7 +49,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       search_text: dbInsertedRentalListing.search_text,
       network: dbInsertedRentalListing.network,
       chainId: dbInsertedRentalListing.chain_id,
-      expiration: dbInsertedRentalListing.expiration.toISOString(),
+      expiration: dbInsertedRentalListing.expiration.getTime(),
       signature: dbInsertedRentalListing.signature,
       nonces: dbInsertedRentalListing.nonces,
       tokenId: dbInsertedRentalListing.token_id,
@@ -58,8 +58,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: dbInsertedRentalListing.lessor,
       tenant: null,
       status: dbInsertedRentalListing.status,
-      createdAt: dbInsertedRentalListing.created_at.toISOString(),
-      updatedAt: dbInsertedRentalListing.updated_at.toISOString(),
+      createdAt: dbInsertedRentalListing.created_at.getTime(),
+      updatedAt: dbInsertedRentalListing.updated_at.getTime(),
       periods: [
         {
           id: dbInsertedRentalListing.periods[0].id,
@@ -113,7 +113,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         search_text: dbGetRentalListings[0].search_text,
         network: dbGetRentalListings[0].network,
         chainId: dbGetRentalListings[0].chain_id,
-        expiration: dbGetRentalListings[0].expiration.toISOString(),
+        expiration: dbGetRentalListings[0].expiration.getTime(),
         signature: dbGetRentalListings[0].signature,
         nonces: dbGetRentalListings[0].nonces,
         tokenId: dbGetRentalListings[0].token_id,
@@ -122,8 +122,8 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         lessor: dbGetRentalListings[0].lessor,
         tenant: dbGetRentalListings[0].tenant,
         status: dbGetRentalListings[0].status,
-        createdAt: dbGetRentalListings[0].created_at.toISOString(),
-        updatedAt: dbGetRentalListings[0].updated_at.toISOString(),
+        createdAt: dbGetRentalListings[0].created_at.getTime(),
+        updatedAt: dbGetRentalListings[0].updated_at.getTime(),
         periods: [
           {
             id: dbGetRentalListings[0].periods[0][0],
@@ -153,7 +153,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
       search_text: "someText",
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
-      expiration: new Date().toISOString(),
+      expiration: new Date().getTime(),
       signature: "0x0",
       nonces: ["0x0", "0x1", "0x2"],
       tokenId: "1",
@@ -162,8 +162,8 @@ describe("when transforming a rental creation to a contract rental listing", () 
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
       status: Status.OPEN,
-      createdAt: "2022-06-13T22:56:36.755Z",
-      updatedAt: "2022-06-13T22:56:36.755Z",
+      createdAt: 1655160996755,
+      updatedAt: 1655160996755,
       periods: [
         {
           id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",

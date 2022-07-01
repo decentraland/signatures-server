@@ -334,7 +334,7 @@ describe("when getting rental listings", () => {
           search_text: dbRentalListings[0].search_text,
           network: dbRentalListings[0].network,
           chainId: dbRentalListings[0].chain_id,
-          expiration: dbRentalListings[0].expiration.toISOString(),
+          expiration: dbRentalListings[0].expiration.getTime(),
           signature: dbRentalListings[0].signature,
           nonces: dbRentalListings[0].nonces,
           tokenId: dbRentalListings[0].token_id,
@@ -343,8 +343,8 @@ describe("when getting rental listings", () => {
           lessor: dbRentalListings[0].lessor,
           tenant: dbRentalListings[0].tenant,
           status: dbRentalListings[0].status,
-          createdAt: dbRentalListings[0].created_at.toISOString(),
-          updatedAt: dbRentalListings[0].updated_at.toISOString(),
+          createdAt: dbRentalListings[0].created_at.getTime(),
+          updatedAt: dbRentalListings[0].updated_at.getTime(),
           periods: [
             {
               id: dbRentalListings[0].periods[0][0],

@@ -8,7 +8,7 @@ export const RentalCreationSchema: JSONSchemaType<RentalListingCreation> = {
   properties: {
     network: Network.schema as JSONSchemaType<Network>,
     chainId: ChainId.schema as JSONSchemaType<ChainId>,
-    expiration: { type: "string", format: "iso-date-time" },
+    expiration: { type: "number" },
     signature: { type: "string", minLength: 1 },
     tokenId: { type: "string", minLength: 1 },
     nonces: {
