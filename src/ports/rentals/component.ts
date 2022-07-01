@@ -194,9 +194,9 @@ export function createRentalsComponent(
   async function getRentalsListings(params: {
     sortBy: RentalsListingsSortBy | null
     sortDirection: SortDirection | null
+    filterBy: FilterBy | null
     page: number
     limit: number
-    filterBy: FilterBy | null
   }): Promise<DBGetRentalListing[]> {
     const { sortBy, page, limit, filterBy, sortDirection } = params
 
@@ -210,7 +210,7 @@ export function createRentalsComponent(
     const filterBySearchText = filterBy?.text ? SQL`AND metadata.search_text ILIKE %${filterBy.text}%` : SQL``
     // TODO: Do period filtering by time and price
 
-    let sortByQuery: SQLStatement
+    let sortByQuery: SQLStatement = SQL`ORDER BY rentals.created_at`
     switch (sortByParam) {
       case RentalsListingsSortBy.NAME:
         sortByQuery = SQL`ORDER BY metadata.search_text`
@@ -222,11 +222,8 @@ export function createRentalsComponent(
         // TODO: check how is it returned after the query.
         sortByQuery = SQL`ORDER BY periods.price_per_day`
         break
-      default:
-        sortByQuery = SQL`ORDER BY rentals.created_at`
-        break
     }
-    sortByQuery = sortByQuery && sortByQuery.sql !== "" ? sortByQuery.append(" " + sortDirectionParam) : sortByQuery
+    sortByQuery = sortByQuery.append(` ${sortDirectionParam}`)
 
     const results = await database.query<DBGetRentalListing>(
       SQL`SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at,
