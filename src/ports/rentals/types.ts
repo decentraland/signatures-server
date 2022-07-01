@@ -7,8 +7,8 @@ export type IRentalsComponent = {
 export type RentalListingCreation = {
   network: Network
   chainId: ChainId
-  /** ISO date of the signature's expiration */
-  expiration: string
+  /** UTC timestamp in milliseconds since epoch of the signature's expiration */
+  expiration: number
   signature: string
   tokenId: string
   contractAddress: string

@@ -48,7 +48,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       search_text: dbRentalListing.search_text,
       network: dbRentalListing.network,
       chainId: dbRentalListing.chain_id,
-      expiration: dbRentalListing.expiration.toISOString(),
+      expiration: dbRentalListing.expiration.getTime(),
       signature: dbRentalListing.signature,
       nonces: dbRentalListing.nonces,
       tokenId: dbRentalListing.token_id,
@@ -57,8 +57,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       lessor: dbRentalListing.lessor,
       tenant: null,
       status: dbRentalListing.status,
-      createdAt: dbRentalListing.created_at.toISOString(),
-      updatedAt: dbRentalListing.updated_at.toISOString(),
+      createdAt: dbRentalListing.created_at.getTime(),
+      updatedAt: dbRentalListing.updated_at.getTime(),
       periods: [
         {
           id: dbRentalListing.periods[0].id,
@@ -87,7 +87,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
       search_text: "someText",
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
-      expiration: new Date().toISOString(),
+      expiration: new Date().getTime(),
       signature: "0x0",
       nonces: ["0x0", "0x1", "0x2"],
       tokenId: "1",
@@ -96,8 +96,8 @@ describe("when transforming a rental creation to a contract rental listing", () 
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
       status: Status.OPEN,
-      createdAt: "2022-06-13T22:56:36.755Z",
-      updatedAt: "2022-06-13T22:56:36.755Z",
+      createdAt: 1655160996755,
+      updatedAt: 1655160996755,
       periods: [
         {
           id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",

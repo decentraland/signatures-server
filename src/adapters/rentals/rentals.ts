@@ -10,7 +10,7 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     search_text: DBRental.search_text,
     network: DBRental.network,
     chainId: DBRental.chain_id,
-    expiration: DBRental.expiration.toISOString(),
+    expiration: DBRental.expiration.getTime(),
     signature: DBRental.signature,
     nonces: DBRental.nonces,
     tokenId: DBRental.token_id,
@@ -19,8 +19,8 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     lessor: DBRental.lessor,
     tenant: DBRental.tenant,
     status: DBRental.status,
-    createdAt: DBRental.created_at.toISOString(),
-    updatedAt: DBRental.updated_at.toISOString(),
+    createdAt: DBRental.created_at.getTime(),
+    updatedAt: DBRental.updated_at.getTime(),
     periods: DBRental.periods.map(fromDBPeriodToPeriod),
   }
 }
