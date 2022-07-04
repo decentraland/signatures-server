@@ -57,6 +57,7 @@ export type DBRental = {
   status: Status
   created_at: Date
   updated_at: Date
+  started_at: Date | null
 }
 
 export type DBRentalListing = {
@@ -82,7 +83,7 @@ export type DBGetRentalListing = DBRental &
     rentals_listings_count: string
   }
 export type DBInsertedRentalListing = DBRental &
-  DBRentalListing & { periods: DBPeriods[] } & Pick<DBMetadata, "category" | "search_text">
+  DBRentalListing & { periods: Omit<DBPeriods, "id">[] } & Pick<DBMetadata, "category" | "search_text">
 
 export type NFT = {
   /** The id of the NFT */
@@ -129,10 +130,18 @@ export enum SortDirection {
 }
 
 export enum RentalsListingsSortBy {
-  RENTAL_PRICE = "rental_price",
+  /** Order by created at of the listing's metadata */
+  LAND_CREATION_DATE = "land_creation_date",
+  /** Order by created at of the listing */
   RENTAL_LISTING_DATE = "rental_listing_date",
+  /** Order by rented at of the listing */
   RENTAL_DATE = "rented_date",
+  /** Order by search text of the listing's metadata */
   NAME = "name",
+  /** Order by maximum rental price per day of the listing */
+  MAX_RENTAL_PRICE = "max_rental_price",
+  /** Order by minimum rental price per day of the listing */
+  MIN_RENTAL_PRICE = "min_rental_price",
 }
 
 export type BlockchainRental = {

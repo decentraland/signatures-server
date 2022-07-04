@@ -203,45 +203,52 @@ export function createRentalsComponent(
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? SortDirection.ASC
 
-    const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}` : SQL``
-    const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}` : SQL``
-    const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}` : SQL``
-    const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}` : SQL``
-    const filterBySearchText = filterBy?.text ? SQL`AND metadata.search_text ILIKE %${filterBy.text}%` : SQL``
-    // TODO: Do period filtering by time and price
+    const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}\n` : ""
+    const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}\n` : ""
+    const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
+    const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
+    const filterBySearchText = filterBy?.text
+      ? SQL`AND metadata.search_text ILIKE '%' || ${filterBy.text} || '%'\n`
+      : ""
 
-    let sortByQuery: SQLStatement = SQL`ORDER BY rentals.created_at`
+    let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
     switch (sortByParam) {
+      case RentalsListingsSortBy.LAND_CREATION_DATE:
+        sortByQuery = `ORDER BY metadata.created_at ${sortDirectionParam}\n`
+        break
       case RentalsListingsSortBy.NAME:
-        sortByQuery = SQL`ORDER BY metadata.search_text`
+        sortByQuery = `ORDER BY metadata.search_text ${sortDirectionParam}\n`
         break
       case RentalsListingsSortBy.RENTAL_LISTING_DATE:
-        sortByQuery = SQL`ORDER BY rentals.created_at`
+        sortByQuery = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
         break
-      case RentalsListingsSortBy.RENTAL_PRICE:
-        // TODO: check how is it returned after the query.
-        sortByQuery = SQL`ORDER BY periods.price_per_day`
+      case RentalsListingsSortBy.MAX_RENTAL_PRICE:
+        sortByQuery = `ORDER BY rentals.max_price_per_day ${sortDirectionParam}\n`
+        break
+      case RentalsListingsSortBy.MIN_RENTAL_PRICE:
+        sortByQuery = `ORDER BY rentals.min_price_per_day ${sortDirectionParam}\n`
         break
     }
-    sortByQuery = sortByQuery.append(` ${sortDirectionParam}`)
 
-    const results = await database.query<DBGetRentalListing>(
-      SQL`SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at,
-      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.id, periods.min_days, periods.max_days, periods.price_per_day] ORDER BY min_days, max_days) as periods
-      FROM rentals, rentals_listings, metadata, periods WHERE  
+    let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata,
+      (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor,
+      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days, periods.max_days, periods.price_per_day] ORDER BY periods.id) as periods,
+      min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
+      FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
-      metadata.id = rentals.metadata_id AND
-      periods.rental_id = rentals.id
-      ${filterByCategory}
-      ${filterByStatus}
-      ${filterByLessor}
-      ${filterByTenant}
-      ${filterBySearchText}
-      ${sortByQuery}
-      GROUP BY rentals.id, rentals_listings.id, metadata.id
-      LIMIT ${limit} OFFSET ${page}`
+      periods.rental_id = rentals.id\n`
+    query.append(filterByCategory)
+    query.append(filterByStatus)
+    query.append(filterByLessor)
+    query.append(filterByTenant)
+    query.append(
+      SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id LIMIT ${limit} OFFSET ${page}) as rentals\n`
     )
+    query.append("WHERE metadata.id = rentals.metadata_id\n")
+    query.append(filterBySearchText)
+    query.append(sortByQuery)
 
+    const results = await database.query<DBGetRentalListing>(query)
     return results.rows
   }
 

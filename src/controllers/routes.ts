@@ -3,7 +3,7 @@ import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { RentalCreationSchema } from "../ports/rentals"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"
-import { rentalsListingsCreationHandler } from "./handlers/rentals-handlers"
+import { getRentalsListingsHandler, rentalsListingsCreationHandler } from "./handlers/rentals-handlers"
 
 // We return the entire router because it will be easier to test than a whole server
 export async function setupRouter(
@@ -19,6 +19,7 @@ export async function setupRouter(
     components.schemaValidator.withSchemaValidatorMiddleware(RentalCreationSchema),
     rentalsListingsCreationHandler
   )
+  router.get("/rentals-listings", getRentalsListingsHandler)
 
   return router
 }

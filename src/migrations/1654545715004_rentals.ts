@@ -30,6 +30,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     status: { type: "status", notNull: true, default: "open" },
     created_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
+    rented_at: { type: "timestamp", notNull: false },
   })
 
   pgm.createTable("rentals_offers", {

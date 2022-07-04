@@ -176,9 +176,9 @@ describe("when creating a new rental listing", () => {
         status: Status.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
+        started_at: null,
         periods: [
           {
-            id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
             min_days: 0,
             max_days: 30,
             price_per_day: "1000000",
@@ -322,6 +322,7 @@ describe("when getting rental listings", () => {
           status: Status.OPEN,
           created_at: new Date("2022-06-13T22:56:36.755Z"),
           updated_at: new Date("2022-06-13T22:56:36.755Z"),
+          started_at: null,
           periods: [["anId", 30, 50, "1000000000"]],
           metadata_created_at: new Date(),
           rentals_listings_count: "1",
@@ -345,9 +346,9 @@ describe("when getting rental listings", () => {
           status: dbRentalListings[0].status,
           createdAt: dbRentalListings[0].created_at.getTime(),
           updatedAt: dbRentalListings[0].updated_at.getTime(),
+          startedAt: null,
           periods: [
             {
-              id: dbRentalListings[0].periods[0][0],
               minDays: dbRentalListings[0].periods[0][1],
               maxDays: dbRentalListings[0].periods[0][2],
               pricePerDay: dbRentalListings[0].periods[0][3],
@@ -361,12 +362,15 @@ describe("when getting rental listings", () => {
     it("should return a response with an ok status code and the listings", () => {
       return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
         status: StatusCode.OK,
-        data: {
-          results: rentalListings,
-          total: 1,
-          page: 0,
-          pages: 1,
-          limit: 50,
+        body: {
+          ok: true,
+          data: {
+            results: rentalListings,
+            total: 1,
+            page: 0,
+            pages: 1,
+            limit: 50,
+          },
         },
       })
     })

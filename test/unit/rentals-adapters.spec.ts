@@ -33,9 +33,9 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       status: Status.OPEN,
       created_at: new Date("2022-06-13T22:56:36.755Z"),
       updated_at: new Date("2022-06-13T22:56:36.755Z"),
+      started_at: null,
       periods: [
         {
-          id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
           min_days: 0,
           max_days: 30,
           price_per_day: "1000000",
@@ -60,9 +60,9 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       status: dbInsertedRentalListing.status,
       createdAt: dbInsertedRentalListing.created_at.getTime(),
       updatedAt: dbInsertedRentalListing.updated_at.getTime(),
+      startedAt: null,
       periods: [
         {
-          id: dbInsertedRentalListing.periods[0].id,
           minDays: dbInsertedRentalListing.periods[0].min_days,
           maxDays: dbInsertedRentalListing.periods[0].max_days,
           pricePerDay: dbInsertedRentalListing.periods[0].price_per_day,
@@ -100,6 +100,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         status: Status.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
+        started_at: new Date("2022-06-14T22:56:36.755Z"),
         periods: [["anId", 30, 50, "1000000000"]],
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
@@ -124,9 +125,9 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         status: dbGetRentalListings[0].status,
         createdAt: dbGetRentalListings[0].created_at.getTime(),
         updatedAt: dbGetRentalListings[0].updated_at.getTime(),
+        startedAt: dbGetRentalListings[0].started_at!.getTime(),
         periods: [
           {
-            id: dbGetRentalListings[0].periods[0][0],
             minDays: dbGetRentalListings[0].periods[0][1],
             maxDays: dbGetRentalListings[0].periods[0][2],
             pricePerDay: dbGetRentalListings[0].periods[0][3],
@@ -164,9 +165,9 @@ describe("when transforming a rental creation to a contract rental listing", () 
       status: Status.OPEN,
       createdAt: 1655160996755,
       updatedAt: 1655160996755,
+      startedAt: null,
       periods: [
         {
-          id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
           minDays: 0,
           maxDays: 30,
           pricePerDay: "1000000",

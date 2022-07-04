@@ -21,13 +21,13 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     status: DBRental.status,
     createdAt: DBRental.created_at.getTime(),
     updatedAt: DBRental.updated_at.getTime(),
+    startedAt: DBRental.started_at ? DBRental.started_at.getTime() : null,
     periods: DBRental.periods.map(fromDBPeriodToPeriod),
   }
 }
 
-function fromDBPeriodToPeriod(DBPeriod: DBPeriods): Period {
+function fromDBPeriodToPeriod(DBPeriod: Omit<DBPeriods, "id">): Period {
   return {
-    id: DBPeriod.id,
     minDays: DBPeriod.min_days,
     maxDays: DBPeriod.max_days,
     pricePerDay: DBPeriod.price_per_day,
@@ -69,8 +69,8 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
     status: rental.status,
     createdAt: rental.created_at.getTime(),
     updatedAt: rental.updated_at.getTime(),
+    startedAt: rental.started_at ? rental.started_at.getTime() : null,
     periods: rental.periods.map((period) => ({
-      id: period[0],
       minDays: period[1],
       maxDays: period[2],
       pricePerDay: period[3],

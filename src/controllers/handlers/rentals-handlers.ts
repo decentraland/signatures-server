@@ -37,12 +37,15 @@ export async function getRentalsListingsHandler(
     const rentalListings = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
     return {
       status: StatusCode.OK,
-      data: {
-        results: fromDBGetRentalsListingsToRentalListings(rentalListings),
-        total: rentalListings.length > 0 ? Number(rentalListings[0].rentals_listings_count) : 0,
-        page,
-        pages: rentalListings.length > 0 ? Math.ceil(Number(rentalListings[0].rentals_listings_count) / limit) : 0,
-        limit,
+      body: {
+        ok: true,
+        data: {
+          results: fromDBGetRentalsListingsToRentalListings(rentalListings),
+          total: rentalListings.length > 0 ? Number(rentalListings[0].rentals_listings_count) : 0,
+          page,
+          pages: rentalListings.length > 0 ? Math.ceil(Number(rentalListings[0].rentals_listings_count) / limit) : 0,
+          limit,
+        },
       },
     }
   } catch (error) {

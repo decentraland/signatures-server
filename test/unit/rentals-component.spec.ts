@@ -335,13 +335,6 @@ describe("when creating a rental listing", () => {
 describe("when getting rental listings", () => {
   let dbGetRentalListings: DBGetRentalListing[]
 
-  function buildSQLEscapedValue(queryText: string[], values: any[]) {
-    return {
-      strings: queryText,
-      values,
-    }
-  }
-
   beforeEach(() => {
     dbQueryMock = jest.fn()
     database = createTestDbComponent({ query: dbQueryMock })
@@ -385,9 +378,8 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["AND category = ", ""], ["land"])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND category = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["land", 10, 0])
     })
   })
 
@@ -410,9 +402,8 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["AND rentals.status = ", ""], [Status.EXECUTED])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([Status.EXECUTED, 10, 0])
     })
   })
 
@@ -435,9 +426,8 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["AND rentals_listings.lessor = ", ""], ["0x0"])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals_listings.lessor = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["0x0", 10, 0])
     })
   })
 
@@ -460,9 +450,8 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["AND rentals_listings.tenant = ", ""], ["0x0"])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals_listings.tenant = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["0x0", 10, 0])
     })
   })
 
@@ -485,9 +474,10 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["AND metadata.search_text ILIKE %", "%"], ["someText"])
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("AND metadata.search_text ILIKE '%' || ")
       )
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([10, 0, "someText"])
     })
   })
 
@@ -508,17 +498,11 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).not.toContainEqual(
-        expect.objectContaining({
-          string: expect.arrayContaining([
-            "AND rentals_listings.lessor = ",
-            "AND rentals_listings.tenant = ",
-            "AND rentals.status = ",
-            "AND rentals_listings.lessor = ",
-            "AND metadata.search_text ILIKE %",
-          ]),
-        })
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.tenant = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals.status = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND metadata.search_text ILIKE %"))
     })
   })
 
@@ -539,9 +523,7 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["ORDER BY rentals.created_at asc"], [])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at asc"))
     })
   })
 
@@ -562,9 +544,7 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["ORDER BY rentals.created_at desc"], [])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at desc"))
     })
   })
 
@@ -585,9 +565,7 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["ORDER BY metadata.search_text asc"], [])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY metadata.search_text asc"))
     })
   })
 
@@ -608,31 +586,52 @@ describe("when getting rental listings", () => {
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["ORDER BY rentals.created_at asc"], [])
-      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at asc"))
     })
   })
 
-  describe("and the order is set to the rental listing price", () => {
+  describe("and the order is set to the max rental listing price", () => {
     beforeEach(() => {
       dbGetRentalListings = []
       dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
     })
 
-    it("should include the price_per_day order in the query", async () => {
+    it("should include the max_price_per_day order in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
           page: 0,
           limit: 10,
-          sortBy: RentalsListingsSortBy.RENTAL_PRICE,
+          sortBy: RentalsListingsSortBy.MAX_RENTAL_PRICE,
           sortDirection: null,
           filterBy: null,
         })
       ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].values).toContainEqual(
-        buildSQLEscapedValue(["ORDER BY periods.price_per_day asc"], [])
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("ORDER BY rentals.max_price_per_day asc")
+      )
+    })
+  })
+
+  describe("and the order is set to the min rental listing price", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the min_price_per_day order in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: RentalsListingsSortBy.MIN_RENTAL_PRICE,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("ORDER BY rentals.min_price_per_day asc")
       )
     })
   })
