@@ -1,4 +1,4 @@
-import SQL from "sql-template-strings"
+import SQL, { SQLStatement } from "sql-template-strings"
 import { ethers } from "ethers"
 import {
   fromRentalCreationToContractRentalListing,
@@ -17,6 +17,10 @@ import {
   DBRental,
   DBPeriods,
   DBInsertedRentalListing,
+  RentalsListingsSortBy,
+  FilterBy,
+  SortDirection,
+  DBGetRentalListing,
   BlockchainRental,
   DBMetadata,
 } from "./types"
@@ -227,6 +231,67 @@ export function createRentalsComponent(
     }
   }
 
+  async function getRentalsListings(params: {
+    sortBy: RentalsListingsSortBy | null
+    sortDirection: SortDirection | null
+    filterBy: FilterBy | null
+    page: number
+    limit: number
+  }): Promise<DBGetRentalListing[]> {
+    const { sortBy, page, limit, filterBy, sortDirection } = params
+
+    const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
+    const sortDirectionParam = sortDirection ?? SortDirection.ASC
+
+    const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}\n` : ""
+    const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}\n` : ""
+    const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
+    const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
+    const filterBySearchText = filterBy?.text
+      ? SQL`AND metadata.search_text ILIKE '%' || ${filterBy.text} || '%'\n`
+      : ""
+
+    let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
+    switch (sortByParam) {
+      case RentalsListingsSortBy.LAND_CREATION_DATE:
+        sortByQuery = `ORDER BY metadata.created_at ${sortDirectionParam}\n`
+        break
+      case RentalsListingsSortBy.NAME:
+        sortByQuery = `ORDER BY metadata.search_text ${sortDirectionParam}\n`
+        break
+      case RentalsListingsSortBy.RENTAL_LISTING_DATE:
+        sortByQuery = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
+        break
+      case RentalsListingsSortBy.MAX_RENTAL_PRICE:
+        sortByQuery = `ORDER BY rentals.max_price_per_day ${sortDirectionParam}\n`
+        break
+      case RentalsListingsSortBy.MIN_RENTAL_PRICE:
+        sortByQuery = `ORDER BY rentals.min_price_per_day ${sortDirectionParam}\n`
+        break
+    }
+
+    let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata,
+      (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor,
+      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days, periods.max_days, periods.price_per_day] ORDER BY periods.id) as periods,
+      min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
+      FROM rentals, rentals_listings, periods WHERE  
+      rentals.id = rentals_listings.id AND
+      periods.rental_id = rentals.id\n`
+    query.append(filterByCategory)
+    query.append(filterByStatus)
+    query.append(filterByLessor)
+    query.append(filterByTenant)
+    query.append(
+      SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id LIMIT ${limit} OFFSET ${page}) as rentals\n`
+    )
+    query.append("WHERE metadata.id = rentals.metadata_id\n")
+    query.append(filterBySearchText)
+    query.append(sortByQuery)
+
+    const results = await database.query<DBGetRentalListing>(query)
+    return results.rows
+  }
+
   async function refreshRentalListing(rentalId: string) {
     const rentalQueryResult = await database.query<{
       id: string
@@ -268,5 +333,6 @@ export function createRentalsComponent(
   return {
     createRentalListing,
     refreshRentalListing,
+    getRentalsListings,
   }
 }

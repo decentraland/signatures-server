@@ -3,6 +3,13 @@ import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
   refreshRentalListing(rentalId: string): Promise<void>
+  getRentalsListings(params: {
+    sortBy: RentalsListingsSortBy | null
+    sortDirection: SortDirection | null
+    page: number
+    limit: number
+    filterBy: FilterBy | null
+  }): Promise<DBGetRentalListing[]>
 }
 
 export type RentalListingCreation = {
@@ -51,6 +58,7 @@ export type DBRental = {
   status: Status
   created_at: Date
   updated_at: Date
+  started_at: Date | null
 }
 
 export type DBRentalListing = {
@@ -67,8 +75,16 @@ export type DBPeriods = {
   rental_id: string
 }
 
+export type DBGetRentalListing = DBRental &
+  DBRentalListing &
+  DBMetadata & {
+    /** An array containing [id, min_days, max_days, price_per_day] */
+    periods: [string, number, number, string][]
+    metadata_created_at: Date
+    rentals_listings_count: string
+  }
 export type DBInsertedRentalListing = DBRental &
-  DBRentalListing & { periods: DBPeriods[] } & Pick<DBMetadata, "category" | "search_text">
+  DBRentalListing & { periods: Omit<DBPeriods, "id">[] } & Pick<DBMetadata, "category" | "search_text">
 
 export type NFT = {
   /** The id of the NFT */
@@ -87,6 +103,46 @@ export type NFT = {
   createdAt: string
   /** Timestamp when the NFT was updated for the last time in seconds since epoch */
   updatedAt: string
+}
+
+export enum FilterByCategory {
+  LAND = "land",
+  ESTATE = "estate",
+}
+
+export type FilterByPeriod = {
+  minDays: number
+  maxDays: number
+  pricePerDay?: number
+}
+
+export type FilterBy = {
+  category?: FilterByCategory
+  text?: string
+  status?: Status
+  periods?: FilterByPeriod
+  lessor?: string
+  tenant?: string
+}
+
+export enum SortDirection {
+  ASC = "asc",
+  DESC = "desc",
+}
+
+export enum RentalsListingsSortBy {
+  /** Order by created at of the listing's metadata */
+  LAND_CREATION_DATE = "land_creation_date",
+  /** Order by created at of the listing */
+  RENTAL_LISTING_DATE = "rental_listing_date",
+  /** Order by rented at of the listing */
+  RENTAL_DATE = "rented_date",
+  /** Order by search text of the listing's metadata */
+  NAME = "name",
+  /** Order by maximum rental price per day of the listing */
+  MAX_RENTAL_PRICE = "max_rental_price",
+  /** Order by minimum rental price per day of the listing */
+  MIN_RENTAL_PRICE = "min_rental_price",
 }
 
 export type BlockchainRental = {

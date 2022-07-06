@@ -1,8 +1,12 @@
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental, RentalListing } from "../../src/adapters/rentals"
-import { rentalsListingsCreationHandler } from "../../src/controllers/handlers/rentals-handlers"
 import {
+  getRentalsListingsHandler,
+  rentalsListingsCreationHandler,
+} from "../../src/controllers/handlers/rentals-handlers"
+import {
+  DBGetRentalListing,
   DBInsertedRentalListing,
   NFTNotFound,
   RentalAlreadyExists,
@@ -172,9 +176,9 @@ describe("when creating a new rental listing", () => {
         status: Status.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
+        started_at: null,
         periods: [
           {
-            id: "b0c2a829-0abb-4452-89f1-194b2b0c4706",
             min_days: 0,
             max_days: 30,
             price_per_day: "1000000",
@@ -196,6 +200,177 @@ describe("when creating a new rental listing", () => {
         body: {
           ok: true,
           data: returnedListing,
+        },
+      })
+    })
+  })
+})
+
+describe("when getting rental listings", () => {
+  let url: URL
+  let components: Pick<AppComponents, "rentals">
+  let getRentalsListingsMock: jest.Mock
+
+  beforeEach(() => {
+    getRentalsListingsMock = jest.fn()
+    components = {
+      rentals: createTestRentalsComponent({ getRentalsListings: getRentalsListingsMock }),
+    }
+  })
+
+  describe("and the request was done with a sort by that doesn't match the ones available", () => {
+    const wrongValue = "SomeWrongValue"
+    beforeEach(() => {
+      url = new URL(`http://localhost/rental-listing?sortBy=${wrongValue}`)
+    })
+
+    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: `The value of the sortBy parameter is invalid: ${wrongValue}`,
+        },
+      })
+    })
+  })
+
+  describe("and the request was done with a sort direction that doesn't match the ones available", () => {
+    const wrongValue = "SomeWrongValue"
+    beforeEach(() => {
+      url = new URL(`http://localhost/rental-listing?sortDirection=${wrongValue}`)
+    })
+
+    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: `The value of the sortDirection parameter is invalid: ${wrongValue}`,
+        },
+      })
+    })
+  })
+
+  describe("and the request was done with a category filter that doesn't match the ones available", () => {
+    const wrongValue = "SomeWrongValue"
+    beforeEach(() => {
+      url = new URL(`http://localhost/rental-listing?category=${wrongValue}`)
+    })
+
+    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: `The value of the category parameter is invalid: ${wrongValue}`,
+        },
+      })
+    })
+  })
+
+  describe("and the request was done with a status filter that doesn't match the ones available", () => {
+    const wrongValue = "SomeWrongValue"
+    beforeEach(() => {
+      url = new URL(`http://localhost/rental-listing?status=${wrongValue}`)
+    })
+
+    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: `The value of the status parameter is invalid: ${wrongValue}`,
+        },
+      })
+    })
+  })
+
+  describe("and the process to get the listings fails with an unknown error", () => {
+    const errorMessage = "Something wrong happened"
+    beforeEach(() => {
+      url = new URL("http://localhost/rental-listing")
+      getRentalsListingsMock.mockRejectedValueOnce(new Error(errorMessage))
+    })
+
+    it("should propagate the error", () => {
+      return expect(getRentalsListingsHandler({ components, url })).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and the process to get the listing is successful", () => {
+    let dbRentalListings: DBGetRentalListing[]
+    let rentalListings: RentalListing[]
+
+    beforeEach(() => {
+      dbRentalListings = [
+        {
+          id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+          category: NFTCategory.PARCEL,
+          search_text: "someText",
+          metadata_id: "someId",
+          network: Network.ETHEREUM,
+          chain_id: ChainId.ETHEREUM_GOERLI,
+          expiration: new Date(),
+          signature: "0x0",
+          nonces: ["0x0", "0x1", "0x2"],
+          token_id: "1",
+          contract_address: "0x959e104e1a4db6317fa58f8295f586e1a978c297",
+          rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
+          lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
+          tenant: null,
+          status: Status.OPEN,
+          created_at: new Date("2022-06-13T22:56:36.755Z"),
+          updated_at: new Date("2022-06-13T22:56:36.755Z"),
+          started_at: null,
+          periods: [["anId", 30, 50, "1000000000"]],
+          metadata_created_at: new Date(),
+          rentals_listings_count: "1",
+        },
+      ]
+      rentalListings = [
+        {
+          id: dbRentalListings[0].id,
+          category: dbRentalListings[0].category,
+          search_text: dbRentalListings[0].search_text,
+          network: dbRentalListings[0].network,
+          chainId: dbRentalListings[0].chain_id,
+          expiration: dbRentalListings[0].expiration.getTime(),
+          signature: dbRentalListings[0].signature,
+          nonces: dbRentalListings[0].nonces,
+          tokenId: dbRentalListings[0].token_id,
+          contractAddress: dbRentalListings[0].contract_address,
+          rentalContractAddress: dbRentalListings[0].rental_contract_address,
+          lessor: dbRentalListings[0].lessor,
+          tenant: dbRentalListings[0].tenant,
+          status: dbRentalListings[0].status,
+          createdAt: dbRentalListings[0].created_at.getTime(),
+          updatedAt: dbRentalListings[0].updated_at.getTime(),
+          startedAt: null,
+          periods: [
+            {
+              minDays: dbRentalListings[0].periods[0][1],
+              maxDays: dbRentalListings[0].periods[0][2],
+              pricePerDay: dbRentalListings[0].periods[0][3],
+            },
+          ],
+        },
+      ]
+      getRentalsListingsMock.mockResolvedValueOnce(dbRentalListings)
+    })
+
+    it("should return a response with an ok status code and the listings", () => {
+      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.OK,
+        body: {
+          ok: true,
+          data: {
+            results: rentalListings,
+            total: 1,
+            page: 0,
+            pages: 1,
+            limit: 50,
+          },
         },
       })
     })

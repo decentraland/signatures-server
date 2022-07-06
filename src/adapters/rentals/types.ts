@@ -21,11 +21,12 @@ export type RentalListing = {
   createdAt: number
   /** UTC timestamp in milliseconds since epoch of the time the signature was updated */
   updatedAt: number
+  /** UTC timestamp in milliseconds since epoch of the time the rental started */
+  startedAt: number | null
   periods: Period[]
 }
 
 export type Period = {
-  id: string
   minDays: number
   maxDays: number
   pricePerDay: string
