@@ -7,11 +7,15 @@ import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as rentalsLogic from "../../src/logic/rentals"
 import {
   createRentalsComponent,
+  DBGetRentalListing,
+  FilterByCategory,
   InvalidSignature,
   IRentalsComponent,
   NFTNotFound,
   RentalAlreadyExists,
   RentalListingCreation,
+  RentalsListingsSortBy,
+  SortDirection,
   Status,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
@@ -324,6 +328,311 @@ describe("when creating a rental listing", () => {
         rental_contract_address: rentalListingCreation.rentalContractAddress,
         status: Status.OPEN,
       })
+    })
+  })
+})
+
+describe("when getting rental listings", () => {
+  let dbGetRentalListings: DBGetRentalListing[]
+
+  beforeEach(() => {
+    dbQueryMock = jest.fn()
+    database = createTestDbComponent({ query: dbQueryMock })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+  })
+
+  describe("and the query throws an error", () => {
+    const errorMessage = "Something went wrong while querying the database"
+    beforeEach(() => {
+      dbQueryMock.mockRejectedValueOnce(new Error("Something went wrong while querying the database"))
+    })
+
+    it("should propagate the error", () => {
+      expect(
+        rentalsComponent.getRentalsListings({ page: 0, limit: 10, sortBy: null, sortDirection: null, filterBy: null })
+      ).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and the category filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the category condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            category: FilterByCategory.LAND,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND category = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["land", 10, 0])
+    })
+  })
+
+  describe("and the status filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the status condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            status: Status.EXECUTED,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([Status.EXECUTED, 10, 0])
+    })
+  })
+
+  describe("and the lessor filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the lessor condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            lessor: "0x0",
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals_listings.lessor = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["0x0", 10, 0])
+    })
+  })
+
+  describe("and the tenant filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the tenant condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            tenant: "0x0",
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals_listings.tenant = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["0x0", 10, 0])
+    })
+  })
+
+  describe("and the text filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the text condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            text: "someText",
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("AND metadata.search_text ILIKE '%' || ")
+      )
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([10, 0, "someText"])
+    })
+  })
+
+  describe("and there are no filters to query for", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should not include any filters in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.tenant = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals.status = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND metadata.search_text ILIKE %"))
+    })
+  })
+
+  describe("and there's no order nor order direction specified", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the default order and order direction in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at asc"))
+    })
+  })
+
+  describe("and there's no order specified but there's order direction", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the default order and the specified order direction in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: SortDirection.DESC,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at desc"))
+    })
+  })
+
+  describe("and the order is set to name", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the search by text order in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: RentalsListingsSortBy.NAME,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY metadata.search_text asc"))
+    })
+  })
+
+  describe("and the order is set to the rental listing creation date", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the created_at order in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: RentalsListingsSortBy.RENTAL_LISTING_DATE,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("ORDER BY rentals.created_at asc"))
+    })
+  })
+
+  describe("and the order is set to the max rental listing price", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the max_price_per_day order in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: RentalsListingsSortBy.MAX_RENTAL_PRICE,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("ORDER BY rentals.max_price_per_day asc")
+      )
+    })
+  })
+
+  describe("and the order is set to the min rental listing price", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should include the min_price_per_day order in the query", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: RentalsListingsSortBy.MIN_RENTAL_PRICE,
+          sortDirection: null,
+          filterBy: null,
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining("ORDER BY rentals.min_price_per_day asc")
+      )
     })
   })
 })
