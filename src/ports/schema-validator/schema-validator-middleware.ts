@@ -1,11 +1,15 @@
 import { IHttpServerComponent } from "@well-known-components/interfaces"
 import { Schema } from "ajv"
+import { randomUUID } from "crypto"
 import { Context, StatusCode } from "../../types"
-import { validateSchema } from "./schema-validator"
+import { addSchema, validateSchema } from "./schema-validator"
 import { ISchemaValidatorComponent } from "./types"
 
 export function createSchemaValidatorComponent(): ISchemaValidatorComponent {
   function withSchemaValidatorMiddleware(schema: Schema): IHttpServerComponent.IRequestHandler<Context<string>> {
+    const schemaId = randomUUID()
+    addSchema(schema, schemaId)
+
     return async (context, next): Promise<IHttpServerComponent.IResponse> => {
       if (context.request.headers.get("Content-Type") !== "application/json") {
         return {
@@ -31,7 +35,7 @@ export function createSchemaValidatorComponent(): ISchemaValidatorComponent {
         }
       }
 
-      const validation = validateSchema(schema, data)
+      const validation = validateSchema(schemaId, data)
 
       if (!validation.valid) {
         return {
