@@ -58,12 +58,47 @@ export function createRentalsComponent(
     return queryResult.nfts[0] ?? null
   }
 
-  async function getLastBlockchainRental(contractAddress: string, tokenId: string): Promise<BlockchainRental | null> {
+  async function getBlockchainRentals(options?: {
+    filterBy?: Partial<BlockchainRental>
+    firsts?: number
+    orderBy?: keyof BlockchainRental
+    orderDirection?: "desc" | "asc"
+  }): Promise<BlockchainRental[]> {
+    let querySignature = ""
+    let queryVariables = ""
+
+    if (options?.firsts) {
+      querySignature += `firsts: ${options.firsts} `
+    }
+    if (options?.orderBy) {
+      querySignature += `orderBy: ${options.orderBy} `
+    }
+    if (options?.orderDirection) {
+      querySignature += `orderDirection: ${options.orderDirection} `
+    }
+    if (options?.filterBy) {
+      querySignature += `where: { ${Object.keys(options.filterBy).reduce((acc, key) => `${acc} ${key}: $${key}`, "")} }`
+      queryVariables += Object.entries(options.filterBy).reduce((acc, [key, value]) => {
+        let type: string
+        if (typeof value === "string") {
+          type = "String"
+        } else if (typeof value === "number") {
+          type = "Int"
+        } else if (typeof value === "boolean") {
+          type = "Boolean"
+        } else {
+          throw new Error("Can't parse filter by type")
+        }
+
+        return `${acc} $${key}: ${type}`
+      }, "")
+    }
+
     const queryResult = await rentalsSubgraph.query<{
       rentals: BlockchainRental[]
     }>(
-      `query RentalByContractAddressAndTokenId($contractAddress: String, $tokenId: String) {
-        rentals(first: 1 orderBy: startedAt orderDirection: desc where: { tokenId: $tokenId, contractAddress: $contractAddress }) {
+      `query RentalByContractAddressAndTokenId(${queryVariables}) {
+        rentals(${querySignature}) {
           id,
           contractAddress,
           tokenId,
@@ -77,13 +112,10 @@ export function createRentalsComponent(
           ownerHasClaimedAsset
         }
       }`,
-      {
-        contractAddress: contractAddress,
-        tokenId: tokenId,
-      }
+      options?.filterBy
     )
 
-    return queryResult.rentals[0] ?? null
+    return queryResult.rentals
   }
 
   async function createRentalListing(
@@ -105,8 +137,16 @@ export function createRentalsComponent(
     }
 
     // Verify that there's no open rental in the contract
-    const blockChainRental = await getLastBlockchainRental(rental.contractAddress, rental.tokenId)
-    if (blockChainRental && ethers.BigNumber.from(blockChainRental.endsAt).gt(fromMillisecondsToSeconds(Date.now()))) {
+    const blockChainRental = await getBlockchainRentals({
+      filterBy: { contractAddress: rental.contractAddress, tokenId: rental.tokenId },
+      orderBy: "startedAt",
+      orderDirection: "desc",
+      firsts: 1,
+    })
+    if (
+      blockChainRental[0] &&
+      ethers.BigNumber.from(blockChainRental[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))
+    ) {
       throw new RentalAlreadyExists(rental.contractAddress, rental.tokenId)
     }
 
@@ -187,7 +227,46 @@ export function createRentalsComponent(
     }
   }
 
+  async function refreshRentalListing(rentalId: string) {
+    const rentalQueryResult = await database.query<{
+      id: string
+      contractAddress: string
+      tokenId: string
+      updated_at: Date
+      metadata_updated_at: Date
+      metadata_id: string
+    }>(
+      SQL`SELECT rental.id, rentals.contractAddress, rentals.tokenId, rentals.updated_at, metadata.id as metadata_id metadata.updated_at as metadata_updated_at
+      FROM rentals, metadata
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id`
+    )
+
+    if (rentalQueryResult.rowCount === 0) {
+      throw new Error()
+    }
+
+    const rentalData = rentalQueryResult.rows[0]
+    const [lastBlockchainRental, blockchainRentedNFT] = await Promise.all([
+      getBlockchainRentals({ filterBy: { contractAddress: rentalData.contractAddress, tokenId: rentalData.tokenId } }),
+      getNFT(rentalData.contractAddress, rentalData.tokenId),
+    ])
+
+    if (
+      blockchainRentedNFT &&
+      fromSecondsToMilliseconds(Number(blockchainRentedNFT.updatedAt)) > rentalData.metadata_updated_at.getTime()
+    ) {
+      await database.query(
+        SQL`UPDATE metadata SET search_text = ${blockchainRentedNFT?.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+      )
+    }
+
+    // if (lastBlockchainRental?.startedAt > ) {
+    //   await database.query(SQL`UPDATE rentals SET updated_at = ${} WHERE id = ${rentalData.id}; UPDATE rentals_listings SET tenant = ${lastBlockchainRental.tenant} WHERE id = ${rentalData.id};`)
+    // }
+  }
+
   return {
     createRentalListing,
+    refreshRentalListing,
   }
 }

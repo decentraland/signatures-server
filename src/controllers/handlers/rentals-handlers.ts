@@ -78,3 +78,31 @@ export async function rentalsListingsCreationHandler(
     throw error
   }
 }
+
+export async function refreshRentalListingHandler(
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "request" | "components">
+) {
+  const {
+    components: { rentals },
+  } = context
+  // context.request.body
+
+  try {
+    const rental = await rentals.refreshRentalListing("id")
+    return {
+      status: StatusCode.CREATED,
+      body: {
+        ok: true,
+        data: "data",
+      },
+    }
+  } catch (error) {
+    return {
+      status: StatusCode.BAD_REQUEST,
+      body: {
+        ok: false,
+        message: "Error",
+      },
+    }
+  }
+}
