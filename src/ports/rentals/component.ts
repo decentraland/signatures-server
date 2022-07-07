@@ -170,10 +170,11 @@ export function createRentalsComponent(
 
     logger.info(buildLogMessageForRental("Authorized"))
 
+    const client = await database.getPool().connect()
     // Inserting the new rental
     try {
-      await database.query(SQL`BEGIN`)
-      const createdMetadata = await database.query<DBMetadata>(
+      await client.query(SQL`BEGIN`)
+      const createdMetadata = await client.query<DBMetadata>(
         SQL`INSERT INTO metadata (id, category, search_text, created_at) VALUES (${nft.id}, ${nft.category}, ${
           nft.searchText
         }, ${new Date(
@@ -182,7 +183,7 @@ export function createRentalsComponent(
       )
       logger.debug(buildLogMessageForRental("Inserted metadata"))
 
-      const createdRental = await database.query<DBRental>(
+      const createdRental = await client.query<DBRental>(
         SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status) VALUES (${
           nft.id
         }, ${rental.network}, ${rental.chainId}, ${new Date(rental.expiration)}, ${rental.signature}, ${
@@ -191,7 +192,7 @@ export function createRentalsComponent(
       )
       logger.debug(buildLogMessageForRental("Inserted rental"))
 
-      const createdRentalListing = await database.query<DBRentalListing>(
+      const createdRentalListing = await client.query<DBRentalListing>(
         SQL`INSERT INTO rentals_listings (id, lessor) VALUES (${createdRental.rows[0].id}, ${lessorAddress}) RETURNING *`
       )
 
@@ -207,10 +208,10 @@ export function createRentalsComponent(
       })
       insertPeriodsQuery.append(SQL` RETURNING *`)
 
-      const createdPeriods = await database.query<DBPeriods>(insertPeriodsQuery)
+      const createdPeriods = await client.query<DBPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
 
-      await database.query(SQL`COMMIT`)
+      await client.query(SQL`COMMIT`)
 
       return {
         ...createdRental.rows[0],
@@ -221,13 +222,15 @@ export function createRentalsComponent(
       }
     } catch (error) {
       logger.info(buildLogMessageForRental("Rolled-back query"))
-      await database.query(SQL`ROLLBACK`)
+      await client.query(SQL`ROLLBACK`)
 
       if ((error as any).constraint === "rentals_token_id_contract_address_status_unique_index") {
         throw new RentalAlreadyExists(nft.contractAddress, nft.tokenId)
       }
 
       throw new Error("Error creating rental")
+    } finally {
+      await client.release()
     }
   }
 
