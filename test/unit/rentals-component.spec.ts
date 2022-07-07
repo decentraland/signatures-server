@@ -27,6 +27,8 @@ jest.mock("../../src/logic/rentals")
 const mockedRentalsLogic = jest.mocked(rentalsLogic, true)
 
 let dbQueryMock: jest.Mock
+let dbClientQueryMock: jest.Mock
+let dbClientReleaseMock: jest.Mock
 let database: IPgComponent
 let marketplaceSubgraphQueryMock: jest.Mock
 let marketplaceSubgraph: ISubgraphComponent
@@ -42,7 +44,14 @@ describe("when creating a rental listing", () => {
   beforeEach(async () => {
     mockedRentalsLogic.verifyRentalsListingSignature.mockResolvedValueOnce(true)
     dbQueryMock = jest.fn()
-    database = createTestDbComponent({ query: dbQueryMock })
+    dbClientQueryMock = jest.fn()
+    dbClientReleaseMock = jest.fn()
+    database = createTestDbComponent({
+      query: dbQueryMock,
+      getPool: jest
+        .fn()
+        .mockReturnValue({ connect: () => ({ query: dbClientQueryMock, release: dbClientReleaseMock }) }),
+    })
     marketplaceSubgraphQueryMock = jest.fn()
     marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
     rentalsSubgraphQueryMock = jest.fn()
@@ -162,7 +171,7 @@ describe("when creating a rental listing", () => {
           },
         ],
       })
-      dbQueryMock.mockRejectedValueOnce(new Error("Database error"))
+      dbClientQueryMock.mockRejectedValueOnce(new Error("Database error"))
       rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
@@ -171,7 +180,7 @@ describe("when creating a rental listing", () => {
         new Error("Error creating rental")
       )
 
-      expect(dbQueryMock).toHaveBeenCalledWith(SQL`ROLLBACK`)
+      expect(dbClientQueryMock).toHaveBeenCalledWith(SQL`ROLLBACK`)
     })
   })
 
@@ -190,7 +199,7 @@ describe("when creating a rental listing", () => {
           },
         ],
       })
-      dbQueryMock.mockRejectedValueOnce({ constraint: "rentals_token_id_contract_address_status_unique_index" })
+      dbClientQueryMock.mockRejectedValueOnce({ constraint: "rentals_token_id_contract_address_status_unique_index" })
       rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
@@ -199,7 +208,7 @@ describe("when creating a rental listing", () => {
         new RentalAlreadyExists(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
       )
 
-      expect(dbQueryMock).toHaveBeenCalledWith(SQL`ROLLBACK`)
+      expect(dbClientQueryMock).toHaveBeenCalledWith(SQL`ROLLBACK`)
     })
   })
 
@@ -242,7 +251,7 @@ describe("when creating a rental listing", () => {
           },
         ],
       })
-      dbQueryMock
+      dbClientQueryMock
         // Begin
         .mockResolvedValueOnce(undefined)
         // Metadata insert
