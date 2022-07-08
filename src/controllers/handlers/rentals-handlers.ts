@@ -5,6 +5,7 @@ import {
   FilterByCategory,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalNotFound,
   RentalsListingsSortBy,
   SortDirection,
   Status,
@@ -138,29 +139,34 @@ export async function rentalsListingsCreationHandler(
 }
 
 export async function refreshRentalListingHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "request" | "components">
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "request" | "params" | "components">
 ) {
   const {
     components: { rentals },
+    params: { id },
   } = context
-  // context.request.body
 
   try {
-    const rental = await rentals.refreshRentalListing("id")
+    await rentals.refreshRentalListing("id")
     return {
-      status: StatusCode.CREATED,
+      status: StatusCode.OK,
       body: {
         ok: true,
         data: "data",
       },
     }
   } catch (error) {
-    return {
-      status: StatusCode.BAD_REQUEST,
-      body: {
-        ok: false,
-        message: "Error",
-      },
+    if (error instanceof RentalNotFound) {
+      return {
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            id: error.id,
+          },
+        },
+      }
     }
   }
 }

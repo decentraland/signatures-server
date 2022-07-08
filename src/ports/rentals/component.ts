@@ -7,7 +7,7 @@ import {
 } from "../../adapters/rentals"
 import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
-import { InvalidSignature, NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
+import { InvalidSignature, NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "./errors"
 import {
   IRentalsComponent,
   RentalListingCreation,
@@ -310,7 +310,7 @@ export function createRentalsComponent(
     )
 
     if (rentalQueryResult.rowCount === 0) {
-      throw new Error()
+      throw new RentalNotFound(rentalId)
     }
 
     const rentalData = rentalQueryResult.rows[0]
@@ -319,6 +319,7 @@ export function createRentalsComponent(
       getNFT(rentalData.contractAddress, rentalData.tokenId),
     ])
 
+    // Update metadata
     if (
       blockchainRentedNFT &&
       fromSecondsToMilliseconds(Number(blockchainRentedNFT.updatedAt)) > rentalData.metadata_updated_at.getTime()
@@ -328,9 +329,10 @@ export function createRentalsComponent(
       )
     }
 
-    // if (lastBlockchainRental?.startedAt > ) {
-    //   await database.query(SQL`UPDATE rentals SET updated_at = ${} WHERE id = ${rentalData.id}; UPDATE rentals_listings SET tenant = ${lastBlockchainRental.tenant} WHERE id = ${rentalData.id};`)
-    // }
+    // Identify the latest blockchain rental
+    if (lastBlockchainRental[0].startedAt > "1") {
+      await database.query(SQL`UPDATE rentals SET updated_at = ${}, status = ${Status.EXECUTED} WHERE id = ${rentalData.id}; UPDATE rentals_listings SET tenant = ${lastBlockchainRental.tenant} WHERE id = ${rentalData.id};`)
+    }
   }
 
   return {
