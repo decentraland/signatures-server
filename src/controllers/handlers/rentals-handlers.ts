@@ -139,7 +139,7 @@ export async function rentalsListingsCreationHandler(
 }
 
 export async function refreshRentalListingHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "request" | "params" | "components">
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "components">
 ) {
   const {
     components: { rentals },
