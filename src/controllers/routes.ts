@@ -24,7 +24,7 @@ export async function setupRouter(
     rentalsListingsCreationHandler
   )
   router.get("/rentals-listings", getRentalsListingsHandler)
-  router.get("/rentals-listings/:id", refreshRentalListingHandler)
+  router.patch("/rentals-listings/:id", refreshRentalListingHandler)
 
   return router
 }

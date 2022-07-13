@@ -2,7 +2,7 @@ import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
-  refreshRentalListing(rentalId: string): Promise<void>
+  refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
   getRentalsListings(params: {
     sortBy: RentalsListingsSortBy | null
     sortDirection: SortDirection | null
@@ -164,10 +164,16 @@ export type BlockchainRental = {
   startedAt: string
   /** Timestamp of when the rental ends in seconds since epoch */
   endsAt: string
+  /** Timestamp when the rental was updated for the last time in seconds since epoch */
+  updatedAt: string
   /** The price per day the rent was settled for */
   pricePerDay: string
   /** The sender of the signature to the contract */
   sender: string
   /** If an owner has claimed the land after the rental */
   ownerHasClaimedAsset: boolean
+  /** If the rental is extending another one */
+  isExtension: boolean
+  /** A string representation of the bytes of the rental signature */
+  signature: string
 }

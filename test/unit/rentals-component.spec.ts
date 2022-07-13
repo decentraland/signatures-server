@@ -6,14 +6,17 @@ import { ISubgraphComponent } from "@well-known-components/thegraph-component"
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as rentalsLogic from "../../src/logic/rentals"
 import {
+  BlockchainRental,
   createRentalsComponent,
   DBGetRentalListing,
   FilterByCategory,
   InvalidSignature,
   IRentalsComponent,
+  NFT,
   NFTNotFound,
   RentalAlreadyExists,
   RentalListingCreation,
+  RentalNotFound,
   RentalsListingsSortBy,
   SortDirection,
   Status,
@@ -642,6 +645,253 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(
         expect.stringContaining("ORDER BY rentals.min_price_per_day asc")
       )
+    })
+  })
+})
+
+describe("when refreshing rental listings", () => {
+  let rentalFromDb: {
+    id: string
+    contract_address: string
+    token_id: string
+    updated_at: Date
+    metadata_updated_at: Date
+    metadata_id: string
+    signature: string
+  }
+  let nftFromBlockchain: NFT
+  let rentalFromBlockchain: BlockchainRental
+  let result: DBGetRentalListing
+
+  beforeEach(() => {
+    dbQueryMock = jest.fn()
+    database = createTestDbComponent({ query: dbQueryMock })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+    rentalFromDb = {
+      id: "an id",
+      contract_address: "aContractAddress",
+      token_id: "aTokenId",
+      updated_at: new Date(),
+      metadata_updated_at: new Date(),
+      metadata_id: "metadataId",
+      signature: "aSignature",
+    }
+    nftFromBlockchain = {
+      id: rentalFromDb.metadata_id,
+      category: NFTCategory.PARCEL,
+      contractAddress: rentalFromDb.contract_address,
+      tokenId: rentalFromDb.token_id,
+      owner: {
+        address: "anAddress",
+      },
+      searchText: "aSearchText",
+      createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+      updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+    }
+    rentalFromBlockchain = {
+      id: "aRentalId",
+      contractAddress: rentalFromDb.contract_address,
+      tokenId: rentalFromDb.token_id,
+      lessor: "aLessor",
+      tenant: "aTenant",
+      operator: "aLessor",
+      rentalDays: "20",
+      startedAt: Math.round(rentalFromDb.updated_at.getTime() / 1000).toString(),
+      endsAt: Math.round(rentalFromDb.updated_at.getTime() / 1000 + 100000000).toString(),
+      updatedAt: Math.round(rentalFromDb.updated_at.getTime() / 1000).toString(),
+      pricePerDay: "23423423423",
+      sender: "aLessor",
+      ownerHasClaimedAsset: false,
+      isExtension: false,
+      signature: rentalFromDb.signature,
+    }
+    result = {
+      id: "resultantRental",
+    } as DBGetRentalListing
+  })
+
+  describe("and there's no rental with the given id in the database", () => {
+    beforeEach(() => {
+      dbQueryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 })
+    })
+
+    it("should reject with a rental not found error", () => {
+      return expect(rentalsComponent.refreshRentalListing("id")).rejects.toEqual(new RentalNotFound("id"))
+    })
+  })
+
+  describe("and there's no NFT for the given rental", () => {
+    beforeEach(() => {
+      dbQueryMock.mockResolvedValueOnce({
+        rows: [rentalFromDb],
+        rowCount: 1,
+      })
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({ nfts: [] })
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+    })
+
+    it("should reject with an nft not found error", () => {
+      return expect(rentalsComponent.refreshRentalListing("an id")).rejects.toEqual(
+        new NFTNotFound("aContractAddress", "aTokenId")
+      )
+    })
+  })
+
+  describe("and there's an NFT for the given result", () => {
+    beforeEach(() => {
+      dbQueryMock.mockResolvedValueOnce({
+        rows: [rentalFromDb],
+        rowCount: 1,
+      })
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+    })
+
+    describe("and it was updated before or equal the one in the database", () => {
+      beforeEach(() => {
+        marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+          nfts: [
+            {
+              ...nftFromBlockchain,
+              createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+            },
+          ],
+        })
+        dbQueryMock.mockResolvedValueOnce({
+          rows: [result],
+          rowCount: 1,
+        })
+      })
+
+      it("should update the metadata in the database and return the rental", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE metadata SET"))
+      })
+    })
+
+    describe("and it was updated after the one in the database", () => {
+      beforeEach(() => {
+        marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+          nfts: [
+            {
+              ...nftFromBlockchain,
+              createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+            },
+          ],
+        })
+        dbQueryMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+          rows: [result],
+          rowCount: 1,
+        })
+      })
+
+      it("should update the metadata in the database and return the rental", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE metadata SET"))
+      })
+    })
+  })
+
+  describe("and there's no rental in the blockchain for the signature", () => {
+    beforeEach(() => {
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+        nfts: [
+          {
+            ...nftFromBlockchain,
+            createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+            updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+          },
+        ],
+      })
+      dbQueryMock
+        .mockResolvedValueOnce({
+          rows: [rentalFromDb],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [result],
+          rowCount: 1,
+        })
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+    })
+
+    it("should not update the database entry for the rental and return the rental unchanged", async () => {
+      await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+    })
+  })
+
+  describe("and there's a rental in the blockchain for the signature", () => {
+    beforeEach(() => {
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+        nfts: [
+          {
+            ...nftFromBlockchain,
+            createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+            updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+          },
+        ],
+      })
+      dbQueryMock.mockResolvedValueOnce({
+        rows: [rentalFromDb],
+        rowCount: 1,
+      })
+    })
+
+    describe("and the rental is older than the one in the database", () => {
+      beforeEach(() => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              ...rentalFromBlockchain,
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+            },
+          ],
+        })
+        dbQueryMock.mockResolvedValueOnce({
+          rows: [result],
+          rowCount: 1,
+        })
+      })
+
+      it("should not update the database entry for the rental and return the rental unchanged", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      })
+    })
+
+    describe("and the rental is newer than the one in the database", () => {
+      beforeEach(() => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              ...rentalFromBlockchain,
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+            },
+          ],
+        })
+        dbQueryMock
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
+      })
+
+      it("should update the database entry for the rental and return the rental", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      })
     })
   })
 })

@@ -16,6 +16,7 @@ export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
+  console.log("Marketplace subgraph url", MARKETPLACE_SUBGRAPH_URL)
 
   const logs = createLogComponent()
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})
@@ -36,7 +37,6 @@ export async function initComponents(): Promise<AppComponents> {
       },
     }
   )
-  // const database = {} as any
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
 

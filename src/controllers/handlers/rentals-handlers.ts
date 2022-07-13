@@ -147,12 +147,12 @@ export async function refreshRentalListingHandler(
   } = context
 
   try {
-    await rentals.refreshRentalListing("id")
+    const updatedRental = await rentals.refreshRentalListing(id)
     return {
       status: StatusCode.OK,
       body: {
         ok: true,
-        data: "data",
+        data: fromDBGetRentalsListingsToRentalListings([updatedRental])[0],
       },
     }
   } catch (error) {
@@ -167,6 +167,20 @@ export async function refreshRentalListingHandler(
           },
         },
       }
+    } else if (error instanceof NFTNotFound) {
+      return {
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            tokenId: error.tokenId,
+            contractAddress: error.contractAddress,
+          },
+        },
+      }
     }
+
+    throw error
   }
 }
