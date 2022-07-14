@@ -36,7 +36,6 @@ export async function initComponents(): Promise<AppComponents> {
       },
     }
   )
-  // const database = {} as any
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
 

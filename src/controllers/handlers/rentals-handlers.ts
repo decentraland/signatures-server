@@ -5,6 +5,7 @@ import {
   FilterByCategory,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalNotFound,
   RentalsListingsSortBy,
   SortDirection,
   Status,
@@ -128,6 +129,53 @@ export async function rentalsListingsCreationHandler(
           data: {
             contractAddress: error.contractAddress,
             tokenId: error.tokenId,
+          },
+        },
+      }
+    }
+
+    throw error
+  }
+}
+
+export async function refreshRentalListingHandler(
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "components">
+) {
+  const {
+    components: { rentals },
+    params: { id },
+  } = context
+
+  try {
+    const updatedRental = await rentals.refreshRentalListing(id)
+    return {
+      status: StatusCode.OK,
+      body: {
+        ok: true,
+        data: fromDBGetRentalsListingsToRentalListings([updatedRental])[0],
+      },
+    }
+  } catch (error) {
+    if (error instanceof RentalNotFound) {
+      return {
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            id: error.id,
+          },
+        },
+      }
+    } else if (error instanceof NFTNotFound) {
+      return {
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            tokenId: error.tokenId,
+            contractAddress: error.contractAddress,
           },
         },
       }

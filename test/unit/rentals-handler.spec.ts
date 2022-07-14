@@ -3,6 +3,7 @@ import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental, RentalListing } from "../../src/adapters/rentals"
 import {
   getRentalsListingsHandler,
+  refreshRentalListingHandler,
   rentalsListingsCreationHandler,
 } from "../../src/controllers/handlers/rentals-handlers"
 import {
@@ -10,6 +11,7 @@ import {
   DBInsertedRentalListing,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalNotFound,
   Status,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
@@ -371,6 +373,144 @@ describe("when getting rental listings", () => {
             pages: 1,
             limit: 50,
           },
+        },
+      })
+    })
+  })
+})
+
+describe("when refreshing a rental listing", () => {
+  let params: { id: string }
+  let rentalId: string
+  let components: Pick<AppComponents, "rentals">
+  let refreshRentalListingMock: jest.Mock
+
+  beforeEach(() => {
+    refreshRentalListingMock = jest.fn()
+    rentalId = "aRentalId"
+    components = {
+      rentals: createTestRentalsComponent({ refreshRentalListing: refreshRentalListingMock }),
+    }
+    params = { id: rentalId }
+  })
+
+  describe("and the process to refresh the listing fails with an unknown error", () => {
+    let errorMessage: string
+    beforeEach(() => {
+      errorMessage = "An error occurred"
+      refreshRentalListingMock.mockRejectedValueOnce(new Error(errorMessage))
+    })
+
+    it("should propagate the error", () => {
+      return expect(refreshRentalListingHandler({ components, params })).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and the process to refresh the listing fails with a rental not found error", () => {
+    beforeEach(() => {
+      refreshRentalListingMock.mockRejectedValueOnce(new RentalNotFound(rentalId))
+    })
+
+    it("should return a response with a not found status code and a message saying that the rental was not found", () => {
+      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: "The rental was not found",
+          data: {
+            id: rentalId,
+          },
+        },
+      })
+    })
+  })
+
+  describe("and the process to refresh the listing fails with a nft not found error", () => {
+    let contractAddress: string
+    let tokenId: string
+    beforeEach(() => {
+      contractAddress = "aContractAddress"
+      tokenId = "aTokenId"
+      refreshRentalListingMock.mockRejectedValueOnce(new NFTNotFound(contractAddress, tokenId))
+    })
+
+    it("should return a response with a not found status code and a message saying that the nft was not found", () => {
+      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+        status: StatusCode.NOT_FOUND,
+        body: {
+          ok: false,
+          message: "The NFT was not found",
+          data: {
+            contractAddress,
+            tokenId,
+          },
+        },
+      })
+    })
+  })
+
+  describe("and the process to refresh the listing is successful", () => {
+    let rentalListing: RentalListing
+    let dbRentalListing: DBGetRentalListing
+    beforeEach(() => {
+      dbRentalListing = {
+        id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+        category: NFTCategory.PARCEL,
+        search_text: "someText",
+        metadata_id: "someId",
+        network: Network.ETHEREUM,
+        chain_id: ChainId.ETHEREUM_GOERLI,
+        expiration: new Date(),
+        signature: "0x0",
+        nonces: ["0x0", "0x1", "0x2"],
+        token_id: "1",
+        contract_address: "0x959e104e1a4db6317fa58f8295f586e1a978c297",
+        rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
+        lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
+        tenant: null,
+        status: Status.OPEN,
+        created_at: new Date("2022-06-13T22:56:36.755Z"),
+        updated_at: new Date("2022-06-13T22:56:36.755Z"),
+        started_at: null,
+        periods: [["anId", 30, 50, "1000000000"]],
+        metadata_created_at: new Date(),
+        rentals_listings_count: "1",
+      }
+      rentalListing = {
+        id: dbRentalListing.id,
+        category: dbRentalListing.category,
+        search_text: dbRentalListing.search_text,
+        network: dbRentalListing.network,
+        chainId: dbRentalListing.chain_id,
+        expiration: dbRentalListing.expiration.getTime(),
+        signature: dbRentalListing.signature,
+        nonces: dbRentalListing.nonces,
+        tokenId: dbRentalListing.token_id,
+        contractAddress: dbRentalListing.contract_address,
+        rentalContractAddress: dbRentalListing.rental_contract_address,
+        lessor: dbRentalListing.lessor,
+        tenant: dbRentalListing.tenant,
+        status: dbRentalListing.status,
+        createdAt: dbRentalListing.created_at.getTime(),
+        updatedAt: dbRentalListing.updated_at.getTime(),
+        startedAt: null,
+        periods: [
+          {
+            minDays: dbRentalListing.periods[0][1],
+            maxDays: dbRentalListing.periods[0][2],
+            pricePerDay: dbRentalListing.periods[0][3],
+          },
+        ],
+      }
+      refreshRentalListingMock.mockResolvedValueOnce(dbRentalListing)
+    })
+
+    it("should return a response with a not found status code and a message saying that the nft was not found", () => {
+      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+        status: StatusCode.OK,
+        body: {
+          ok: true,
+          data: rentalListing,
         },
       })
     })
