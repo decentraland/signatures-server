@@ -21,7 +21,7 @@ import {
   FilterBy,
   SortDirection,
   DBGetRentalListing,
-  BlockchainRental,
+  IndexerRental,
   DBMetadata,
 } from "./types"
 
@@ -61,17 +61,17 @@ export function createRentalsComponent(
     return queryResult.nfts[0] ?? null
   }
 
-  async function getBlockchainRentals(options?: {
-    filterBy?: Partial<BlockchainRental>
+  async function getRentalsFromIndexer(options?: {
+    filterBy?: Partial<IndexerRental>
     firsts?: number
-    orderBy?: keyof BlockchainRental
+    orderBy?: keyof IndexerRental
     orderDirection?: "desc" | "asc"
-  }): Promise<BlockchainRental[]> {
+  }): Promise<IndexerRental[]> {
     let querySignature = ""
     let queryVariables = ""
 
     if (options?.firsts) {
-      querySignature += `firsts: ${options.firsts} `
+      querySignature += `first: ${options.firsts} `
     }
     if (options?.orderBy) {
       querySignature += `orderBy: ${options.orderBy} `
@@ -81,24 +81,26 @@ export function createRentalsComponent(
     }
     if (options?.filterBy) {
       querySignature += `where: { ${Object.keys(options.filterBy).reduce((acc, key) => `${acc} ${key}: $${key}`, "")} }`
-      queryVariables += Object.entries(options.filterBy).reduce((acc, [key, value]) => {
-        let type: string
-        if (typeof value === "string") {
-          type = "String"
-        } else if (typeof value === "number") {
-          type = "Int"
-        } else if (typeof value === "boolean") {
-          type = "Boolean"
-        } else {
-          throw new Error("Can't parse filter by type")
-        }
+      queryVariables += Object.entries(options.filterBy)
+        .map(([key, value]) => {
+          let type: string
+          if (typeof value === "string") {
+            type = "String"
+          } else if (typeof value === "number") {
+            type = "Int"
+          } else if (typeof value === "boolean") {
+            type = "Boolean"
+          } else {
+            throw new Error("Can't parse filter by type")
+          }
 
-        return `${acc} $${key}: ${type}`
-      }, "")
+          return `$${key}: ${type}`
+        })
+        .join(" ")
     }
 
     const queryResult = await rentalsSubgraph.query<{
-      rentals: BlockchainRental[]
+      rentals: IndexerRental[]
     }>(
       `query RentalByContractAddressAndTokenId(${queryVariables}) {
         rentals(${querySignature}) {
@@ -141,16 +143,13 @@ export function createRentalsComponent(
     }
 
     // Verify that there's no open rental in the contract
-    const blockChainRental = await getBlockchainRentals({
+    const indexerRental = await getRentalsFromIndexer({
       filterBy: { contractAddress: rental.contractAddress, tokenId: rental.tokenId },
       orderBy: "startedAt",
       orderDirection: "desc",
       firsts: 1,
     })
-    if (
-      blockChainRental[0] &&
-      ethers.BigNumber.from(blockChainRental[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))
-    ) {
+    if (indexerRental[0] && ethers.BigNumber.from(indexerRental[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))) {
       throw new RentalAlreadyExists(rental.contractAddress, rental.tokenId)
     }
 
@@ -316,47 +315,48 @@ export function createRentalsComponent(
     }
 
     const rentalData = rentalQueryResult.rows[0]
-    const [blockchainRental, blockchainNFT] = await Promise.all([
-      getBlockchainRentals({ filterBy: { signature: rentalData.signature } }),
+    const [indexerRental, indexerNFT] = await Promise.all([
+      getRentalsFromIndexer({ filterBy: { signature: rentalData.signature } }),
       getNFT(rentalData.contract_address, rentalData.token_id),
     ])
 
-    if (!blockchainNFT) {
+    if (!indexerNFT) {
       throw new NFTNotFound(rentalData.contract_address, rentalData.token_id)
     }
-    const blockchainNFTLastUpdate = fromSecondsToMilliseconds(Number(blockchainNFT.updatedAt))
-    const blockchainRentalLastUpdate =
-      blockchainRental.length > 0 ? fromSecondsToMilliseconds(Number(blockchainRental[0].updatedAt)) : 0
+    const indexerNFTLastUpdate = fromSecondsToMilliseconds(Number(indexerNFT.updatedAt))
+    const indexerRentalLastUpdate =
+      indexerRental.length > 0 ? fromSecondsToMilliseconds(Number(indexerRental[0].updatedAt)) : 0
 
     const promisesOfUpdate: Promise<any>[] = []
     // Update metadata
-    if (blockchainNFTLastUpdate > rentalData.metadata_updated_at.getTime()) {
+    console.log("Indexer NFT last update", indexerNFTLastUpdate)
+    console.log("NFT DB data", rentalData.metadata_updated_at.getTime())
+    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime()) {
+      console.log("Updating metadata")
       logger.info(`[Refresh][Update metadata][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE metadata SET search_text = ${blockchainNFT.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
         )
       )
     }
 
     // Identify the latest blockchain rental
-    if (blockchainRentalLastUpdate > rentalData.updated_at.getTime()) {
+    if (indexerRentalLastUpdate > rentalData.updated_at.getTime()) {
       logger.info(`[Refresh][Update rental][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE rentals SET updated_at = ${new Date(blockchainRentalLastUpdate)}, status = ${
+          SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
             Status.EXECUTED
-          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(blockchainRental[0].startedAt)))} WHERE id = ${
+          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRental[0].startedAt)))} WHERE id = ${
             rentalData.id
           }`
         ),
-        database.query(
-          SQL`UPDATE rentals_listings SET tenant = ${blockchainRental[0].tenant} WHERE id = ${rentalData.id}`
-        )
+        database.query(SQL`UPDATE rentals_listings SET tenant = ${indexerRental[0].tenant} WHERE id = ${rentalData.id}`)
       )
     }
 
-    await Promise.all(promisesOfUpdate)
+    console.log("Updated promises", await Promise.all(promisesOfUpdate))
 
     // Return the updated rental listing
     const result =

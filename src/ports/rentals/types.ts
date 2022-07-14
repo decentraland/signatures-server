@@ -145,7 +145,7 @@ export enum RentalsListingsSortBy {
   MIN_RENTAL_PRICE = "min_rental_price",
 }
 
-export type BlockchainRental = {
+export type IndexerRental = {
   /** The id of the rental in the graph (contractAddress:tokenId:timesItHasBeenRented) */
   id: string
   /** The contract address of the LAND */
