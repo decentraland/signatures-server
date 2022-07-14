@@ -16,6 +16,12 @@ export class RentalAlreadyExists extends Error {
   }
 }
 
+export class RentalNotFound extends Error {
+  constructor(public id: string) {
+    super("The rental was not found")
+  }
+}
+
 export class InvalidSignature extends Error {
   constructor() {
     super("The provided signature is invalid")
