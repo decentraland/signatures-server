@@ -7,7 +7,7 @@ import {
 } from "../../adapters/rentals"
 import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
-import { InvalidSignature, NFTNotFound, RentalAlreadyExists, UnauthorizedToRent } from "./errors"
+import { InvalidSignature, NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "./errors"
 import {
   IRentalsComponent,
   RentalListingCreation,
@@ -21,7 +21,7 @@ import {
   FilterBy,
   SortDirection,
   DBGetRentalListing,
-  BlockchainRental,
+  IndexerRental,
   DBMetadata,
 } from "./types"
 
@@ -54,20 +54,56 @@ export function createRentalsComponent(
         }
       }`,
       {
-        contractAddress: contractAddress,
-        tokenId: tokenId,
+        contractAddress,
+        tokenId,
       }
     )
-
     return queryResult.nfts[0] ?? null
   }
 
-  async function getLastBlockchainRental(contractAddress: string, tokenId: string): Promise<BlockchainRental | null> {
+  async function getRentalsFromIndexer(options?: {
+    filterBy?: Partial<IndexerRental>
+    firsts?: number
+    orderBy?: keyof IndexerRental
+    orderDirection?: "desc" | "asc"
+  }): Promise<IndexerRental[]> {
+    let querySignature = ""
+    let queryVariables = ""
+
+    if (options?.firsts) {
+      querySignature += `first: ${options.firsts} `
+    }
+    if (options?.orderBy) {
+      querySignature += `orderBy: ${options.orderBy} `
+    }
+    if (options?.orderDirection) {
+      querySignature += `orderDirection: ${options.orderDirection} `
+    }
+    if (options?.filterBy) {
+      querySignature += `where: { ${Object.keys(options.filterBy).reduce((acc, key) => `${acc} ${key}: $${key}`, "")} }`
+      queryVariables += Object.entries(options.filterBy)
+        .map(([key, value]) => {
+          let type: string
+          if (typeof value === "string") {
+            type = "String"
+          } else if (typeof value === "number") {
+            type = "Int"
+          } else if (typeof value === "boolean") {
+            type = "Boolean"
+          } else {
+            throw new Error("Can't parse filter by type")
+          }
+
+          return `$${key}: ${type}`
+        })
+        .join(" ")
+    }
+
     const queryResult = await rentalsSubgraph.query<{
-      rentals: BlockchainRental[]
+      rentals: IndexerRental[]
     }>(
-      `query RentalByContractAddressAndTokenId($contractAddress: String, $tokenId: String) {
-        rentals(first: 1 orderBy: startedAt orderDirection: desc where: { tokenId: $tokenId, contractAddress: $contractAddress }) {
+      `query RentalByContractAddressAndTokenId(${queryVariables}) {
+        rentals(${querySignature}) {
           id,
           contractAddress,
           tokenId,
@@ -76,18 +112,16 @@ export function createRentalsComponent(
           operator,
           rentalDays,
           startedAt,
+          updatedAt,
           pricePerDay,
           sender,
           ownerHasClaimedAsset
         }
       }`,
-      {
-        contractAddress: contractAddress,
-        tokenId: tokenId,
-      }
+      options?.filterBy
     )
 
-    return queryResult.rentals[0] ?? null
+    return queryResult.rentals
   }
 
   async function createRentalListing(
@@ -109,8 +143,16 @@ export function createRentalsComponent(
     }
 
     // Verify that there's no open rental in the contract
-    const blockChainRental = await getLastBlockchainRental(rental.contractAddress, rental.tokenId)
-    if (blockChainRental && ethers.BigNumber.from(blockChainRental.endsAt).gt(fromMillisecondsToSeconds(Date.now()))) {
+    const indexerRentals = await getRentalsFromIndexer({
+      filterBy: { contractAddress: rental.contractAddress, tokenId: rental.tokenId },
+      orderBy: "startedAt",
+      orderDirection: "desc",
+      firsts: 1,
+    })
+    if (
+      indexerRentals[0] &&
+      ethers.BigNumber.from(indexerRentals[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))
+    ) {
       throw new RentalAlreadyExists(rental.contractAddress, rental.tokenId)
     }
 
@@ -135,9 +177,9 @@ export function createRentalsComponent(
     try {
       await client.query(SQL`BEGIN`)
       const createdMetadata = await client.query<DBMetadata>(
-        SQL`INSERT INTO metadata (id, category, search_text, created_at) VALUES (${nft.id}, ${nft.category}, ${
-          nft.searchText
-        }, ${new Date(
+        SQL`INSERT INTO metadata (id, category, search_text, created_at, updated_at) VALUES (${nft.id}, ${
+          nft.category
+        }, ${nft.searchText}, ${nft.updatedAt} ${new Date(
           fromSecondsToMilliseconds(Number(nft.createdAt))
         )}) ON CONFLICT (id) DO UPDATE SET search_text = ${nft.searchText} RETURNING *`
       )
@@ -255,8 +297,86 @@ export function createRentalsComponent(
     return results.rows
   }
 
+  async function refreshRentalListing(rentalId: string) {
+    logger.info(`[Refresh][Start][${rentalId}]`)
+    const rentalQueryResult = await database.query<{
+      id: string
+      contract_address: string
+      token_id: string
+      updated_at: Date
+      metadata_updated_at: Date
+      metadata_id: string
+      signature: string
+    }>(
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at
+      FROM rentals, metadata
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id`
+    )
+
+    if (rentalQueryResult.rowCount === 0) {
+      throw new RentalNotFound(rentalId)
+    }
+
+    const rentalData = rentalQueryResult.rows[0]
+    const [indexerRentals, indexerNFT] = await Promise.all([
+      getRentalsFromIndexer({ filterBy: { signature: rentalData.signature } }),
+      getNFT(rentalData.contract_address, rentalData.token_id),
+    ])
+
+    if (!indexerNFT) {
+      throw new NFTNotFound(rentalData.contract_address, rentalData.token_id)
+    }
+    const indexerNFTLastUpdate = fromSecondsToMilliseconds(Number(indexerNFT.updatedAt))
+    const indexerRentalLastUpdate =
+      indexerRentals.length > 0 ? fromSecondsToMilliseconds(Number(indexerRentals[0].updatedAt)) : 0
+
+    const promisesOfUpdate: Promise<any>[] = []
+    // Update metadata
+    console.log("Indexer NFT last update", indexerNFTLastUpdate)
+    console.log("NFT DB data", rentalData.metadata_updated_at.getTime())
+    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime()) {
+      console.log("Updating metadata")
+      logger.info(`[Refresh][Update metadata][${rentalId}]`)
+      promisesOfUpdate.push(
+        database.query(
+          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+        )
+      )
+    }
+
+    // Identify the latest blockchain rental
+    if (indexerRentalLastUpdate > rentalData.updated_at.getTime()) {
+      logger.info(`[Refresh][Update rental][${rentalId}]`)
+      promisesOfUpdate.push(
+        database.query(
+          SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
+            Status.EXECUTED
+          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
+            rentalData.id
+          }`
+        ),
+        database.query(
+          SQL`UPDATE rentals_listings SET tenant = ${indexerRentals[0].tenant} WHERE id = ${rentalData.id}`
+        )
+      )
+    }
+
+    console.log("Updated promises", await Promise.all(promisesOfUpdate))
+
+    // Return the updated rental listing
+    const result =
+      await database.query<DBGetRentalListing>(SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata, 
+    (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor, COUNT(*) OVER() as rentals_listings_count, 
+      array_agg(ARRAY[periods.min_days, periods.max_days, periods.price_per_day] ORDER BY periods.id) as periods FROM rentals, rentals_listings, periods
+      WHERE rentals.id = rentals_listings.id AND periods.rental_id = rentals.id
+      GROUP BY rentals.id, rentals_listings.id, periods.rental_id) as rentals
+    WHERE metadata.id = rentals.metadata_id AND rentals.id = ${rentalId}`)
+    return result.rows[0]
+  }
+
   return {
     createRentalListing,
+    refreshRentalListing,
     getRentalsListings,
   }
 }
