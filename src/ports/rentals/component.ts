@@ -143,13 +143,16 @@ export function createRentalsComponent(
     }
 
     // Verify that there's no open rental in the contract
-    const indexerRental = await getRentalsFromIndexer({
+    const indexerRentals = await getRentalsFromIndexer({
       filterBy: { contractAddress: rental.contractAddress, tokenId: rental.tokenId },
       orderBy: "startedAt",
       orderDirection: "desc",
       firsts: 1,
     })
-    if (indexerRental[0] && ethers.BigNumber.from(indexerRental[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))) {
+    if (
+      indexerRentals[0] &&
+      ethers.BigNumber.from(indexerRentals[0].endsAt).gt(fromMillisecondsToSeconds(Date.now()))
+    ) {
       throw new RentalAlreadyExists(rental.contractAddress, rental.tokenId)
     }
 
@@ -315,7 +318,7 @@ export function createRentalsComponent(
     }
 
     const rentalData = rentalQueryResult.rows[0]
-    const [indexerRental, indexerNFT] = await Promise.all([
+    const [indexerRentals, indexerNFT] = await Promise.all([
       getRentalsFromIndexer({ filterBy: { signature: rentalData.signature } }),
       getNFT(rentalData.contract_address, rentalData.token_id),
     ])
@@ -325,7 +328,7 @@ export function createRentalsComponent(
     }
     const indexerNFTLastUpdate = fromSecondsToMilliseconds(Number(indexerNFT.updatedAt))
     const indexerRentalLastUpdate =
-      indexerRental.length > 0 ? fromSecondsToMilliseconds(Number(indexerRental[0].updatedAt)) : 0
+      indexerRentals.length > 0 ? fromSecondsToMilliseconds(Number(indexerRentals[0].updatedAt)) : 0
 
     const promisesOfUpdate: Promise<any>[] = []
     // Update metadata
@@ -348,11 +351,13 @@ export function createRentalsComponent(
         database.query(
           SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
             Status.EXECUTED
-          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRental[0].startedAt)))} WHERE id = ${
+          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
             rentalData.id
           }`
         ),
-        database.query(SQL`UPDATE rentals_listings SET tenant = ${indexerRental[0].tenant} WHERE id = ${rentalData.id}`)
+        database.query(
+          SQL`UPDATE rentals_listings SET tenant = ${indexerRentals[0].tenant} WHERE id = ${rentalData.id}`
+        )
       )
     }
 
