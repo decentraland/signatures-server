@@ -9,6 +9,7 @@ import {
   createTestConsoleLogComponent,
   createTestDbComponent,
   createTestSubgraphComponent,
+  createTestJobComponent,
 } from "../components"
 
 let middleware: ReturnType<ReturnType<typeof createSchemaValidatorComponent>["withSchemaValidatorMiddleware"]>
@@ -26,6 +27,7 @@ beforeEach(async () => {
     marketplaceSubgraph: createTestSubgraphComponent(),
     rentalsSubgraph: createTestSubgraphComponent(),
     schemaValidator: createSchemaValidatorComponent(),
+    job: createTestJobComponent(),
   }
   middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({
     type: "object",

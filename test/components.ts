@@ -73,6 +73,8 @@ export async function initComponents(): Promise<TestComponents> {
   // Mock the start function to avoid connecting to a local database
   jest.spyOn(database, "start").mockResolvedValue()
 
+  const job = createTestJobComponent()
+
   return {
     config,
     logs,
@@ -86,6 +88,7 @@ export async function initComponents(): Promise<TestComponents> {
     schemaValidator,
     rentals,
     localFetch: await createLocalFetchCompoment(config),
+    job,
   }
 }
 
@@ -132,6 +135,20 @@ export function createTestRentalsComponent(
     getRentalsListings,
     createRentalListing,
     refreshRentalListing,
+  }
+}
+
+export function createTestJobComponent(
+  { start = jest.fn(), stop = jest.fn(), onFinish = jest.fn() } = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    onFinish: jest.fn(),
+  }
+) {
+  return {
+    start,
+    stop,
+    onFinish,
   }
 }
 
