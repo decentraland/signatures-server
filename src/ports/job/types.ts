@@ -1,5 +1,5 @@
 export type IJobComponent = {
-  start(): Promise<void>
+  start(): void
   stop(): Promise<void>
 }
 

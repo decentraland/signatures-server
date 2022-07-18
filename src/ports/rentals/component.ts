@@ -203,7 +203,14 @@ export async function createRentalsComponent(
 
     logger.info(buildLogMessageForRental("NFT found"))
 
-    if (nft.owner.address !== lessorAddress) {
+    // The NFT must be owned by the lessor or by the rental contract through the lessor
+    const lessorOwnsTheLand = nft.owner.address === lessorAddress
+    const lessorOwnsTheLandThroughTheRentalContract =
+      indexerRentals[0] &&
+      nft.owner.address === indexerRentals[0].rentalContractAddress &&
+      indexerRentals[0].lessor === lessorAddress
+
+    if (!lessorOwnsTheLand && !lessorOwnsTheLandThroughTheRentalContract) {
       throw new UnauthorizedToRent(nft.owner.address, lessorAddress)
     }
 
@@ -396,7 +403,7 @@ export async function createRentalsComponent(
     }
 
     await Promise.all(promisesOfUpdate)
-
+    
     // Return the updated rental listing
     const result =
       await database.query<DBGetRentalListing>(SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata, 
