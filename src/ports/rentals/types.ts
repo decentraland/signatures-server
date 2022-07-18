@@ -150,6 +150,8 @@ export type IndexerRental = {
   id: string
   /** The contract address of the LAND */
   contractAddress: string
+  /** The rental contract address */
+  rentalContractAddress: string
   /** The token id of the LAND */
   tokenId: string
   /** The address of the lessor of the LAND */
