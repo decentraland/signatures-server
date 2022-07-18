@@ -39,6 +39,7 @@ let rentalsSubgraphQueryMock: jest.Mock
 let rentalsSubgraph: ISubgraphComponent
 let rentalsComponent: IRentalsComponent
 let logs: ILoggerComponent
+const aDay = 24 * 60 * 60 * 1000
 
 afterEach(() => {
   jest.resetAllMocks()
@@ -98,9 +99,8 @@ describe("when creating a rental listing", () => {
     })
   })
 
-  describe("and a rental listing already exists in the blockchain and has not ended", () => {
+  describe("and a rental listing already exists in the blockchain", () => {
     beforeEach(() => {
-      const aDay = 24 * 60 * 60 * 1000
       rentalsSubgraphQueryMock.mockResolvedValueOnce({
         rentals: [
           {
@@ -115,6 +115,7 @@ describe("when creating a rental listing", () => {
             endsAt: ((Date.now() + aDay) * 1000).toString(),
             pricePerDay: "1",
             sender: "0x0",
+            isExtension: false,
             ownerHasClaimedAsset: false,
           },
         ],
@@ -144,8 +145,9 @@ describe("when creating a rental listing", () => {
   })
 
   describe("and the creator of the rental is not the owner of the LAND", () => {
+    let walletAddress: string
     beforeEach(async () => {
-      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+      walletAddress = await Wallet.createRandom().getAddress()
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
         nfts: [
           {
@@ -153,13 +155,51 @@ describe("when creating a rental listing", () => {
           },
         ],
       })
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
-    it("should throw an unauthorized to rent error", () => {
-      return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
-        new UnauthorizedToRent(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
-      )
+    describe("and a rental doesn't exist", () => {
+      beforeEach(async () => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+        rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+      })
+
+      it("should throw an unauthorized to rent error", () => {
+        return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+          new UnauthorizedToRent(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
+        )
+      })
+    })
+
+    describe("and the LAND is not owned through the rental contract", () => {
+      beforeEach(async () => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              id: "rentalId",
+              contractAddress: "contractAddress",
+              tokenId: "aTokenId",
+              lessor: "0x0",
+              tenant: "0x0",
+              operator: "0x0",
+              rentalDays: "2",
+              startedAt: fromMillisecondsToSeconds(Date.now()).toString(),
+              endsAt: fromMillisecondsToSeconds(Date.now()).toString(),
+              pricePerDay: "1",
+              sender: "0x0",
+              rentalContractAddress: walletAddress,
+              isExtension: false,
+              ownerHasClaimedAsset: false,
+            },
+          ],
+        })
+        rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+      })
+
+      it("should throw an unauthorized to rent error", () => {
+        return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+          new UnauthorizedToRent(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
+        )
+      })
     })
   })
 
@@ -711,6 +751,7 @@ describe("when refreshing rental listings", () => {
       pricePerDay: "23423423423",
       sender: "aLessor",
       ownerHasClaimedAsset: false,
+      rentalContractAddress: "aRentalContractAddress",
       isExtension: false,
       signature: rentalFromDb.signature,
     }
