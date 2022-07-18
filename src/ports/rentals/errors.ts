@@ -17,7 +17,7 @@ export class RentalAlreadyExists extends Error {
 }
 
 export class RentalNotFound extends Error {
-  constructor(public id: string) {
+  constructor(public id?: string) {
     super("The rental was not found")
   }
 }

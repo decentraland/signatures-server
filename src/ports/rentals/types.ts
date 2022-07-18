@@ -10,6 +10,7 @@ export type IRentalsComponent = {
     limit: number
     filterBy: FilterBy | null
   }): Promise<DBGetRentalListing[]>
+  updateRentalListings(): Promise<void>
 }
 
 export type RentalListingCreation = {
@@ -150,6 +151,8 @@ export type IndexerRental = {
   id: string
   /** The contract address of the LAND */
   contractAddress: string
+  /** The contract address of the rentals contract */
+  rentalContractAddress: string
   /** The token id of the LAND */
   tokenId: string
   /** The address of the lessor of the LAND */

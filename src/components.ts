@@ -39,7 +39,7 @@ export async function initComponents(): Promise<AppComponents> {
   )
 
   const schemaValidator = await createSchemaValidatorComponent()
-  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
+  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
   const job = await createJobComponent({ logs }, () => undefined, 60 * 1000, { startupDelay: 4000 })
 
   return {

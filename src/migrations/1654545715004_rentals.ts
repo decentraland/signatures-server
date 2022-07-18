@@ -57,13 +57,20 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     rental_id: { type: "uuid", notNull: true, unique: false, references: "rentals_listings(id)", onDelete: "CASCADE" },
   })
 
+  pgm.createTable("updates", {
+    id: { type: "uuid", primaryKey: true, default: pgm.func("uuid_generate_v4()") },
+    updated_at: { type: "timestamp", notNull: true, default: pgm.func("to_timestamp(0)") },
+  })
+
   pgm.createIndex("periods", "rental_id")
   pgm.createIndex("periods", "min_days")
   pgm.createIndex("periods", "max_days")
   pgm.createIndex("periods", "price_per_day")
   pgm.createIndex("rentals", "metadata_id")
+  pgm.createIndex("rentals", "signature")
   // Ensure that there won't be more than one open rental per token
   pgm.createIndex("rentals", ["token_id", "contract_address", "status"], { where: "status = 'open'", unique: true })
+  pgm.createIndex("updates", "updated_at")
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
@@ -72,4 +79,5 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
   pgm.dropTable("rentals_offers")
   pgm.dropTable("rentals_listing")
   pgm.dropTable("metadata")
+  pgm.dropType("status")
 }
