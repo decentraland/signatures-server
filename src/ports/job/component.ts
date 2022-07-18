@@ -37,14 +37,14 @@ export function createJobComponent(
     }
   }
 
-  async function start() {
+  function start() {
     // Start the job but don't wait for it
     runJob()
   }
 
   async function runJob() {
     await sleep(startupDelay)
-    do {
+    while (!shouldStop) {
       await sleep(onTime)
       try {
         runningJob = job()
@@ -53,7 +53,10 @@ export function createJobComponent(
         onError(error)
       }
       logger.info("[Executed]")
-    } while (!shouldStop && repeat)
+      if (!repeat) {
+        break
+      }
+    }
     await onFinish()
     logger.info("[Stopped]")
   }
