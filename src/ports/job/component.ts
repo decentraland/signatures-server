@@ -3,7 +3,9 @@ import { IJobComponent, JobOptions } from "./types"
 
 export function createJobComponent(
   components: Pick<AppComponents, "logs">,
+  /** The function to execute as a job. Admits asynchronous functions. */
   job: () => any,
+  /** The amount of time to wait between jobs */
   onTime: number,
   { repeat = true, startupDelay = 0, onError = () => undefined, onFinish = () => undefined }: JobOptions = {
     repeat: true,
@@ -45,7 +47,6 @@ export function createJobComponent(
   async function runJob() {
     await sleep(startupDelay)
     while (!shouldStop) {
-      await sleep(onTime)
       try {
         runningJob = job()
         await runningJob
@@ -56,6 +57,7 @@ export function createJobComponent(
       if (!repeat) {
         break
       }
+      await sleep(onTime)
     }
     await onFinish()
     logger.info("[Stopped]")

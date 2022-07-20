@@ -10,7 +10,8 @@ export type IRentalsComponent = {
     limit: number
     filterBy: FilterBy | null
   }): Promise<DBGetRentalListing[]>
-  updateRentalListings(): Promise<void>
+  updateRentalsListings(): Promise<void>
+  updateMetadata(): Promise<void>
 }
 
 export type RentalListingCreation = {
@@ -36,6 +37,11 @@ export enum Status {
   OPEN = "open",
   CANCELLED = "cancelled",
   EXECUTED = "executed",
+}
+
+export enum UpdateType {
+  METADATA = "metadata",
+  RENTALS = "rentals",
 }
 
 export type DBMetadata = {
@@ -104,6 +110,8 @@ export type NFT = {
   createdAt: string
   /** Timestamp when the NFT was updated for the last time in seconds since epoch */
   updatedAt: string
+  /** Wether the NFT is LAND or not */
+  searchIsLand: boolean
 }
 
 export enum FilterByCategory {

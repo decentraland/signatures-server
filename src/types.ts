@@ -29,7 +29,8 @@ export type BaseComponents = {
   rentalsSubgraph: ISubgraphComponent
   schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
-  job: IJobComponent
+  updateMetadataJob: IJobComponent
+  updateRentalsListingsJob: IJobComponent
 }
 
 // components used in runtime

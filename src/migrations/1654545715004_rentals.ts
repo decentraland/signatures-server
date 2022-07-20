@@ -8,6 +8,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.createExtension("uuid-ossp", { ifNotExists: true })
 
   pgm.createType("status", ["open", "executed", "cancelled"])
+  pgm.createType("update", ["metadata", "rentals"])
 
   pgm.createTable("metadata", {
     id: { type: "string", notNull: true, primaryKey: true },
@@ -58,7 +59,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   })
 
   pgm.createTable("updates", {
-    id: { type: "uuid", primaryKey: true, default: pgm.func("uuid_generate_v4()") },
+    type: { type: "update", primaryKey: true, notNull: true },
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("to_timestamp(0)") },
   })
 
@@ -71,6 +72,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // Ensure that there won't be more than one open rental per token
   pgm.createIndex("rentals", ["token_id", "contract_address", "status"], { where: "status = 'open'", unique: true })
   pgm.createIndex("updates", "updated_at")
+
+  pgm.sql("INSERT INTO updates (type, updated_at) VALUES ('metadata', now()), ('rentals', to_timestamp(0))")
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {

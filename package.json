@@ -4,7 +4,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --trace-warnings --abort-on-uncaught-exception --unhandled-rejections=strict dist/index.js",
     "start-dev": "ts-node src/index.ts",
-    "migrate": "node-pg-migrate --database-url-var PG_COMPONENT_PSQL_CONNECTION_STRING --envPath .env -j ts --tsconfig tsconfig.json -m ./migrations",
+    "migrate": "node-pg-migrate --database-url-var PG_COMPONENT_PSQL_CONNECTION_STRING --envPath .env -j ts --tsconfig tsconfig.json -m ./src/migrations",
     "test": "jest --forceExit --detectOpenHandles --coverage --verbose"
   },
   "devDependencies": {
@@ -31,7 +31,7 @@
     "decentraland-crypto-middleware": "^1.0.4",
     "decentraland-transactions": "^1.38.0",
     "ethers": "^5.6.9",
-    "p-limit": "^4.0.0",
+    "p-limit": "^3.1.0",
     "sql-template-strings": "^2.2.2"
   }
 }

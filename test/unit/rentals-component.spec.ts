@@ -1,8 +1,9 @@
 import SQL from "sql-template-strings"
 import { Wallet } from "ethers"
-import { ILoggerComponent } from "@well-known-components/interfaces"
+import { IConfigComponent, ILoggerComponent } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { createConfigComponent } from "@well-known-components/env-config-provider"
 import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 import * as rentalsLogic from "../../src/logic/rentals"
 import {
@@ -39,6 +40,7 @@ let rentalsSubgraphQueryMock: jest.Mock
 let rentalsSubgraph: ISubgraphComponent
 let rentalsComponent: IRentalsComponent
 let logs: ILoggerComponent
+let config: IConfigComponent
 const aDay = 24 * 60 * 60 * 1000
 
 afterEach(() => {
@@ -65,6 +67,7 @@ describe("when creating a rental listing", () => {
     rentalsSubgraphQueryMock = jest.fn()
     rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
     logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     lessor = await Wallet.createRandom().getAddress()
     rentalListingCreation = {
       network: Network.ETHEREUM,
@@ -84,12 +87,12 @@ describe("when creating a rental listing", () => {
       signature:
         "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b",
     }
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
   })
 
   describe("and the signature is not valid", () => {
     beforeEach(() => {
       mockedRentalsLogic.verifyRentalsListingSignature.mockReset().mockResolvedValueOnce(false)
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should throw an invalid signature error", () => {
@@ -120,7 +123,6 @@ describe("when creating a rental listing", () => {
           },
         ],
       })
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should throw a rental already exists error", () => {
@@ -134,7 +136,6 @@ describe("when creating a rental listing", () => {
     beforeEach(() => {
       rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({ nfts: [] })
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should throw a NFT not found error", () => {
@@ -158,9 +159,8 @@ describe("when creating a rental listing", () => {
     })
 
     describe("and a rental doesn't exist", () => {
-      beforeEach(async () => {
+      beforeEach(() => {
         rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
-        rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
       })
 
       it("should throw an unauthorized to rent error", () => {
@@ -171,7 +171,7 @@ describe("when creating a rental listing", () => {
     })
 
     describe("and the LAND is not owned through the rental contract", () => {
-      beforeEach(async () => {
+      beforeEach(() => {
         rentalsSubgraphQueryMock.mockResolvedValueOnce({
           rentals: [
             {
@@ -192,7 +192,6 @@ describe("when creating a rental listing", () => {
             },
           ],
         })
-        rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
       })
 
       it("should throw an unauthorized to rent error", () => {
@@ -204,7 +203,7 @@ describe("when creating a rental listing", () => {
   })
 
   describe("and one of the queries to create the rental listing fails with an unknown error", () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
         nfts: [
@@ -219,7 +218,6 @@ describe("when creating a rental listing", () => {
         ],
       })
       dbClientQueryMock.mockRejectedValueOnce(new Error("Database error"))
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should throw an error and rollback the query", async () => {
@@ -247,7 +245,6 @@ describe("when creating a rental listing", () => {
         ],
       })
       dbClientQueryMock.mockRejectedValueOnce({ constraint: "rentals_token_id_contract_address_status_unique_index" })
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should throw an error and rollback the query", async () => {
@@ -354,7 +351,6 @@ describe("when creating a rental listing", () => {
         })
         // Commit
         .mockResolvedValueOnce(undefined)
-      rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
     })
 
     it("should return the created rental", () => {
@@ -391,7 +387,7 @@ describe("when creating a rental listing", () => {
 describe("when getting rental listings", () => {
   let dbGetRentalListings: DBGetRentalListing[]
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbQueryMock = jest.fn()
     database = createTestDbComponent({ query: dbQueryMock })
     marketplaceSubgraphQueryMock = jest.fn()
@@ -399,7 +395,8 @@ describe("when getting rental listings", () => {
     rentalsSubgraphQueryMock = jest.fn()
     rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
     logs = createTestConsoleLogComponent()
-    rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
   })
 
   describe("and the query throws an error", () => {
@@ -707,7 +704,7 @@ describe("when refreshing rental listings", () => {
   let rentalFromIndexer: IndexerRental
   let result: DBGetRentalListing
 
-  beforeEach(() => {
+  beforeEach(async () => {
     dbQueryMock = jest.fn()
     database = createTestDbComponent({ query: dbQueryMock })
     marketplaceSubgraphQueryMock = jest.fn()
@@ -715,7 +712,8 @@ describe("when refreshing rental listings", () => {
     rentalsSubgraphQueryMock = jest.fn()
     rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
     logs = createTestConsoleLogComponent()
-    rentalsComponent = createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs })
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
     rentalFromDb = {
       id: "an id",
       contract_address: "aContractAddress",
@@ -734,6 +732,7 @@ describe("when refreshing rental listings", () => {
         address: "anAddress",
       },
       searchText: "aSearchText",
+      searchIsLand: true,
       createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
       updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
     }

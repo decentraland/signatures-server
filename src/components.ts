@@ -17,6 +17,8 @@ export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
+  const thirtySeconds = 30 * 1000
+  const fiveMinutes = 5 * 60 * 1000
 
   const logs = createLogComponent()
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})
@@ -40,7 +42,17 @@ export async function initComponents(): Promise<AppComponents> {
 
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
-  const job = await createJobComponent({ logs }, () => undefined, 60 * 1000, { startupDelay: 4000 })
+  const updateMetadataJob = await createJobComponent({ logs }, () => rentals.updateMetadata(), fiveMinutes, {
+    startupDelay: thirtySeconds,
+  })
+  const updateRentalsListingsJob = await createJobComponent(
+    { logs },
+    () => rentals.updateRentalsListings(),
+    fiveMinutes,
+    {
+      startupDelay: thirtySeconds,
+    }
+  )
 
   return {
     config,
@@ -54,6 +66,7 @@ export async function initComponents(): Promise<AppComponents> {
     rentalsSubgraph,
     schemaValidator,
     rentals,
-    job,
+    updateMetadataJob,
+    updateRentalsListingsJob,
   }
 }

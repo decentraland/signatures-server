@@ -62,18 +62,20 @@ export async function initComponents(): Promise<TestComponents> {
     await config.requireString("RENTALS_SUBGRAPH_URL")
   )
   const database = await createPgComponent({ logs, config, metrics })
-  const rentals = createRentalsComponent({
+  const rentals = await createRentalsComponent({
     logs,
     database,
     marketplaceSubgraph,
     rentalsSubgraph,
+    config,
   })
   const schemaValidator = await createSchemaValidatorComponent()
   const statusChecks = await createStatusCheckComponent({ server, config })
   // Mock the start function to avoid connecting to a local database
   jest.spyOn(database, "start").mockResolvedValue()
 
-  const job = createTestJobComponent()
+  const updateMetadataJob = createTestJobComponent()
+  const updateRentalsListingsJob = createTestJobComponent()
 
   return {
     config,
@@ -88,7 +90,8 @@ export async function initComponents(): Promise<TestComponents> {
     schemaValidator,
     rentals,
     localFetch: await createLocalFetchCompoment(config),
-    job,
+    updateMetadataJob,
+    updateRentalsListingsJob,
   }
 }
 
@@ -125,16 +128,26 @@ export function createTestSubgraphComponent({ query = jest.fn() } = { query: jes
 }
 
 export function createTestRentalsComponent(
-  { createRentalListing = jest.fn(), getRentalsListings = jest.fn(), refreshRentalListing = jest.fn() } = {
+  {
+    createRentalListing = jest.fn(),
+    getRentalsListings = jest.fn(),
+    refreshRentalListing = jest.fn(),
+    updateMetadata = jest.fn(),
+    updateRentalsListings = jest.fn(),
+  } = {
     createRentalListing: jest.fn(),
     getRentalsListings: jest.fn(),
     refreshRentalListing: jest.fn(),
+    updateMetadata: jest.fn(),
+    updateRentalsListings: jest.fn(),
   }
 ): IRentalsComponent {
   return {
     getRentalsListings,
     createRentalListing,
     refreshRentalListing,
+    updateMetadata,
+    updateRentalsListings,
   }
 }
 

@@ -1,6 +1,8 @@
 import SQL, { SQLStatement } from "sql-template-strings"
-import pLimit from "p-limit"
+import { ChainName, getChainId } from "@dcl/schemas"
+import { getNetwork } from "@dcl/schemas/dist/dapps/chain-id"
 import { ethers } from "ethers"
+import pLimit from "p-limit"
 import {
   fromRentalCreationToContractRentalListing,
   fromMillisecondsToSeconds,
@@ -24,10 +26,9 @@ import {
   DBGetRentalListing,
   IndexerRental,
   DBMetadata,
+  UpdateType,
 } from "./types"
-import { ChainName, getChainId } from "@dcl/schemas"
-import { getNetwork } from "@dcl/schemas/dist/dapps/chain-id"
-// import { getNetwork } from "@dcl/schemas/dist/dapps/chain-id"
+import { buildQueryParameters } from "./graph"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
@@ -44,39 +45,33 @@ export async function createRentalsComponent(
   }
   const NETWORK = getNetwork(CHAIN_ID)
   const MAX_CONCURRENT_RENTAL_UPDATES = await config.requireNumber("MAX_CONCURRENT_RENTAL_UPDATES")
+  const MAX_GRAPH_FIRST = 1000
 
   function buildLogMessage(action: string, event: string, contractAddress: string, tokenId: string, lessor: string) {
     return `[${action}][${event}][contractAddress:${contractAddress}][tokenId:${tokenId}][lessor:${lessor}]`
   }
 
-  async function getLandOwner(contractAddress: string, tokenId: string): Promise<string> {
-    const nft = await getNFT(contractAddress, tokenId)
-    if (!nft) {
-      throw new NFTNotFound(contractAddress, tokenId)
-    }
+  async function getNFTsFromIndexer(options?: {
+    filterBy?: Partial<Omit<NFT, "owner"> & { updatedAt_gt: string; id_gt: string }>
+    first?: number
+    orderBy?: keyof Omit<NFT, "owner">
+    orderDirection?: "desc" | "asc"
+  }): Promise<NFT[]> {
+    const { queryVariables, querySignature } = buildQueryParameters<NFT & { updatedAt_gt: string; id_gt: string }>(
+      options?.filterBy,
+      options?.first,
+      options?.orderBy,
+      options?.orderDirection
+    )
+    const variables = options?.filterBy
+      ? Object.fromEntries(Object.entries(options.filterBy).filter(([_, value]) => value))
+      : undefined
 
-    if (nft.owner.address === "rentals address") {
-      const rentals = await getRentalsFromIndexer({
-        filterBy: { contractAddress, tokenId },
-        orderBy: "startedAt",
-        orderDirection: "desc",
-        first: 1,
-      })
-
-      if (!rentals) {
-        throw new RentalNotFound()
-      }
-      return rentals[0].lessor
-    }
-    return nft?.owner.address
-  }
-
-  async function getNFT(contractAddress: string, tokenId: string): Promise<NFT | null> {
     const queryResult = await marketplaceSubgraph.query<{
       nfts: NFT[]
     }>(
-      `query NFTByTokenId($contractAddress: String, $tokenId: String) {
-        nfts(first: 1 where: { tokenId: $tokenId, contractAddress: $contractAddress, searchIsLand: true }) {
+      `query NFTByTokenId(${queryVariables}) {
+        nfts(${querySignature}) {
           id,
           category,
           contractAddress,
@@ -85,16 +80,14 @@ export async function createRentalsComponent(
             address
           },
           searchText,
+          searchIsLand,
           createdAt,
           updatedAt
         }
       }`,
-      {
-        contractAddress,
-        tokenId,
-      }
+      variables
     )
-    return queryResult.nfts[0] ?? null
+    return queryResult.nfts
   }
 
   async function getRentalsFromIndexer(options?: {
@@ -103,37 +96,9 @@ export async function createRentalsComponent(
     orderBy?: keyof IndexerRental
     orderDirection?: "desc" | "asc"
   }): Promise<IndexerRental[]> {
-    let querySignature = ""
-    let queryVariables = ""
-
-    if (options?.first) {
-      querySignature += `first: ${options.first} `
-    }
-    if (options?.orderBy) {
-      querySignature += `orderBy: ${options.orderBy} `
-    }
-    if (options?.orderDirection) {
-      querySignature += `orderDirection: ${options.orderDirection} `
-    }
-    if (options?.filterBy) {
-      querySignature += `where: { ${Object.keys(options.filterBy).reduce((acc, key) => `${acc} ${key}: $${key}`, "")} }`
-      queryVariables += Object.entries(options.filterBy)
-        .map(([key, value]) => {
-          let type: string
-          if (typeof value === "string") {
-            type = "String"
-          } else if (typeof value === "number") {
-            type = "Int"
-          } else if (typeof value === "boolean") {
-            type = "Boolean"
-          } else {
-            throw new Error("Can't parse filter by type")
-          }
-
-          return `$${key}: ${type}`
-        })
-        .join(" ")
-    }
+    const { queryVariables, querySignature } = buildQueryParameters<
+      IndexerRental & { updatedAt_gt: string; id_gt: string }
+    >(options?.filterBy, options?.first, options?.orderBy, options?.orderDirection)
 
     const queryResult = await rentalsSubgraph.query<{
       rentals: IndexerRental[]
@@ -152,6 +117,7 @@ export async function createRentalsComponent(
           updatedAt,
           pricePerDay,
           sender,
+          signature,
           ownerHasClaimedAsset
         }
       }`,
@@ -194,7 +160,10 @@ export async function createRentalsComponent(
     }
 
     // Verifying that the NFT exists and that is owned by the lessor
-    const nft = await getNFT(rental.contractAddress, rental.tokenId)
+    const [nft] = await getNFTsFromIndexer({
+      filterBy: { contractAddress: rental.contractAddress, tokenId: rental.tokenId },
+      first: 1,
+    })
 
     if (!nft) {
       logger.info(buildLogMessageForRental("NFT not found"))
@@ -362,9 +331,12 @@ export async function createRentalsComponent(
     }
 
     const rentalData = rentalQueryResult.rows[0]
-    const [indexerRentals, indexerNFT] = await Promise.all([
+    const [indexerRentals, [indexerNFT]] = await Promise.all([
       getRentalsFromIndexer({ filterBy: { signature: rentalData.signature } }),
-      getNFT(rentalData.contract_address, rentalData.token_id),
+      getNFTsFromIndexer({
+        filterBy: { contractAddress: rentalData.contract_address, tokenId: rentalData.token_id },
+        first: 1,
+      }),
     ])
 
     if (!indexerNFT) {
@@ -403,7 +375,7 @@ export async function createRentalsComponent(
     }
 
     await Promise.all(promisesOfUpdate)
-    
+
     // Return the updated rental listing
     const result =
       await database.query<DBGetRentalListing>(SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata, 
@@ -416,136 +388,244 @@ export async function createRentalsComponent(
   }
 
   async function updateMetadata() {
+    // Truncate the start time to seconds so we can interact with the blockchain date
+    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
+    logger.info(`[Metadata update][Start updates]`)
     const { rows } = await database.query<{ updated_at: Date }>(
-      "SELECT updated_at FROM updates WHERE type = 'metadata' ORDER BY updated_at DESC LIMIT 1"
+      SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.METADATA} ORDER BY updated_at DESC LIMIT 1`
     )
-    const lastUpdated = rows[0]
-    // await getNFT()
-  }
-
-  // async function cancel
-
-  async function updateRentalListings() {
-    // This is just a placeholder
-    const RENTAL_CONTRACT_ADDRESS = ""
-    const startTime = fromMillisecondsToSeconds(new Date().getTime())
-    // How do we clearly identify the time we should update from?
-    const { rows } = await database.query<{ updated_at: Date }>(
-      "SELECT updated_at FROM updates ORDER BY updated_at DESC LIMIT 1"
-    )
+    logger.info(`[Metadata update][Last Update:${rows[0].updated_at.getTime()}]`)
+    const lastUpdated = fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString()
     const client = await database.getPool().connect()
-    let hasUpdates = false
     let lastId: string | undefined
     try {
       await client.query("BEGIN")
-      while (hasUpdates) {
+
+      while (true) {
+        const updatedNFTs = await getNFTsFromIndexer({
+          filterBy: { updatedAt_gt: lastUpdated, searchIsLand: true, id_gt: lastId },
+          first: MAX_GRAPH_FIRST,
+        })
+        logger.info(`[Metadata update][Metadata batch to update:${updatedNFTs.length}]`)
+
+        // Limit the concurrent updates
+        const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
+        const promiseOfUpdates = updatedNFTs.map((nft) =>
+          limit(async () => {
+            const { rowCount } = await client.query(
+              SQL`UPDATE metadata SET category = ${nft.category}, search_text = ${
+                nft.searchText
+              }, updated_at = ${new Date(fromMillisecondsToSeconds(Number(nft.updatedAt)))} WHERE id = ${nft.id}`
+            )
+            logger.debug(`[Metadata update][Single update:${nft.id}][Start]`)
+
+            // If the metadata to be updated doesn't exist don't continue with the update
+            if (rowCount === 0) {
+              logger.debug(`[Metadata update][Single update:${nft.id}][Does not exist in the DB]`)
+              return
+            }
+
+            const { rows: idsOfOpenRentalsOfNFT } = await client.query<{
+              id: string
+              lessor: string
+              rental_contract_address: string
+              contract_address: string
+              token_id: string
+            }>(
+              SQL`SELECT rentals.id, lessor, rental_contract_address, contract_address, token_id FROM rentals, rentals_listings
+              WHERE metadata_id = ${nft.id} AND status = ${Status.OPEN} AND rentals.id = rentals_listings.id`
+            )
+
+            logger.debug(`[Metadata update][Single update:${nft.id}][Open rentals:${idsOfOpenRentalsOfNFT.length}]`)
+
+            // If there's no rental listing to update, don't continue with the update
+            if (!idsOfOpenRentalsOfNFT[0]) {
+              return
+            }
+
+            const ownerIsContractAddress = nft.owner.address === idsOfOpenRentalsOfNFT[0].rental_contract_address
+            const ownerIsTheSame = nft.owner.address === idsOfOpenRentalsOfNFT[0].lessor
+
+            if (!ownerIsTheSame) {
+              logger.debug(`[Metadata update][Single update:${nft.id}][The owner is not the same]`)
+
+              if (ownerIsContractAddress) {
+                logger.debug(`[Metadata update][Single update:${nft.id}][The owner is the rentals contract]`)
+                const rentals = await getRentalsFromIndexer({
+                  first: 1,
+                  filterBy: {
+                    contractAddress: idsOfOpenRentalsOfNFT[0].contract_address,
+                    tokenId: idsOfOpenRentalsOfNFT[0].token_id,
+                  },
+                  orderBy: "startedAt",
+                  orderDirection: "desc",
+                })
+
+                // If the owner is still the same one as the listing through the rental contract, don't continue with the update
+                if (nft.owner.address === rentals[0]?.lessor) {
+                  return
+                }
+              }
+
+              // Cancel the rental listing that now has a different owner
+              await client.query(
+                SQL`UPDATE rentals SET status = ${Status.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+              )
+              logger.debug(`[Metadata update][Single update:${nft.id}][Cancelling listing due to a different owner]`)
+            }
+          })
+        )
+
+        const updates = await Promise.allSettled(promiseOfUpdates)
+        const rejectedUpdates = updates.filter((result) => result.status === "rejected")
+        if (rejectedUpdates.length > 0) {
+          throw (rejectedUpdates[0] as PromiseRejectedResult).reason
+        }
+
+        if (updatedNFTs.length < MAX_GRAPH_FIRST) {
+          break
+        }
+
+        lastId = updatedNFTs[updatedNFTs.length - 1].id
+        logger.info(`[Metadata update][Successful finished batch]`)
+      }
+      await database.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.METADATA}`)
+      await client.query("COMMIT")
+      logger.info(`[Metadata update][Successful]`)
+    } catch (error) {
+      logger.info(`[Metadata update][Failed][${(error as any).message.substring(0, 40)}]`)
+      await client.query("ROLLBACK")
+    } finally {
+      client.release()
+    }
+  }
+
+  async function updateRentalsListings() {
+    // Truncate the start time to seconds so we can interact with the blockchain date
+    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
+    logger.info(`[Rentals update][Start updates]`)
+    const { rows } = await database.query<{ updated_at: Date }>(
+      SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.RENTALS} ORDER BY updated_at DESC LIMIT 1`
+    )
+    const client = await database.getPool().connect()
+    let lastId: string | undefined
+    try {
+      await client.query("BEGIN")
+      while (true) {
         const indexerRentals = await getRentalsFromIndexer({
           filterBy: { updatedAt_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString(), id_gt: lastId },
-          first: 5000,
+          first: MAX_GRAPH_FIRST,
         })
-
-        // Use last id to query the graph to avoid the indexing limit
-        if (indexerRentals.length < 5000) {
-          hasUpdates = true
-        } else {
-          lastId = indexerRentals[indexerRentals.length - 1].id
-        }
+        logger.info(`[Rentals update][Batch of rentals:${indexerRentals.length}]`)
 
         // Limit the concurrent updates
         const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
 
         const promiseOfUpdates = indexerRentals.map((rental) =>
           limit(async () => {
-            const { rows: rentalsRows } = await client.query<{ id: string, lessor: string, status: Status }>(SQL`SELECT id, lessor, status from rentals WHERE signature = ${rental.signature}`)
-            const nft = await getNFT(rental.signature, rental.tokenId)
-            if (!nft) {
-              // skip update, this is an error state
-              return
-            }
-            
-            // Insert or update metadata
-            const { rows: metadataRows } = await client.query<DBMetadata>(
-              SQL`INSERT INTO metadata (id, category, search_text, created_at, updated_at) VALUES (${nft.id}, ${
-                nft.category
-              }, ${nft.searchText}, ${nft.updatedAt} ${new Date(
-                fromSecondsToMilliseconds(Number(nft.createdAt))
-              )}) ON CONFLICT DO UPDATE SET search_text = ${nft.searchText}, updated_at = ${nft.updatedAt} RETURNING *`
-              // Use updated at here or use not?
+            logger.debug(
+              `[Rentals update][Start rental update][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
             )
+            const {
+              rows: [dbRental],
+            } = await client.query<{ id: string; lessor: string; status: Status }>(
+              SQL`SELECT rentals.id, lessor, status FROM rentals, rentals_listings WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature}`
+            )
+            logger.debug(
+              `[Rentals update][Exists:${Boolean(dbRental)}][contractAddress:${rental.contractAddress}][tokenId:${
+                rental.tokenId
+              }]`
+            )
+            // If there's a rental in the database updated it, else, create it
+            if (dbRental) {
+              await Promise.all([
+                client.query(
+                  SQL`UPDATE rentals SET updated_at = ${new Date(
+                    fromSecondsToMilliseconds(Number(rental.updatedAt))
+                  )}, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
+                    Status.EXECUTED
+                  } WHERE id = ${dbRental.id}`
+                ),
+                client.query(SQL`UPDATE rentals_listings SET lessor = ${rental.lessor} WHERE id = ${dbRental.id}`),
+              ])
+              logger.debug(
+                `[Rentals update][Updated][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
+              )
+            } else {
+              // Check if the metadata exists by querying all rentals to see if one of them has the metadata attached to it
+              const {
+                rows: [metadataRow],
+              } = await client.query<{ id: string }>(
+                SQL`SELECT metadata.id FROM metadata LEFT JOIN rentals ON metadata.id = rentals.metadata_id
+                WHERE rentals.token_id = ${rental.tokenId} AND rentals.contract_address = ${rental.contractAddress}`
+              )
+              let metadataId: string | undefined = metadataRow?.id
 
-            // Update the rental if it already exists
-            if (rentalsRows.length > 0) {
-              // Check if the is still owned by the owner
-              if (nft.owner.address !== rentalsRows[0].lessor) {
-                // If the owner is the rental contract and the rental is still open, cancel it
-                if (nft.owner.address === rental.rentalContractAddress && rentalsRows[0].status === Status.OPEN) {
-                  rental.
+              if (!metadataRow) {
+                const [nft] = await getNFTsFromIndexer({
+                  filterBy: { tokenId: rental.tokenId, contractAddress: rental.contractAddress },
+                  first: 1,
+                })
+
+                // There must be an NFT, if this is reached, ignore this update
+                if (!nft) {
+                  return
                 }
-                rentalsRows[0].lessor
+
+                // As the metadata doesn't exist, create it
+                await client.query(
+                  SQL`INSERT INTO metadata (id, category, search_text, created_at, updated_at)
+                  VALUES (${nft.id}, ${nft.category}, ${nft.searchText}, ${new Date(
+                    fromSecondsToMilliseconds(Number(nft.createdAt))
+                  )}, ${new Date(fromSecondsToMilliseconds(Number(nft.updatedAt)))})`
+                )
+                metadataId = nft.id
+                logger.debug(
+                  `[Rentals update][Inserted new metadata][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
+                )
               }
 
-              // Update rental
-            } else {
-              // Check if the metadata exists & insert it
-
-              // Insert rental
-
-              // Insert rental listing
-            }
-
-            // let metadata: DBMetadata
-            // const metadataResult = await client.query(
-              // SQL`SELECT metadata WHERE contractAddress = ${rental.contractAddress} AND tokenId = ${rental.tokenId}`
-            // ) // => We need to search the metadata by contractAddress and tokenId here
-            // Metadata doesn't exist
-            if (metadataResult.rowCount != 0) {
-              // const nft = await getNFT(rental.signature, rental.tokenId)
-              // if (!nft) {
-              //   // skip update, this is an error state
-              //   return
-              // }
-              const createdMetadata = await client.query<DBMetadata>(
-                SQL`INSERT INTO metadata (id, category, search_text, created_at, updated_at) VALUES (${nft.id}, ${
-                  nft.category
-                }, ${nft.searchText}, ${nft.updatedAt} ${new Date(
-                  fromSecondsToMilliseconds(Number(nft.createdAt))
-                )}) RETURNING *`
+              // Create rental listing
+              const defaultNonces = ["", "", ""]
+              const startedAt = new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))
+              const {
+                rows: [insertedRental],
+              } = await client.query(
+                SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status, created_at, updated_at, started_at)
+                VALUES (${metadataId}, ${NETWORK}, ${getChainId(CHAIN_NAME)}, ${new Date(0)}, ${
+                  rental.signature
+                }, ${defaultNonces}, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${
+                  Status.EXECUTED
+                }, ${startedAt}, ${startedAt}, ${startedAt}) RETURNING id`
               )
-
-              metadata = createdMetadata.rows[0]
-            } else {
-              metadata = metadataResult.rows[0]
+              await client.query(
+                SQL`INSERT INTO rentals_listings (id, lessor, tenant) VALUES (${insertedRental.id}, ${rental.lessor}, ${rental.tenant})`
+              )
+              logger.debug(
+                `[Rentals update][Inserted rental][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
+              )
             }
-
-            // Should updated at be updated or should it be the same value from the blockchain?
-            const SOME_UPDATED_AT_DATE = new Date()
-
-            // Insert or update rental listings based on the indexer's information
-            const rentalResult = await client.query(
-              SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status) VALUES (${
-                metadata.id
-              }, ${NETWORK}, ${getChainId(CHAIN_NAME)}, ${new Date(0)}, ${rental.signature}, ${["", "", ""]}, ${
-                rental.tokenId
-              }, ${rental.contractAddress}, ${RENTAL_CONTRACT_ADDRESS}, ${
-                Status.OPEN
-              }) ON CONFLICT DO UPDATE SET status = ${
-                Status.EXECUTED
-              }, updated_at = ${SOME_UPDATED_AT_DATE}, started_at = ${new Date(
-                fromSecondsToMilliseconds(Number(rental.startedAt))
-              )} RETURNING *`
-            )
-
-            await client.query(
-              SQL`INSERT INTO rentals_listings VALUES () WHERE id = ${rentalResult.rows[0].signature} ON CONFLICT DO UPDATE SET tenant = ${rental.tenant}`
-            )
           })
         )
+        const updates = await Promise.allSettled(promiseOfUpdates)
+        const rejectedUpdates = updates.filter((result) => result.status === "rejected")
+        if (rejectedUpdates.length > 0) {
+          throw (rejectedUpdates[0] as PromiseRejectedResult).reason
+        }
 
-        await Promise.all(promiseOfUpdates)
+        // Use last id to query the graph to avoid the indexing limit
+        if (indexerRentals.length < MAX_GRAPH_FIRST) {
+          break
+        }
+        lastId = indexerRentals[indexerRentals.length - 1].id
       }
+      await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.RENTALS}`)
       await client.query("COMMIT")
+      logger.info(`[Rentals update][Successful]`)
+    } catch (error) {
+      logger.info(`[Rentals update][Failed]`)
+      await client.query("ROLLBACK")
     } finally {
-      await client.query(SQL`UPDATE updates SET updated_at = ${new Date(startTime)}`)
       client.release()
     }
   }
@@ -554,6 +634,7 @@ export async function createRentalsComponent(
     createRentalListing,
     refreshRentalListing,
     getRentalsListings,
-    updateRentalListings,
+    updateRentalsListings,
+    updateMetadata,
   }
 }
