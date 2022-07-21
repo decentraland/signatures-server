@@ -27,7 +27,8 @@ beforeEach(async () => {
     marketplaceSubgraph: createTestSubgraphComponent(),
     rentalsSubgraph: createTestSubgraphComponent(),
     schemaValidator: createSchemaValidatorComponent(),
-    job: createTestJobComponent(),
+    updateMetadataJob: createTestJobComponent(),
+    updateRentalsListingsJob: createTestJobComponent(),
   }
   middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({
     type: "object",

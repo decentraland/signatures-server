@@ -1,5 +1,6 @@
 import { IMetricsComponent } from "@well-known-components/interfaces"
 import { validateMetricsDeclaration } from "@well-known-components/metrics"
+import { metricDeclarations as graphMetrics } from "@well-known-components/thegraph-component"
 
 export const metricDeclarations = {
   test_ping_counter: {
@@ -7,6 +8,7 @@ export const metricDeclarations = {
     type: IMetricsComponent.CounterType,
     labelNames: ["pathname"],
   },
+  ...graphMetrics,
 }
 
 // type assertions
