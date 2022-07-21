@@ -16,8 +16,9 @@ export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
+  const LOG_LEVEL = await config.requireString("LOG_LEVEL")
 
-  const logs = createLogComponent()
+  const logs = createLogComponent({ config: { logLevel: LOG_LEVEL } })
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})
   const statusChecks = await createStatusCheckComponent({ server, config })
   const fetch = await createFetchComponent()
