@@ -525,7 +525,7 @@ export async function createRentalsComponent(
             )
             const {
               rows: [dbRental],
-            } = await client.query<{ id: string; lessor: string; status: Status }>(
+            } = await client.query<Pick<DBRental & DBRentalListing, "id" | "lessor" | "status">>(
               SQL`SELECT rentals.id, lessor, status FROM rentals, rentals_listings WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature}`
             )
             logger.debug(
@@ -543,7 +543,7 @@ export async function createRentalsComponent(
                     Status.EXECUTED
                   } WHERE id = ${dbRental.id}`
                 ),
-                client.query(SQL`UPDATE rentals_listings SET lessor = ${rental.lessor} WHERE id = ${dbRental.id}`),
+                client.query(SQL`UPDATE rentals_listings SET tenant = ${rental.tenant} WHERE id = ${dbRental.id}`),
               ])
               logger.debug(
                 `[Rentals update][Updated][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
@@ -557,7 +557,6 @@ export async function createRentalsComponent(
                 WHERE rentals.token_id = ${rental.tokenId} AND rentals.contract_address = ${rental.contractAddress}`
               )
               let metadataId: string | undefined = metadataRow?.id
-
               if (!metadataRow) {
                 const [nft] = await getNFTsFromIndexer({
                   filterBy: { tokenId: rental.tokenId, contractAddress: rental.contractAddress },
@@ -616,6 +615,10 @@ export async function createRentalsComponent(
         }
         lastId = indexerRentals[indexerRentals.length - 1].id
       }
+      // Close all opened listings that expired
+      await client.query(
+        SQL`UPDATE rentals SET status = ${Status.CANCELLED} WHERE status = ${Status.OPEN} AND expiration < now()`
+      )
       await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.RENTALS}`)
       await client.query("COMMIT")
       logger.info(`[Rentals update][Successful]`)

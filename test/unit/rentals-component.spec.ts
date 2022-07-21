@@ -991,7 +991,6 @@ describe("when updating the metadata", () => {
   let nftFromIndexer: NFT
 
   beforeEach(async () => {
-    mockedRentalsLogic.verifyRentalsListingSignature.mockResolvedValueOnce(true)
     dbQueryMock = jest.fn()
     dbClientQueryMock = jest.fn()
     dbClientReleaseMock = jest.fn()
@@ -1008,24 +1007,6 @@ describe("when updating the metadata", () => {
     logs = createTestConsoleLogComponent()
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
-    rentalListingCreation = {
-      network: Network.ETHEREUM,
-      chainId: ChainId.ETHEREUM_GOERLI,
-      rentalContractAddress: "0x0",
-      contractAddress: "0x0",
-      tokenId: "0",
-      expiration: Date.now() + 2000000,
-      nonces: ["0x0", "0x0", "0x0"],
-      periods: [
-        {
-          pricePerDay: "10000",
-          maxDays: 30,
-          minDays: 30,
-        },
-      ],
-      signature:
-        "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b",
-    }
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
     dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
     dbClientQueryMock.mockResolvedValueOnce(undefined)
@@ -1258,6 +1239,360 @@ describe("when updating the metadata", () => {
       it("should stop the update, not propagate the error and rollback", async () => {
         await rentalsComponent.updateMetadata()
         expect(dbClientQueryMock).toHaveBeenCalledWith("ROLLBACK")
+      })
+    })
+  })
+})
+
+describe("when updating the rental listings", () => {
+  let nftFromIndexer: NFT
+  let startDate: Date
+  let rentalFromIndexer: IndexerRental
+
+  beforeEach(async () => {
+    startDate = new Date()
+    dbQueryMock = jest.fn()
+    dbClientQueryMock = jest.fn()
+    dbClientReleaseMock = jest.fn()
+    database = createTestDbComponent({
+      query: dbQueryMock,
+      getPool: jest
+        .fn()
+        .mockReturnValue({ connect: () => ({ query: dbClientQueryMock, release: dbClientReleaseMock }) }),
+    })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    dbClientQueryMock.mockResolvedValueOnce(undefined)
+    jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+  })
+
+  describe("and there are no updated rentals", () => {
+    beforeEach(async () => {
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+      await rentalsComponent.updateRentalsListings()
+    })
+
+    it("should not insert any rental", () => {
+      expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ strings: expect.arrayContaining([expect.stringContaining("INSERT rentals")]) })
+      )
+    })
+
+    it("should not insert any metadata", () => {
+      expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ strings: expect.arrayContaining([expect.stringContaining("INSERT metadata")]) })
+      )
+    })
+
+    it("should close all expired opened listings", () => {
+      expect(dbClientQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+          values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+        })
+      )
+    })
+
+    it("should update the time the last update was performed", () => {
+      expect(dbClientQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+          values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+        })
+      )
+    })
+
+    it("should release the client", () => {
+      expect(dbClientReleaseMock).toHaveBeenCalled()
+    })
+  })
+
+  describe("and there are rentals to be updated", () => {
+    beforeEach(() => {
+      rentalFromIndexer = {
+        id: "aRentalId",
+        contractAddress: "aContractAddress",
+        tokenId: "aTokenId",
+        lessor: "aLessor",
+        tenant: "aTenant",
+        operator: "aLessor",
+        rentalDays: "20",
+        startedAt: Math.round(new Date().getTime() / 1000).toString(),
+        endsAt: Math.round(new Date().getTime() / 1000 + 100000000).toString(),
+        updatedAt: Math.round(new Date().getTime() / 1000).toString(),
+        pricePerDay: "23423423423",
+        sender: "aLessor",
+        ownerHasClaimedAsset: false,
+        rentalContractAddress: "aRentalContractAddress",
+        isExtension: false,
+        signature: "aSignature",
+      }
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
+    })
+
+    describe("and the rentals to be updated exist in the database", () => {
+      let dbRental: Pick<DBRental & DBRentalListing, "id" | "lessor" | "status">
+
+      beforeEach(async () => {
+        dbRental = {
+          id: "rentalId",
+          lessor: "aLessorAddress",
+          status: Status.OPEN,
+        }
+        dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
+        await rentalsComponent.updateRentalsListings()
+      })
+
+      it("should update the rental", () => {
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+            values: expect.arrayContaining([
+              new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
+              Status.EXECUTED,
+              dbRental.id,
+            ]),
+          })
+        )
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals_listings")]),
+            values: expect.arrayContaining([rentalFromIndexer.tenant, dbRental.id]),
+          })
+        )
+      })
+
+      it("should close al expired opened listings", () => {
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+            values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+          })
+        )
+      })
+
+      it("should update the time the last update was performed", () => {
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+            values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+          })
+        )
+      })
+
+      it("should release the client", () => {
+        expect(dbClientReleaseMock).toHaveBeenCalled()
+      })
+    })
+
+    describe("and the rentals to be updated don't exist in the database", () => {
+      let newRentalId: string
+      beforeEach(() => {
+        nftFromIndexer = {
+          id: "aMetadataId",
+          category: NFTCategory.PARCEL,
+          contractAddress: "aContractAddress",
+          tokenId: "aTokenId",
+          owner: { address: lessor },
+          searchText: "0,0",
+          createdAt: "100000",
+          updatedAt: "200000",
+          searchIsLand: true,
+        }
+        newRentalId = "aNewRentalId"
+        dbClientQueryMock.mockResolvedValueOnce({ rows: [] })
+        marketplaceSubgraphQueryMock.mockResolvedValueOnce({ nfts: [nftFromIndexer] })
+      })
+
+      describe("and the metadata doesn't exist in the database either", () => {
+        beforeEach(async () => {
+          dbClientQueryMock
+            .mockResolvedValueOnce({ rows: [] })
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({ rows: [{ id: newRentalId }] })
+          await rentalsComponent.updateRentalsListings()
+        })
+
+        it("should insert the new metadata", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO metadata")]),
+              values: expect.arrayContaining([
+                nftFromIndexer.id,
+                nftFromIndexer.category,
+                nftFromIndexer.searchText,
+                new Date(Number(nftFromIndexer.createdAt) * 1000),
+                new Date(Number(nftFromIndexer.updatedAt) * 1000),
+              ]),
+            })
+          )
+        })
+
+        it("should insert the rental", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO rentals")]),
+              values: expect.arrayContaining([
+                nftFromIndexer.id,
+                Network.ETHEREUM,
+                ChainId.ETHEREUM_GOERLI,
+                new Date(0),
+                rentalFromIndexer.signature,
+                ["", "", ""],
+                rentalFromIndexer.tokenId,
+                rentalFromIndexer.contractAddress,
+                rentalFromIndexer.rentalContractAddress,
+                Status.EXECUTED,
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+              ]),
+            })
+          )
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO rentals_listings")]),
+              values: expect.arrayContaining([newRentalId, rentalFromIndexer.lessor, rentalFromIndexer.tenant]),
+            })
+          )
+        })
+
+        it("should close all expired opened listings", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+              values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
+      })
+
+      describe("and the metadata already exists in the database", () => {
+        let metadataId: string
+        beforeEach(async () => {
+          metadataId = "aMetadataId"
+          dbClientQueryMock
+            .mockResolvedValueOnce({ rows: [{ id: metadataId }] })
+            .mockResolvedValueOnce({ rows: [{ id: newRentalId }] })
+          await rentalsComponent.updateRentalsListings()
+        })
+
+        it("should not insert the a new metadata entry", () => {
+          expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO metadata")]),
+              values: expect.arrayContaining([
+                nftFromIndexer.id,
+                nftFromIndexer.category,
+                nftFromIndexer.searchText,
+                new Date(Number(nftFromIndexer.createdAt) * 1000),
+                new Date(Number(nftFromIndexer.updatedAt) * 1000),
+              ]),
+            })
+          )
+        })
+
+        it("should insert the rental", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO rentals")]),
+              values: expect.arrayContaining([
+                nftFromIndexer.id,
+                Network.ETHEREUM,
+                ChainId.ETHEREUM_GOERLI,
+                new Date(0),
+                rentalFromIndexer.signature,
+                ["", "", ""],
+                rentalFromIndexer.tokenId,
+                rentalFromIndexer.contractAddress,
+                rentalFromIndexer.rentalContractAddress,
+                Status.EXECUTED,
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+                new Date(Number(rentalFromIndexer.startedAt) * 1000),
+              ]),
+            })
+          )
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("INSERT INTO rentals_listings")]),
+              values: expect.arrayContaining([newRentalId, rentalFromIndexer.lessor, rentalFromIndexer.tenant]),
+            })
+          )
+        })
+
+        it("should close all expired opened listings", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+              values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
+      })
+    })
+
+    describe("and the process to update the rentals fails", () => {
+      beforeEach(async () => {
+        dbClientQueryMock.mockRejectedValueOnce(new Error("An error occurred"))
+        await rentalsComponent.updateRentalsListings()
+      })
+
+      it("should not perform any updates", () => {
+        expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE")]),
+          })
+        )
+      })
+
+      it("should not perform any inserts", () => {
+        expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("INSERT")]),
+          })
+        )
+      })
+
+      it("should rollback any changes", () => {
+        expect(dbClientQueryMock).toHaveBeenCalledWith("ROLLBACK")
+      })
+
+      it("should release the client", () => {
+        expect(dbClientReleaseMock).toHaveBeenCalled()
       })
     })
   })
