@@ -1,5 +1,6 @@
 import { IMetricsComponent } from "@well-known-components/interfaces"
 import { validateMetricsDeclaration } from "@well-known-components/metrics"
+import { metricDeclarations as loggerMetricsDeclarations } from "@well-known-components/logger"
 import { metricDeclarations as graphMetrics } from "@well-known-components/thegraph-component"
 
 export const metricDeclarations = {
@@ -8,6 +9,7 @@ export const metricDeclarations = {
     type: IMetricsComponent.CounterType,
     labelNames: ["pathname"],
   },
+  ...loggerMetricsDeclarations,
   ...graphMetrics,
 }
 
