@@ -1,7 +1,10 @@
 // This file is the "test-environment" analogous for src/components.ts
 // Here we define the test components to be used in the testing environment
 
-import { createRunner, createLocalFetchCompoment } from "@well-known-components/test-helpers"
+import {
+  createRunner,
+  createLocalFetchCompoment as createLocalFetchComponent,
+} from "@well-known-components/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
 import { createSubgraphComponent, ISubgraphComponent } from "@well-known-components/thegraph-component"
 import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
@@ -89,7 +92,7 @@ export async function initComponents(): Promise<TestComponents> {
     rentalsSubgraph,
     schemaValidator,
     rentals,
-    localFetch: await createLocalFetchCompoment(config),
+    localFetch: await createLocalFetchComponent(config),
     updateMetadataJob,
     updateRentalsListingsJob,
   }
