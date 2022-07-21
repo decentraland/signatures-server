@@ -389,25 +389,25 @@ export async function createRentalsComponent(
 
   async function updateMetadata() {
     // Truncate the start time to seconds so we can interact with the blockchain date
-    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
+    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(Date.now())))
     logger.info(`[Metadata update][Start updates]`)
-    const { rows } = await database.query<{ updated_at: Date }>(
+    const {
+      rows: [metadataUpdateInfo],
+    } = await database.query<{ updated_at: Date }>(
       SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.METADATA} ORDER BY updated_at DESC LIMIT 1`
     )
-    logger.info(`[Metadata update][Last Update:${rows[0].updated_at.getTime()}]`)
-    const lastUpdated = fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString()
+    logger.info(`[Metadata update][Last Update:${metadataUpdateInfo.updated_at.getTime()}]`)
+    const lastUpdated = fromMillisecondsToSeconds(metadataUpdateInfo.updated_at.getTime()).toString()
     const client = await database.getPool().connect()
     let lastId: string | undefined
     try {
       await client.query("BEGIN")
-
       while (true) {
         const updatedNFTs = await getNFTsFromIndexer({
           filterBy: { updatedAt_gt: lastUpdated, searchIsLand: true, id_gt: lastId },
           first: MAX_GRAPH_FIRST,
         })
         logger.info(`[Metadata update][Metadata batch to update:${updatedNFTs.length}]`)
-
         // Limit the concurrent updates
         const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
         const promiseOfUpdates = updatedNFTs.map((nft) =>
@@ -418,20 +418,17 @@ export async function createRentalsComponent(
               }, updated_at = ${new Date(fromMillisecondsToSeconds(Number(nft.updatedAt)))} WHERE id = ${nft.id}`
             )
             logger.debug(`[Metadata update][Single update:${nft.id}][Start]`)
-
             // If the metadata to be updated doesn't exist don't continue with the update
             if (rowCount === 0) {
               logger.debug(`[Metadata update][Single update:${nft.id}][Does not exist in the DB]`)
               return
             }
-
-            const { rows: idsOfOpenRentalsOfNFT } = await client.query<{
-              id: string
-              lessor: string
-              rental_contract_address: string
-              contract_address: string
-              token_id: string
-            }>(
+            const { rows: idsOfOpenRentalsOfNFT } = await client.query<
+              Pick<
+                DBRental & DBRentalListing,
+                "id" | "lessor" | "rental_contract_address" | "contract_address" | "token_id"
+              >
+            >(
               SQL`SELECT rentals.id, lessor, rental_contract_address, contract_address, token_id FROM rentals, rentals_listings
               WHERE metadata_id = ${nft.id} AND status = ${Status.OPEN} AND rentals.id = rentals_listings.id`
             )
@@ -451,7 +448,7 @@ export async function createRentalsComponent(
 
               if (ownerIsContractAddress) {
                 logger.debug(`[Metadata update][Single update:${nft.id}][The owner is the rentals contract]`)
-                const rentals = await getRentalsFromIndexer({
+                const [rental] = await getRentalsFromIndexer({
                   first: 1,
                   filterBy: {
                     contractAddress: idsOfOpenRentalsOfNFT[0].contract_address,
@@ -462,7 +459,7 @@ export async function createRentalsComponent(
                 })
 
                 // If the owner is still the same one as the listing through the rental contract, don't continue with the update
-                if (nft.owner.address === rentals[0]?.lessor) {
+                if (nft.owner.address === rental?.lessor) {
                   return
                 }
               }
@@ -482,14 +479,14 @@ export async function createRentalsComponent(
           throw (rejectedUpdates[0] as PromiseRejectedResult).reason
         }
 
+        logger.info(`[Metadata update][Successful finished batch]`)
         if (updatedNFTs.length < MAX_GRAPH_FIRST) {
           break
         }
 
         lastId = updatedNFTs[updatedNFTs.length - 1].id
-        logger.info(`[Metadata update][Successful finished batch]`)
       }
-      await database.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.METADATA}`)
+      await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.METADATA}`)
       await client.query("COMMIT")
       logger.info(`[Metadata update][Successful]`)
     } catch (error) {

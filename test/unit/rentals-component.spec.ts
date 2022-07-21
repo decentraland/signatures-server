@@ -22,6 +22,8 @@ import {
   SortDirection,
   Status,
   UnauthorizedToRent,
+  DBRental,
+  DBRentalListing,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -39,6 +41,8 @@ let marketplaceSubgraph: ISubgraphComponent
 let rentalsSubgraphQueryMock: jest.Mock
 let rentalsSubgraph: ISubgraphComponent
 let rentalsComponent: IRentalsComponent
+let rentalListingCreation: RentalListingCreation
+let lessor: string
 let logs: ILoggerComponent
 let config: IConfigComponent
 const aDay = 24 * 60 * 60 * 1000
@@ -48,9 +52,6 @@ afterEach(() => {
 })
 
 describe("when creating a rental listing", () => {
-  let rentalListingCreation: RentalListingCreation
-  let lessor: string
-
   beforeEach(async () => {
     mockedRentalsLogic.verifyRentalsListingSignature.mockResolvedValueOnce(true)
     dbQueryMock = jest.fn()
@@ -68,7 +69,7 @@ describe("when creating a rental listing", () => {
     rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
     logs = createTestConsoleLogComponent()
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
-    lessor = await Wallet.createRandom().getAddress()
+    lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
     rentalListingCreation = {
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
@@ -147,12 +148,12 @@ describe("when creating a rental listing", () => {
 
   describe("and the creator of the rental is not the owner of the LAND", () => {
     let walletAddress: string
-    beforeEach(async () => {
-      walletAddress = await Wallet.createRandom().getAddress()
+    beforeEach(() => {
+      walletAddress = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
         nfts: [
           {
-            owner: await Wallet.createRandom().getAddress(),
+            owner: "0xeE50142b7D76d4d549f2209813eefc11073d874a",
           },
         ],
       })
@@ -813,7 +814,6 @@ describe("when refreshing rental listings", () => {
       })
 
       it("should not update the metadata in the database and return the rental", async () => {
-        console.log("This is the failing test")
         await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
         expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE metadata SET"))
       })
@@ -982,6 +982,282 @@ describe("when refreshing rental listings", () => {
         await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
         expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
         expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      })
+    })
+  })
+})
+
+describe("when updating the metadata", () => {
+  let nftFromIndexer: NFT
+
+  beforeEach(async () => {
+    mockedRentalsLogic.verifyRentalsListingSignature.mockResolvedValueOnce(true)
+    dbQueryMock = jest.fn()
+    dbClientQueryMock = jest.fn()
+    dbClientReleaseMock = jest.fn()
+    database = createTestDbComponent({
+      query: dbQueryMock,
+      getPool: jest
+        .fn()
+        .mockReturnValue({ connect: () => ({ query: dbClientQueryMock, release: dbClientReleaseMock }) }),
+    })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
+    rentalListingCreation = {
+      network: Network.ETHEREUM,
+      chainId: ChainId.ETHEREUM_GOERLI,
+      rentalContractAddress: "0x0",
+      contractAddress: "0x0",
+      tokenId: "0",
+      expiration: Date.now() + 2000000,
+      nonces: ["0x0", "0x0", "0x0"],
+      periods: [
+        {
+          pricePerDay: "10000",
+          maxDays: 30,
+          minDays: 30,
+        },
+      ],
+      signature:
+        "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b",
+    }
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    dbClientQueryMock.mockResolvedValueOnce(undefined)
+  })
+
+  describe("and there are no updated NFTs", () => {
+    let startDate: Date
+    beforeEach(() => {
+      startDate = new Date()
+      dbClientQueryMock.mockResolvedValueOnce({ rows: [] })
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({ nfts: [] })
+      jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+    })
+
+    it("should not update metadata nor rental entries and update the time the last update was performed", async () => {
+      await rentalsComponent.updateMetadata()
+      expect(dbQueryMock).toHaveBeenCalledTimes(1)
+      expect(dbClientQueryMock).toHaveBeenCalledTimes(3)
+      expect(dbClientQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+          values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+        })
+      )
+    })
+  })
+
+  describe("and there's a metadata to update in the indexer", () => {
+    let startDate: Date
+
+    beforeEach(() => {
+      startDate = new Date()
+      nftFromIndexer = {
+        id: "aMetadataId",
+        category: NFTCategory.PARCEL,
+        contractAddress: "aContractAddress",
+        tokenId: "aTokenId",
+        owner: { address: lessor },
+        searchText: "0,0",
+        createdAt: "100000",
+        updatedAt: "200000",
+        searchIsLand: true,
+      }
+      dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+        nfts: [nftFromIndexer],
+      })
+      jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+    })
+
+    describe("and the metadata is not in the database", () => {
+      beforeEach(() => {
+        dbClientQueryMock.mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rows: [] })
+      })
+
+      it("should only try to update the metadata failing to do so and update the time the last update was performed", async () => {
+        await rentalsComponent.updateMetadata()
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+            values: expect.arrayContaining([NFTCategory.PARCEL]),
+          })
+        )
+        expect(dbClientQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+            values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+          })
+        )
+      })
+    })
+
+    describe("and the metadata entry is in the database", () => {
+      beforeEach(() => {
+        dbClientQueryMock.mockResolvedValueOnce({ rowCount: 1 })
+      })
+
+      describe("and there's no open rental for the metadata entry", () => {
+        beforeEach(() => {
+          dbClientQueryMock.mockResolvedValueOnce({ rows: [] })
+        })
+
+        it("should only update the metadata and update the time the last update was performed", async () => {
+          await rentalsComponent.updateMetadata()
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+              values: expect.arrayContaining([NFTCategory.PARCEL]),
+            })
+          )
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+      })
+
+      describe("and there's an open rental for the metadata entry", () => {
+        let openRental: Pick<
+          DBRental & DBRentalListing,
+          "id" | "lessor" | "rental_contract_address" | "contract_address" | "token_id"
+        >
+
+        beforeEach(() => {
+          openRental = {
+            id: "someId",
+            lessor,
+            rental_contract_address: "aRentalAddress",
+            contract_address: "aContractAddress",
+            token_id: "aTokenId",
+          }
+          dbClientQueryMock.mockResolvedValueOnce({
+            rows: [openRental],
+          })
+        })
+
+        describe("and the owner is different and is not the rental contract", () => {
+          beforeEach(() => {
+            nftFromIndexer.owner.address = "aDifferentAddress"
+          })
+
+          it("should update the metadata, cancel the open rental and update the time the last update was performed", async () => {
+            await rentalsComponent.updateMetadata()
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                values: expect.arrayContaining([NFTCategory.PARCEL]),
+              })
+            )
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
+                values: expect.arrayContaining([Status.CANCELLED, openRental.id]),
+              })
+            )
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+              })
+            )
+          })
+        })
+
+        describe("and the owner is different and is the rental contract", () => {
+          beforeEach(() => {
+            nftFromIndexer.owner.address = openRental.rental_contract_address
+          })
+
+          describe("and the rental has a different lessor", () => {
+            beforeEach(() => {
+              rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [{ lessor: "anotherLessor" }] })
+            })
+
+            it("should update the metadata, cancel the open rental and update the time the last update was performed", async () => {
+              await rentalsComponent.updateMetadata()
+              expect(dbClientQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                  values: expect.arrayContaining([NFTCategory.PARCEL]),
+                })
+              )
+              expect(dbClientQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
+                  values: expect.arrayContaining([Status.CANCELLED, openRental.id]),
+                })
+              )
+              expect(dbClientQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                  values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+                })
+              )
+            })
+          })
+
+          describe("and the rental has the same lessor", () => {
+            beforeEach(() => {
+              rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [{ lessor }] })
+            })
+
+            it("should only update the metadata and update the time the last update was performed", async () => {
+              await rentalsComponent.updateMetadata()
+              expect(dbClientQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                  values: expect.arrayContaining([NFTCategory.PARCEL]),
+                })
+              )
+              expect(dbClientQueryMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                  values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+                })
+              )
+            })
+          })
+        })
+
+        describe("and the owner is the same", () => {
+          it("should only update the metadata and update the time the last update was performed", async () => {
+            await rentalsComponent.updateMetadata()
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                values: expect.arrayContaining([NFTCategory.PARCEL]),
+              })
+            )
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+              })
+            )
+          })
+        })
+      })
+    })
+
+    describe("and an error occurs updating the metadata", () => {
+      const errorMessage = "An error occurred"
+
+      beforeEach(() => {
+        dbClientQueryMock.mockRejectedValueOnce(new Error(errorMessage)).mockResolvedValueOnce("Pepe")
+      })
+
+      it("should stop the update, not propagate the error and rollback", async () => {
+        await rentalsComponent.updateMetadata()
+        expect(dbClientQueryMock).toHaveBeenCalledWith("ROLLBACK")
       })
     })
   })
