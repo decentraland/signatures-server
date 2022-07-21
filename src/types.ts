@@ -11,6 +11,7 @@ import { ISubgraphComponent } from "@well-known-components/thegraph-component"
 import { ISchemaValidatorComponent } from "./ports/schema-validator"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
+import { IJobComponent } from "./ports/job/types"
 
 export type GlobalContext = {
   components: BaseComponents
@@ -28,6 +29,8 @@ export type BaseComponents = {
   rentalsSubgraph: ISubgraphComponent
   schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
+  updateMetadataJob: IJobComponent
+  updateRentalsListingsJob: IJobComponent
 }
 
 // components used in runtime

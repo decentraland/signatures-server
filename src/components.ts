@@ -10,6 +10,7 @@ import { createFetchComponent } from "./ports/fetch"
 import { metricDeclarations } from "./metrics"
 import { createSchemaValidatorComponent } from "./ports/schema-validator"
 import { createRentalsComponent } from "./ports/rentals/component"
+import { createJobComponent } from "./ports/job/component"
 
 // Initialize all the components of the app
 export async function initComponents(): Promise<AppComponents> {
@@ -17,6 +18,8 @@ export async function initComponents(): Promise<AppComponents> {
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
   const LOG_LEVEL = await config.requireString("LOG_LEVEL")
+  const thirtySeconds = 30 * 1000
+  const fiveMinutes = 5 * 60 * 1000
 
   const logs = createLogComponent({ config: { logLevel: LOG_LEVEL } })
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})
@@ -37,9 +40,20 @@ export async function initComponents(): Promise<AppComponents> {
       },
     }
   )
-  // const database = {} as any
+
   const schemaValidator = await createSchemaValidatorComponent()
-  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph })
+  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
+  const updateMetadataJob = await createJobComponent({ logs }, () => rentals.updateMetadata(), fiveMinutes, {
+    startupDelay: thirtySeconds,
+  })
+  const updateRentalsListingsJob = await createJobComponent(
+    { logs },
+    () => rentals.updateRentalsListings(),
+    fiveMinutes,
+    {
+      startupDelay: thirtySeconds,
+    }
+  )
 
   return {
     config,
@@ -53,5 +67,7 @@ export async function initComponents(): Promise<AppComponents> {
     rentalsSubgraph,
     schemaValidator,
     rentals,
+    updateMetadataJob,
+    updateRentalsListingsJob,
   }
 }

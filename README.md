@@ -1,5 +1,7 @@
 # Signatures server
 
+[![Coverage Status](https://coveralls.io/repos/github/decentraland/signatures-server/badge.svg?branch=main)](https://coveralls.io/github/decentraland/signatures-server?branch=main)
+
 The signatures server is a REST API that provides a way to store and retrieve contract signatures.
 
 ## Getting started

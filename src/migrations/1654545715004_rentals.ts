@@ -8,12 +8,14 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.createExtension("uuid-ossp", { ifNotExists: true })
 
   pgm.createType("status", ["open", "executed", "cancelled"])
+  pgm.createType("update", ["metadata", "rentals"])
 
   pgm.createTable("metadata", {
     id: { type: "string", notNull: true, primaryKey: true },
     category: { type: "text", notNull: true },
     search_text: { type: "text", notNull: true },
     created_at: { type: "timestamp", notNull: true },
+    updated_at: { type: "timestamp", notNull: true },
   })
 
   pgm.createTable("rentals", {
@@ -30,6 +32,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     status: { type: "status", notNull: true, default: "open" },
     created_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
     updated_at: { type: "timestamp", notNull: true, default: pgm.func("now()") },
+    started_at: { type: "timestamp", notNull: false },
   })
 
   pgm.createTable("rentals_offers", {
@@ -55,13 +58,22 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     rental_id: { type: "uuid", notNull: true, unique: false, references: "rentals_listings(id)", onDelete: "CASCADE" },
   })
 
+  pgm.createTable("updates", {
+    type: { type: "update", primaryKey: true, notNull: true },
+    updated_at: { type: "timestamp", notNull: true, default: pgm.func("to_timestamp(0)") },
+  })
+
   pgm.createIndex("periods", "rental_id")
   pgm.createIndex("periods", "min_days")
   pgm.createIndex("periods", "max_days")
   pgm.createIndex("periods", "price_per_day")
   pgm.createIndex("rentals", "metadata_id")
+  pgm.createIndex("rentals", "signature")
   // Ensure that there won't be more than one open rental per token
   pgm.createIndex("rentals", ["token_id", "contract_address", "status"], { where: "status = 'open'", unique: true })
+  pgm.createIndex("updates", "updated_at")
+
+  pgm.sql("INSERT INTO updates (type, updated_at) VALUES ('metadata', now()), ('rentals', to_timestamp(0))")
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
@@ -70,4 +82,5 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
   pgm.dropTable("rentals_offers")
   pgm.dropTable("rentals_listing")
   pgm.dropTable("metadata")
+  pgm.dropType("status")
 }
