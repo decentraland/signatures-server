@@ -1,3 +1,4 @@
+import { Network } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
@@ -34,6 +35,10 @@ export async function getRentalsListingsHandler(
       lessor: url.searchParams.get("lessor") ?? undefined,
       tenant: url.searchParams.get("tenant") ?? undefined,
       status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
+      tokenId: url.searchParams.get("tokenId") ?? undefined,
+      contractAddresses: url.searchParams.getAll("contractAddresses") ?? undefined,
+      network:
+        (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
     }
     const rentalListings = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
     return {
