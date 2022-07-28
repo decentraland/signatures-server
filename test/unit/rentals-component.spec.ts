@@ -535,6 +535,123 @@ describe("when getting rental listings", () => {
     })
   })
 
+  describe("and the tokenId filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the tokenId condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            tokenId: "aTokenId",
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND rentals.token_id = ")]),
+          values: ["aTokenId", 10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and the contract addresses filter is set", () => {
+    let contractAddresses: string[]
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    describe("and the filter is set with an empty array of addresses", () => {
+      beforeEach(() => {
+        contractAddresses = []
+      })
+
+      it("should not have made the query to get the listings with the contract addresses condition", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            page: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              contractAddresses,
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
+
+        expect(dbQueryMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("AND rentals.contract_address = ANY(")]),
+          })
+        )
+      })
+    })
+
+    describe("and the filter is set with addresses", () => {
+      beforeEach(() => {
+        contractAddresses = ["aContractAddress", "anotherContractAddress"]
+      })
+
+      it("should have made the query to get the listings with the contract addresses condition", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            page: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              contractAddresses: ["aContractAddress", "anotherContractAddress"],
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
+
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("AND rentals.contract_address = ANY(")]),
+            values: [["aContractAddress", "anotherContractAddress"], 10, 0],
+          })
+        )
+      })
+    })
+  })
+
+  describe("and the network filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the network condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            network: Network.ETHEREUM,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND rentals.network = ")]),
+          values: [Network.ETHEREUM, 10, 0],
+        })
+      )
+    })
+  })
+
   describe("and there are no filters to query for", () => {
     beforeEach(() => {
       dbGetRentalListings = []

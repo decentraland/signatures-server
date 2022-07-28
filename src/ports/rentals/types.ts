@@ -3,15 +3,17 @@ import { ChainId, Network, NFTCategory } from "@dcl/schemas"
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
   refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
-  getRentalsListings(params: {
-    sortBy: RentalsListingsSortBy | null
-    sortDirection: SortDirection | null
-    page: number
-    limit: number
-    filterBy: FilterBy | null
-  }): Promise<DBGetRentalListing[]>
+  getRentalsListings(params: GetRentalListingParameters): Promise<DBGetRentalListing[]>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
+}
+
+export type GetRentalListingParameters = {
+  sortBy: RentalsListingsSortBy | null
+  sortDirection: SortDirection | null
+  page: number
+  limit: number
+  filterBy: FilterBy | null
 }
 
 export type RentalListingCreation = {
@@ -132,6 +134,9 @@ export type FilterBy = {
   periods?: FilterByPeriod
   lessor?: string
   tenant?: string
+  tokenId?: string
+  contractAddresses?: string[]
+  network?: Network
 }
 
 export enum SortDirection {

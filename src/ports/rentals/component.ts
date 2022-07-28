@@ -268,6 +268,12 @@ export async function createRentalsComponent(
     const filterBySearchText = filterBy?.text
       ? SQL`AND metadata.search_text ILIKE '%' || ${filterBy.text} || '%'\n`
       : ""
+    const filterByTokenId = filterBy?.tokenId ? SQL`AND rentals.token_id = ${filterBy.tokenId}\n` : ""
+    const filterByContractAddress =
+      filterBy?.contractAddresses && filterBy.contractAddresses.length > 0
+        ? SQL`AND rentals.contract_address = ANY(${filterBy.contractAddresses})\n`
+        : ""
+    const filterByNetwork = filterBy?.network ? SQL`AND rentals.network = ${filterBy.network}\n` : ""
 
     let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
     switch (sortByParam) {
@@ -297,6 +303,9 @@ export async function createRentalsComponent(
       periods.rental_id = rentals.id\n`
     query.append(filterByCategory)
     query.append(filterByStatus)
+    query.append(filterByTokenId)
+    query.append(filterByContractAddress)
+    query.append(filterByNetwork)
     query.append(filterByLessor)
     query.append(filterByTenant)
     query.append(
