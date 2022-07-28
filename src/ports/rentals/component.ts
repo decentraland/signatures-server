@@ -90,9 +90,9 @@ export async function createRentalsComponent(
     return queryResult.nfts
   }
 
-  async function getRentalsFromIndexer(options?: {
+  async function getRentalsFromIndexer(options: {
     filterBy?: Partial<IndexerRental & { updatedAt_gt: string; id_gt: string }>
-    first?: number
+    first: number
     orderBy?: keyof IndexerRental
     orderDirection?: "desc" | "asc"
   }): Promise<IndexerRental[]> {
@@ -332,7 +332,7 @@ export async function createRentalsComponent(
 
     const rentalData = rentalQueryResult.rows[0]
     const [indexerRentals, [indexerNFT]] = await Promise.all([
-      getRentalsFromIndexer({ filterBy: { signature: rentalData.signature } }),
+      getRentalsFromIndexer({ first: 1, filterBy: { signature: rentalData.signature } }),
       getNFTsFromIndexer({
         filterBy: { contractAddress: rentalData.contract_address, tokenId: rentalData.token_id },
         first: 1,
