@@ -3,6 +3,7 @@ import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
 import {
+  FilterBy,
   FilterByCategory,
   NFTNotFound,
   RentalAlreadyExists,
@@ -24,11 +25,10 @@ export async function getRentalsListingsHandler(
   } = context
 
   const { page, limit } = getPaginationParams(url.searchParams)
-
   try {
     const sortBy = getTypedStringQueryParameter(Object.values(RentalsListingsSortBy), url.searchParams, "sortBy")
     const sortDirection = getTypedStringQueryParameter(Object.values(SortDirection), url.searchParams, "sortDirection")
-    const filterBy = {
+    const filterBy: FilterBy = {
       category:
         getTypedStringQueryParameter(Object.values(FilterByCategory), url.searchParams, "category") ?? undefined,
       text: url.searchParams.get("text") ?? undefined,
@@ -36,7 +36,8 @@ export async function getRentalsListingsHandler(
       tenant: url.searchParams.get("tenant") ?? undefined,
       status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
       tokenId: url.searchParams.get("tokenId") ?? undefined,
-      contractAddresses: url.searchParams.getAll("contractAddresses") ?? undefined,
+      contractAddresses: url.searchParams.getAll("contractAddresses"),
+      nftIds: url.searchParams.getAll("nftIds"),
       network:
         (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
     }

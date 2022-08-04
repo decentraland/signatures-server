@@ -221,7 +221,7 @@ export async function createRentalsComponent(
           )
         )
       })
-      insertPeriodsQuery.append(SQL` RETURNING *`)
+      insertPeriodsQuery.append(SQL` RETURNING (min_days::text, max_days::text, price_per_day, rental_id)`)
 
       const createdPeriods = await client.query<DBPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
@@ -257,7 +257,6 @@ export async function createRentalsComponent(
     limit: number
   }): Promise<DBGetRentalListing[]> {
     const { sortBy, page, limit, filterBy, sortDirection } = params
-
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? SortDirection.ASC
 
@@ -273,6 +272,8 @@ export async function createRentalsComponent(
       filterBy?.contractAddresses && filterBy.contractAddresses.length > 0
         ? SQL`AND rentals.contract_address = ANY(${filterBy.contractAddresses})\n`
         : ""
+    const filterByNftIds =
+      filterBy?.nftIds && filterBy.nftIds.length > 0 ? SQL`AND rentals.metadata_id = ANY(${filterBy.nftIds})\n` : ""
     const filterByNetwork = filterBy?.network ? SQL`AND rentals.network = ${filterBy.network}\n` : ""
 
     let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
@@ -294,9 +295,10 @@ export async function createRentalsComponent(
         break
     }
 
+    // The periods array items must be casted to string because the numeric arrays are considered as number by node-pg
     let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata,
       (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor,
-      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days, periods.max_days, periods.price_per_day] ORDER BY periods.id) as periods,
+      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.id) as periods,
       min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
@@ -308,6 +310,7 @@ export async function createRentalsComponent(
     query.append(filterByNetwork)
     query.append(filterByLessor)
     query.append(filterByTenant)
+    query.append(filterByNftIds)
     query.append(
       SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id LIMIT ${limit} OFFSET ${page}) as rentals\n`
     )

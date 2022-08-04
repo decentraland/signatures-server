@@ -4,7 +4,7 @@ import { Status } from "../../ports/rentals"
 export type RentalListing = {
   id: string
   category: NFTCategory
-  search_text: string
+  searchText: string
   network: Network
   chainId: ChainId
   /** UTC timestamp in milliseconds since epoch of the signature's expiration */
@@ -24,6 +24,8 @@ export type RentalListing = {
   /** UTC timestamp in milliseconds since epoch of the time the rental started */
   startedAt: number | null
   periods: Period[]
+  /** The NFT token id */
+  nftId: string
 }
 
 export type Period = {

@@ -325,7 +325,7 @@ describe("when getting rental listings", () => {
           created_at: new Date("2022-06-13T22:56:36.755Z"),
           updated_at: new Date("2022-06-13T22:56:36.755Z"),
           started_at: null,
-          periods: [["anId", 30, 50, "1000000000"]],
+          periods: [["30", "50", "1000000000"]],
           metadata_created_at: new Date(),
           rentals_listings_count: "1",
         },
@@ -333,8 +333,9 @@ describe("when getting rental listings", () => {
       rentalListings = [
         {
           id: dbRentalListings[0].id,
+          nftId: dbRentalListings[0].metadata_id,
           category: dbRentalListings[0].category,
-          search_text: dbRentalListings[0].search_text,
+          searchText: dbRentalListings[0].search_text,
           network: dbRentalListings[0].network,
           chainId: dbRentalListings[0].chain_id,
           expiration: dbRentalListings[0].expiration.getTime(),
@@ -351,9 +352,9 @@ describe("when getting rental listings", () => {
           startedAt: null,
           periods: [
             {
-              minDays: dbRentalListings[0].periods[0][1],
-              maxDays: dbRentalListings[0].periods[0][2],
-              pricePerDay: dbRentalListings[0].periods[0][3],
+              minDays: Number(dbRentalListings[0].periods[0][0]),
+              maxDays: Number(dbRentalListings[0].periods[0][1]),
+              pricePerDay: dbRentalListings[0].periods[0][2],
             },
           ],
         },
@@ -472,14 +473,15 @@ describe("when refreshing a rental listing", () => {
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
         started_at: null,
-        periods: [["anId", 30, 50, "1000000000"]],
+        periods: [["30", "50", "1000000000"]],
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
       }
       rentalListing = {
         id: dbRentalListing.id,
+        nftId: dbRentalListing.metadata_id,
         category: dbRentalListing.category,
-        search_text: dbRentalListing.search_text,
+        searchText: dbRentalListing.search_text,
         network: dbRentalListing.network,
         chainId: dbRentalListing.chain_id,
         expiration: dbRentalListing.expiration.getTime(),
@@ -496,9 +498,9 @@ describe("when refreshing a rental listing", () => {
         startedAt: null,
         periods: [
           {
-            minDays: dbRentalListing.periods[0][1],
-            maxDays: dbRentalListing.periods[0][2],
-            pricePerDay: dbRentalListing.periods[0][3],
+            minDays: Number(dbRentalListing.periods[0][0]),
+            maxDays: Number(dbRentalListing.periods[0][1]),
+            pricePerDay: dbRentalListing.periods[0][2],
           },
         ],
       }

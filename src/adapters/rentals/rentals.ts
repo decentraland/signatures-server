@@ -6,8 +6,9 @@ import { Period, RentalListing } from "./types"
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
   return {
     id: DBRental.id,
+    nftId: DBRental.metadata_id,
     category: DBRental.category,
-    search_text: DBRental.search_text,
+    searchText: DBRental.search_text,
     network: DBRental.network,
     chainId: DBRental.chain_id,
     expiration: DBRental.expiration.getTime(),
@@ -55,9 +56,10 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
   return DBRentals.map((rental) => ({
     id: rental.id,
     category: rental.category,
-    search_text: rental.search_text,
+    searchText: rental.search_text,
     network: rental.network,
     chainId: rental.chain_id,
+    nftId: rental.metadata_id,
     expiration: rental.expiration.getTime(),
     signature: rental.signature,
     nonces: rental.nonces,
@@ -71,9 +73,9 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
     updatedAt: rental.updated_at.getTime(),
     startedAt: rental.started_at ? rental.started_at.getTime() : null,
     periods: rental.periods.map((period) => ({
-      minDays: period[1],
-      maxDays: period[2],
-      pricePerDay: period[3],
+      minDays: Number(period[0]),
+      maxDays: Number(period[1]),
+      pricePerDay: period[2],
     })),
   }))
 }
