@@ -63,7 +63,7 @@ describe("when verifying the rentals listings signature", () => {
     let otherAddress: string
 
     beforeEach(async () => {
-      otherAddress = await ethers.Wallet.createRandom().getAddress()
+      otherAddress = "0x165cd37b4c644c2921454429e7f9358d18a45e14"
       contractRentalListing = {
         signer: otherAddress,
         contractAddress: values.contractAddress,

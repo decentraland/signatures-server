@@ -45,8 +45,9 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
     }
     rentalListing = {
       id: dbInsertedRentalListing.id,
+      nftId: dbInsertedRentalListing.metadata_id,
       category: dbInsertedRentalListing.category,
-      search_text: dbInsertedRentalListing.search_text,
+      searchText: dbInsertedRentalListing.search_text,
       network: dbInsertedRentalListing.network,
       chainId: dbInsertedRentalListing.chain_id,
       expiration: dbInsertedRentalListing.expiration.getTime(),
@@ -101,17 +102,17 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
         started_at: new Date("2022-06-14T22:56:36.755Z"),
-        periods: [["anId", 30, 50, "1000000000"]],
+        periods: [["30", "50", "1000000000"]],
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
       },
     ]
-
     rentalListings = [
       {
         id: dbGetRentalListings[0].id,
+        nftId: dbGetRentalListings[0].metadata_id,
         category: dbGetRentalListings[0].category,
-        search_text: dbGetRentalListings[0].search_text,
+        searchText: dbGetRentalListings[0].search_text,
         network: dbGetRentalListings[0].network,
         chainId: dbGetRentalListings[0].chain_id,
         expiration: dbGetRentalListings[0].expiration.getTime(),
@@ -128,9 +129,9 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         startedAt: dbGetRentalListings[0].started_at!.getTime(),
         periods: [
           {
-            minDays: dbGetRentalListings[0].periods[0][1],
-            maxDays: dbGetRentalListings[0].periods[0][2],
-            pricePerDay: dbGetRentalListings[0].periods[0][3],
+            minDays: Number(dbGetRentalListings[0].periods[0][0]),
+            maxDays: Number(dbGetRentalListings[0].periods[0][1]),
+            pricePerDay: dbGetRentalListings[0].periods[0][2],
           },
         ],
       },
@@ -150,8 +151,9 @@ describe("when transforming a rental creation to a contract rental listing", () 
   beforeEach(() => {
     rentalCreation = {
       id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+      nftId: "aNftId",
       category: NFTCategory.PARCEL,
-      search_text: "someText",
+      searchText: "someText",
       network: Network.ETHEREUM,
       chainId: ChainId.ETHEREUM_GOERLI,
       expiration: new Date().getTime(),

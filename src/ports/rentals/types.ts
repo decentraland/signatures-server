@@ -87,10 +87,11 @@ export type DBPeriods = {
 export type DBGetRentalListing = DBRental &
   DBRentalListing &
   DBMetadata & {
-    /** An array containing [id, min_days, max_days, price_per_day] */
-    periods: [string, number, number, string][]
+    /** An array containing [min_days, max_days, price_per_day] */
+    periods: [string, string, string][]
     metadata_created_at: Date
     rentals_listings_count: string
+    metadata_id: string
   }
 export type DBInsertedRentalListing = DBRental &
   DBRentalListing & { periods: Omit<DBPeriods, "id">[] } & Pick<DBMetadata, "category" | "search_text">
@@ -137,6 +138,7 @@ export type FilterBy = {
   tokenId?: string
   contractAddresses?: string[]
   network?: Network
+  nftIds?: string[]
 }
 
 export enum SortDirection {
