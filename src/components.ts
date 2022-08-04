@@ -18,10 +18,8 @@ export async function initComponents(): Promise<AppComponents> {
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
   const LOG_LEVEL = await config.requireString("LOG_LEVEL")
-  // const thirtySeconds = 30 * 1000
-  // const fiveMinutes = 5 * 60 * 1000
-  const thirtySeconds = 2000 * 1000
-  const fiveMinutes = 5000 * 60 * 1000
+  const thirtySeconds = 30 * 1000
+  const fiveMinutes = 5 * 60 * 1000
 
   const logs = createLogComponent({ config: { logLevel: LOG_LEVEL } })
   const server = await createServerComponent<GlobalContext>({ config, logs }, {})
