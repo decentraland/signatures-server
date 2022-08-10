@@ -1,5 +1,13 @@
 import SQL, { SQLStatement } from "sql-template-strings"
-import { ChainName, getChainId } from "@dcl/schemas"
+import {
+  ChainName,
+  getChainId,
+  RentalStatus,
+  RentalListingCreation,
+  RentalsListingsFilterBy,
+  RentalsListingSortDirection,
+  RentalsListingsSortBy,
+} from "@dcl/schemas"
 import { getNetwork } from "@dcl/schemas/dist/dapps/chain-id"
 import { ethers } from "ethers"
 import pLimit from "p-limit"
@@ -13,16 +21,11 @@ import { AppComponents } from "../../types"
 import { InvalidSignature, NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "./errors"
 import {
   IRentalsComponent,
-  RentalListingCreation,
-  Status,
   DBRentalListing,
   NFT,
   DBRental,
   DBPeriods,
   DBInsertedRentalListing,
-  RentalsListingsSortBy,
-  FilterBy,
-  SortDirection,
   DBGetRentalListing,
   IndexerRental,
   DBMetadata,
@@ -203,7 +206,9 @@ export async function createRentalsComponent(
           nft.id
         }, ${rental.network}, ${rental.chainId}, ${new Date(rental.expiration)}, ${rental.signature}, ${
           rental.nonces
-        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${Status.OPEN}) RETURNING *`
+        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${
+          RentalStatus.OPEN
+        }) RETURNING *`
       )
       logger.debug(buildLogMessageForRental("Inserted rental"))
 
@@ -251,14 +256,14 @@ export async function createRentalsComponent(
 
   async function getRentalsListings(params: {
     sortBy: RentalsListingsSortBy | null
-    sortDirection: SortDirection | null
-    filterBy: FilterBy | null
+    sortDirection: RentalsListingSortDirection | null
+    filterBy: RentalsListingsFilterBy | null
     page: number
     limit: number
   }): Promise<DBGetRentalListing[]> {
     const { sortBy, page, limit, filterBy, sortDirection } = params
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
-    const sortDirectionParam = sortDirection ?? SortDirection.ASC
+    const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
 
     const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}\n` : ""
     const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}\n` : ""
@@ -375,7 +380,7 @@ export async function createRentalsComponent(
       promisesOfUpdate.push(
         database.query(
           SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
-            Status.EXECUTED
+            RentalStatus.EXECUTED
           }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
             rentalData.id
           }`
@@ -442,7 +447,7 @@ export async function createRentalsComponent(
               >
             >(
               SQL`SELECT rentals.id, lessor, rental_contract_address, contract_address, token_id FROM rentals, rentals_listings
-              WHERE metadata_id = ${nft.id} AND status = ${Status.OPEN} AND rentals.id = rentals_listings.id`
+              WHERE metadata_id = ${nft.id} AND status = ${RentalStatus.OPEN} AND rentals.id = rentals_listings.id`
             )
 
             logger.debug(`[Metadata update][Single update:${nft.id}][Open rentals:${idsOfOpenRentalsOfNFT.length}]`)
@@ -478,7 +483,7 @@ export async function createRentalsComponent(
 
               // Cancel the rental listing that now has a different owner
               await client.query(
-                SQL`UPDATE rentals SET status = ${Status.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
               )
               logger.debug(`[Metadata update][Single update:${nft.id}][Cancelling listing due to a different owner]`)
             }
@@ -552,7 +557,7 @@ export async function createRentalsComponent(
                   SQL`UPDATE rentals SET updated_at = ${new Date(
                     fromSecondsToMilliseconds(Number(rental.updatedAt))
                   )}, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
-                    Status.EXECUTED
+                    RentalStatus.EXECUTED
                   } WHERE id = ${dbRental.id}`
                 ),
                 client.query(SQL`UPDATE rentals_listings SET tenant = ${rental.tenant} WHERE id = ${dbRental.id}`),
@@ -603,7 +608,7 @@ export async function createRentalsComponent(
                 VALUES (${metadataId}, ${NETWORK}, ${getChainId(CHAIN_NAME)}, ${new Date(0)}, ${
                   rental.signature
                 }, ${defaultNonces}, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${
-                  Status.EXECUTED
+                  RentalStatus.EXECUTED
                 }, ${startedAt}, ${startedAt}, ${startedAt}) RETURNING id`
               )
               await client.query(
@@ -629,7 +634,7 @@ export async function createRentalsComponent(
       }
       // Close all opened listings that expired
       await client.query(
-        SQL`UPDATE rentals SET status = ${Status.CANCELLED} WHERE status = ${Status.OPEN} AND expiration < now()`
+        SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE status = ${RentalStatus.OPEN} AND expiration < now()`
       )
       await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.RENTALS}`)
       await client.query("COMMIT")

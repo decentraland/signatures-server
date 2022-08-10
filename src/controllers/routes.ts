@@ -1,6 +1,6 @@
+import { RentalListingCreation } from "@dcl/schemas"
 import { Router } from "@well-known-components/http-server"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
-import { RentalCreationSchema } from "../ports/rentals"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"
 import {
@@ -20,7 +20,7 @@ export async function setupRouter(
   router.post(
     "/v1/rentals-listings",
     authorizationMiddleware.wellKnownComponents({ optional: false }),
-    components.schemaValidator.withSchemaValidatorMiddleware(RentalCreationSchema),
+    components.schemaValidator.withSchemaValidatorMiddleware(RentalListingCreation.schema),
     rentalsListingsCreationHandler
   )
   router.get("/v1/rentals-listings", getRentalsListingsHandler)

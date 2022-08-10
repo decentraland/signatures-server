@@ -1,14 +1,13 @@
-import { ChainId, Network, NFTCategory } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl/schemas"
 import {
   fromDBGetRentalsListingsToRentalListings,
   fromDBInsertedRentalListingToRental,
   fromMillisecondsToSeconds,
   fromRentalCreationToContractRentalListing,
   fromSecondsToMilliseconds,
-  RentalListing,
 } from "../../src/adapters/rentals"
 import { ContractRentalListing } from "../../src/logic/rentals/types"
-import { DBGetRentalListing, DBInsertedRentalListing, Status } from "../../src/ports/rentals"
+import { DBGetRentalListing, DBInsertedRentalListing } from "../../src/ports/rentals"
 
 describe("when transforming a DB inserted rental listing to a rental listing", () => {
   let dbInsertedRentalListing: DBInsertedRentalListing
@@ -30,7 +29,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
-      status: Status.OPEN,
+      status: RentalStatus.OPEN,
       created_at: new Date("2022-06-13T22:56:36.755Z"),
       updated_at: new Date("2022-06-13T22:56:36.755Z"),
       started_at: null,
@@ -98,7 +97,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
         lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
         tenant: null,
-        status: Status.OPEN,
+        status: RentalStatus.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
         started_at: new Date("2022-06-14T22:56:36.755Z"),
@@ -164,7 +163,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
       rentalContractAddress: "0x09305998a531fade369ebe30adf868c96a34e813",
       lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
       tenant: null,
-      status: Status.OPEN,
+      status: RentalStatus.OPEN,
       createdAt: 1655160996755,
       updatedAt: 1655160996755,
       startedAt: null,
