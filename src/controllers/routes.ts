@@ -18,13 +18,13 @@ export async function setupRouter(
 
   router.get("/ping", pingHandler)
   router.post(
-    "/rentals-listings",
+    "/v1/rentals-listings",
     authorizationMiddleware.wellKnownComponents({ optional: false }),
     components.schemaValidator.withSchemaValidatorMiddleware(RentalCreationSchema),
     rentalsListingsCreationHandler
   )
-  router.get("/rentals-listings", getRentalsListingsHandler)
-  router.patch("/rentals-listings/:id", refreshRentalListingHandler)
+  router.get("/v1/rentals-listings", getRentalsListingsHandler)
+  router.patch("/v1/rentals-listings/:id", refreshRentalListingHandler)
 
   return router
 }

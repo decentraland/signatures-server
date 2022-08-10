@@ -223,7 +223,7 @@ describe("when getting rental listings", () => {
   describe("and the request was done with a sort by that doesn't match the ones available", () => {
     const wrongValue = "SomeWrongValue"
     beforeEach(() => {
-      url = new URL(`http://localhost/rental-listing?sortBy=${wrongValue}`)
+      url = new URL(`http://localhost/v1/rental-listing?sortBy=${wrongValue}`)
     })
 
     it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
@@ -240,7 +240,7 @@ describe("when getting rental listings", () => {
   describe("and the request was done with a sort direction that doesn't match the ones available", () => {
     const wrongValue = "SomeWrongValue"
     beforeEach(() => {
-      url = new URL(`http://localhost/rental-listing?sortDirection=${wrongValue}`)
+      url = new URL(`http://localhost/v1/rental-listing?sortDirection=${wrongValue}`)
     })
 
     it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
@@ -257,7 +257,7 @@ describe("when getting rental listings", () => {
   describe("and the request was done with a category filter that doesn't match the ones available", () => {
     const wrongValue = "SomeWrongValue"
     beforeEach(() => {
-      url = new URL(`http://localhost/rental-listing?category=${wrongValue}`)
+      url = new URL(`http://localhost/v1/rental-listing?category=${wrongValue}`)
     })
 
     it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
@@ -274,7 +274,7 @@ describe("when getting rental listings", () => {
   describe("and the request was done with a status filter that doesn't match the ones available", () => {
     const wrongValue = "SomeWrongValue"
     beforeEach(() => {
-      url = new URL(`http://localhost/rental-listing?status=${wrongValue}`)
+      url = new URL(`http://localhost/v1/rental-listing?status=${wrongValue}`)
     })
 
     it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
@@ -291,7 +291,7 @@ describe("when getting rental listings", () => {
   describe("and the process to get the listings fails with an unknown error", () => {
     const errorMessage = "Something wrong happened"
     beforeEach(() => {
-      url = new URL("http://localhost/rental-listing")
+      url = new URL("http://localhost/v1/rental-listing")
       getRentalsListingsMock.mockRejectedValueOnce(new Error(errorMessage))
     })
 
