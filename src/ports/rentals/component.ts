@@ -594,7 +594,7 @@ export async function createRentalsComponent(
               }
 
               // Create rental listing
-              const defaultNonces = ["", "", ""]
+              const defaultNonces = ["0", "0", "0"]
               const startedAt = new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))
               const {
                 rows: [insertedRental],

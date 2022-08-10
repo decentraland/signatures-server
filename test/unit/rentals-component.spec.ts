@@ -77,7 +77,7 @@ describe("when creating a rental listing", () => {
       contractAddress: "0x0",
       tokenId: "0",
       expiration: Date.now() + 2000000,
-      nonces: ["0x0", "0x0", "0x0"],
+      nonces: ["0", "0", "0"],
       periods: [
         {
           pricePerDay: "10000",
@@ -1607,7 +1607,7 @@ describe("when updating the rental listings", () => {
                 ChainId.ETHEREUM_GOERLI,
                 new Date(0),
                 rentalFromIndexer.signature,
-                ["", "", ""],
+                ["0", "0", "0"],
                 rentalFromIndexer.tokenId,
                 rentalFromIndexer.contractAddress,
                 rentalFromIndexer.rentalContractAddress,
@@ -1684,7 +1684,7 @@ describe("when updating the rental listings", () => {
                 ChainId.ETHEREUM_GOERLI,
                 new Date(0),
                 rentalFromIndexer.signature,
-                ["", "", ""],
+                ["0", "0", "0"],
                 rentalFromIndexer.tokenId,
                 rentalFromIndexer.contractAddress,
                 rentalFromIndexer.rentalContractAddress,
