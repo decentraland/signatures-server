@@ -16,7 +16,7 @@ import {
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 export async function getRentalsListingsHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing">, "url" | "components"> &
+  context: Pick<HandlerContextWithPath<"rentals", "/v1/rentals-listing">, "url" | "components"> &
     authorizationMiddleware.DecentralandSignatureContext
 ) {
   const {
