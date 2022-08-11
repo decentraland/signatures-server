@@ -1,35 +1,10 @@
-import { createConfigComponent } from "@well-known-components/env-config-provider"
-import { createTestServerComponent } from "@well-known-components/http-server"
-import { createTestMetricsComponent } from "@well-known-components/metrics"
-import { createFetchComponent } from "../../src/ports/fetch"
 import { createSchemaValidatorComponent } from "../../src/ports/schema-validator"
-import { BaseComponents, StatusCode } from "../../src/types"
-import {
-  createTestRentalsComponent,
-  createTestConsoleLogComponent,
-  createTestDbComponent,
-  createTestSubgraphComponent,
-  createTestJobComponent,
-} from "../components"
+import { StatusCode } from "../../src/types"
+import { test } from "../components"
 
 let middleware: ReturnType<ReturnType<typeof createSchemaValidatorComponent>["withSchemaValidatorMiddleware"]>
-let components: BaseComponents
 
 beforeEach(async () => {
-  components = {
-    fetch: await createFetchComponent(),
-    server: createTestServerComponent(),
-    rentals: createTestRentalsComponent(),
-    logs: createTestConsoleLogComponent(),
-    config: createConfigComponent({}),
-    metrics: createTestMetricsComponent({}),
-    database: createTestDbComponent(),
-    marketplaceSubgraph: createTestSubgraphComponent(),
-    rentalsSubgraph: createTestSubgraphComponent(),
-    schemaValidator: createSchemaValidatorComponent(),
-    updateMetadataJob: createTestJobComponent(),
-    updateRentalsListingsJob: createTestJobComponent(),
-  }
   middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({
     type: "object",
     properties: {
@@ -41,7 +16,7 @@ beforeEach(async () => {
   })
 })
 
-describe("when validating a request that doesn't have a JSON body", () => {
+test("when validating a request that doesn't have a JSON body", ({ components }) => {
   it("should return a bad request error signaling that it must contain a JSON body", () => {
     return expect(
       middleware(
@@ -72,7 +47,7 @@ describe("when validating a request that doesn't have a JSON body", () => {
   })
 })
 
-describe("when validating a request that has a body that can't be parsed", () => {
+test("when validating a request that has a body that can't be parsed", ({ components }) => {
   it("should return a bad request error containing the parsing error", () => {
     return expect(
       middleware(
@@ -108,7 +83,7 @@ describe("when validating a request that has a body that can't be parsed", () =>
   })
 })
 
-describe("when validating a request that has a valid schema that doesn't match the JSON body", () => {
+test("when validating a request that has a valid schema that doesn't match the JSON body", ({ components }) => {
   it("should return a bad request error signaling that the JSON body is invalid", () => {
     return expect(
       middleware(
@@ -153,7 +128,7 @@ describe("when validating a request that has a valid schema that doesn't match t
   })
 })
 
-describe("when validating a request that has a valid schema that matches the JSON body", () => {
+test("when validating a request that has a valid schema that matches the JSON body", ({ components }) => {
   let next: jest.Mock
   beforeEach(() => {
     next = jest.fn()

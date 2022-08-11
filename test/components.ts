@@ -6,16 +6,12 @@ import {
   createLocalFetchCompoment as createLocalFetchComponent,
 } from "@well-known-components/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
-import { createSubgraphComponent, ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
-import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
-import { createServerComponent, createStatusCheckComponent, IFetchComponent } from "@well-known-components/http-server"
-import { createMetricsComponent } from "@well-known-components/metrics"
-import { createSchemaValidatorComponent } from "../src/ports/schema-validator"
+import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { IPgComponent } from "@well-known-components/pg-component"
+import { initComponents as originalInitComponents } from "../src/components"
 import { main } from "../src/service"
-import { metricDeclarations } from "../src/metrics"
-import { GlobalContext, TestComponents } from "../src/types"
-import { createRentalsComponent, IRentalsComponent } from "../src/ports/rentals"
+import { TestComponents } from "../src/types"
+import { IRentalsComponent } from "../src/ports/rentals"
 
 let lastUsedPort = 19000 + parseInt(process.env.JEST_WORKER_ID || "1") * 1000
 function getFreePort() {
@@ -35,72 +31,15 @@ export const test = createRunner<TestComponents>({
 })
 
 export async function initComponents(): Promise<TestComponents> {
-  const currentPort = getFreePort()
-  const defaultConfig = {
-    HTTP_SERVER_PORT: (currentPort + 1).toString(),
-    HTTP_SERVER_HOST: "localhost",
-    MARKETPLACE_SUBGRAPH_URL: "https://some-url.com",
-    RENTALS_SUBGRAPH_URL: "https://some-url.com",
-  }
+  const components = await originalInitComponents()
 
-  const config = await createDotEnvConfigComponent({}, defaultConfig)
-  const cors = {
-    origin: await config.getString("CORS_ORIGIN"),
-    method: await config.getString("CORS_METHOD"),
-  }
+  const { config, database } = components
 
-  const logs = createTestConsoleLogComponent()
-  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors, compression: {} })
-  const fetcher = await createTestFetchComponent()
-  const metrics = await createMetricsComponent(metricDeclarations, {
-    server,
-    config,
-  })
-  const marketplaceSubgraph = await createSubgraphComponent(
-    { config, logs, fetch: fetcher, metrics },
-    await config.requireString("MARKETPLACE_SUBGRAPH_URL")
-  )
-  const rentalsSubgraph = await createSubgraphComponent(
-    { config, logs, fetch: fetcher, metrics },
-    await config.requireString("RENTALS_SUBGRAPH_URL")
-  )
-  const database = await createPgComponent({ logs, config, metrics })
-  const rentals = await createRentalsComponent({
-    logs,
-    database,
-    marketplaceSubgraph,
-    rentalsSubgraph,
-    config,
-  })
-  const schemaValidator = await createSchemaValidatorComponent()
-  const statusChecks = await createStatusCheckComponent({ server, config })
-  // Mock the start function to avoid connecting to a local database
   jest.spyOn(database, "start").mockResolvedValue()
 
-  const updateMetadataJob = createTestJobComponent()
-  const updateRentalsListingsJob = createTestJobComponent()
-
   return {
-    config,
-    logs,
-    server,
-    statusChecks,
-    fetch: fetcher,
-    metrics,
-    database,
-    marketplaceSubgraph,
-    rentalsSubgraph,
-    schemaValidator,
-    rentals,
+    ...components,
     localFetch: await createLocalFetchComponent(config),
-    updateMetadataJob,
-    updateRentalsListingsJob,
-  }
-}
-
-export function createTestFetchComponent({ fetch = jest.fn() } = { fetch: jest.fn() }): IFetchComponent {
-  return {
-    fetch,
   }
 }
 
