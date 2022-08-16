@@ -21,8 +21,13 @@ export async function initComponents(): Promise<AppComponents> {
   const thirtySeconds = 30 * 1000
   const fiveMinutes = 5 * 60 * 1000
 
+  const cors = {
+    origin: await config.requireString("CORS_ORIGIN"),
+    methods: await config.requireString("CORS_METHODS"),
+  }
+
   const logs = createLogComponent({ config: { logLevel: LOG_LEVEL } })
-  const server = await createServerComponent<GlobalContext>({ config, logs }, {})
+  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors })
   const statusChecks = await createStatusCheckComponent({ server, config })
   const fetch = await createFetchComponent()
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
