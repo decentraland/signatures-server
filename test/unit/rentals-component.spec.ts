@@ -1,26 +1,29 @@
 import SQL from "sql-template-strings"
-import { Wallet } from "ethers"
 import { IConfigComponent, ILoggerComponent } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
 import { createConfigComponent } from "@well-known-components/env-config-provider"
-import { ChainId, Network, NFTCategory } from "@dcl/schemas"
+import {
+  ChainId,
+  Network,
+  NFTCategory,
+  RentalListingCreation,
+  RentalsListingsFilterByCategory,
+  RentalsListingSortDirection,
+  RentalsListingsSortBy,
+  RentalStatus,
+} from "@dcl/schemas"
 import * as rentalsLogic from "../../src/logic/rentals"
 import {
   IndexerRental,
   createRentalsComponent,
   DBGetRentalListing,
-  FilterByCategory,
   InvalidSignature,
   IRentalsComponent,
   NFT,
   NFTNotFound,
   RentalAlreadyExists,
-  RentalListingCreation,
   RentalNotFound,
-  RentalsListingsSortBy,
-  SortDirection,
-  Status,
   UnauthorizedToRent,
   DBRental,
   DBRentalListing,
@@ -324,7 +327,7 @@ describe("when creating a rental listing", () => {
               token_id: rentalListingCreation.tokenId,
               contract_address: rentalListingCreation.contractAddress,
               rental_contract_address: rentalListingCreation.rentalContractAddress,
-              status: Status.OPEN,
+              status: RentalStatus.OPEN,
             },
           ],
         })
@@ -379,7 +382,7 @@ describe("when creating a rental listing", () => {
         token_id: rentalListingCreation.tokenId,
         contract_address: rentalListingCreation.contractAddress,
         rental_contract_address: rentalListingCreation.rentalContractAddress,
-        status: Status.OPEN,
+        status: RentalStatus.OPEN,
       })
     })
   })
@@ -427,7 +430,7 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            category: FilterByCategory.LAND,
+            category: RentalsListingsFilterByCategory.LAND,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
@@ -451,13 +454,13 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            status: Status.EXECUTED,
+            status: RentalStatus.EXECUTED,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
 
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = $1"))
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([Status.EXECUTED, 10, 0])
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, 10, 0])
     })
   })
 
@@ -710,7 +713,7 @@ describe("when getting rental listings", () => {
           page: 0,
           limit: 10,
           sortBy: null,
-          sortDirection: SortDirection.DESC,
+          sortDirection: RentalsListingSortDirection.DESC,
           filterBy: null,
         })
       ).resolves.toEqual(dbGetRentalListings)
@@ -1267,7 +1270,7 @@ describe("when updating the metadata", () => {
             expect(dbClientQueryMock).toHaveBeenCalledWith(
               expect.objectContaining({
                 strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
-                values: expect.arrayContaining([Status.CANCELLED, openRental.id]),
+                values: expect.arrayContaining([RentalStatus.CANCELLED, openRental.id]),
               })
             )
           })
@@ -1310,7 +1313,7 @@ describe("when updating the metadata", () => {
               expect(dbClientQueryMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                   strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
-                  values: expect.arrayContaining([Status.CANCELLED, openRental.id]),
+                  values: expect.arrayContaining([RentalStatus.CANCELLED, openRental.id]),
                 })
               )
             })
@@ -1457,7 +1460,7 @@ describe("when updating the rental listings", () => {
       expect(dbClientQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
           strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
-          values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+          values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
         })
       )
     })
@@ -1506,7 +1509,7 @@ describe("when updating the rental listings", () => {
         dbRental = {
           id: "rentalId",
           lessor: "aLessorAddress",
-          status: Status.OPEN,
+          status: RentalStatus.OPEN,
         }
         dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
         await rentalsComponent.updateRentalsListings()
@@ -1518,7 +1521,7 @@ describe("when updating the rental listings", () => {
             strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
             values: expect.arrayContaining([
               new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
-              Status.EXECUTED,
+              RentalStatus.EXECUTED,
               dbRental.id,
             ]),
           })
@@ -1535,7 +1538,7 @@ describe("when updating the rental listings", () => {
         expect(dbClientQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
-            values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+            values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
           })
         )
       })
@@ -1611,7 +1614,7 @@ describe("when updating the rental listings", () => {
                 rentalFromIndexer.tokenId,
                 rentalFromIndexer.contractAddress,
                 rentalFromIndexer.rentalContractAddress,
-                Status.EXECUTED,
+                RentalStatus.EXECUTED,
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
@@ -1630,7 +1633,7 @@ describe("when updating the rental listings", () => {
           expect(dbClientQueryMock).toHaveBeenCalledWith(
             expect.objectContaining({
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
-              values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+              values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
             })
           )
         })
@@ -1688,7 +1691,7 @@ describe("when updating the rental listings", () => {
                 rentalFromIndexer.tokenId,
                 rentalFromIndexer.contractAddress,
                 rentalFromIndexer.rentalContractAddress,
-                Status.EXECUTED,
+                RentalStatus.EXECUTED,
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
                 new Date(Number(rentalFromIndexer.startedAt) * 1000),
@@ -1707,7 +1710,7 @@ describe("when updating the rental listings", () => {
           expect(dbClientQueryMock).toHaveBeenCalledWith(
             expect.objectContaining({
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
-              values: expect.arrayContaining([Status.CANCELLED, Status.OPEN]),
+              values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
             })
           )
         })

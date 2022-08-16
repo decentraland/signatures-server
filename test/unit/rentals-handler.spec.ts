@@ -1,6 +1,6 @@
-import { ChainId, Network, NFTCategory } from "@dcl/schemas"
+import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
-import { fromDBInsertedRentalListingToRental, RentalListing } from "../../src/adapters/rentals"
+import { fromDBInsertedRentalListingToRental } from "../../src/adapters/rentals"
 import {
   getRentalsListingsHandler,
   refreshRentalListingHandler,
@@ -12,7 +12,6 @@ import {
   NFTNotFound,
   RentalAlreadyExists,
   RentalNotFound,
-  Status,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
 import { AppComponents, HandlerContextWithPath, StatusCode } from "../../src/types"
@@ -175,7 +174,7 @@ describe("when creating a new rental listing", () => {
         rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
         lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
         tenant: null,
-        status: Status.OPEN,
+        status: RentalStatus.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
         started_at: null,
@@ -321,7 +320,7 @@ describe("when getting rental listings", () => {
           rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
           lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
           tenant: null,
-          status: Status.OPEN,
+          status: RentalStatus.OPEN,
           created_at: new Date("2022-06-13T22:56:36.755Z"),
           updated_at: new Date("2022-06-13T22:56:36.755Z"),
           started_at: null,
@@ -469,7 +468,7 @@ describe("when refreshing a rental listing", () => {
         rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
         lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
         tenant: null,
-        status: Status.OPEN,
+        status: RentalStatus.OPEN,
         created_at: new Date("2022-06-13T22:56:36.755Z"),
         updated_at: new Date("2022-06-13T22:56:36.755Z"),
         started_at: null,

@@ -1,4 +1,13 @@
-import { ChainId, Network, NFTCategory } from "@dcl/schemas"
+import {
+  ChainId,
+  Network,
+  NFTCategory,
+  RentalListingCreation,
+  RentalsListingsFilterBy,
+  RentalsListingSortDirection,
+  RentalsListingsSortBy,
+  RentalStatus,
+} from "@dcl/schemas"
 
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
@@ -10,35 +19,10 @@ export type IRentalsComponent = {
 
 export type GetRentalListingParameters = {
   sortBy: RentalsListingsSortBy | null
-  sortDirection: SortDirection | null
+  sortDirection: RentalsListingSortDirection | null
   page: number
   limit: number
-  filterBy: FilterBy | null
-}
-
-export type RentalListingCreation = {
-  network: Network
-  chainId: ChainId
-  /** UTC timestamp in milliseconds since epoch of the signature's expiration */
-  expiration: number
-  signature: string
-  tokenId: string
-  contractAddress: string
-  rentalContractAddress: string
-  nonces: string[]
-  periods: PeriodCreation[]
-}
-
-export type PeriodCreation = {
-  minDays: number
-  maxDays: number
-  pricePerDay: string
-}
-
-export enum Status {
-  OPEN = "open",
-  CANCELLED = "cancelled",
-  EXECUTED = "executed",
+  filterBy: RentalsListingsFilterBy | null
 }
 
 export enum UpdateType {
@@ -64,7 +48,7 @@ export type DBRental = {
   token_id: string
   contract_address: string
   rental_contract_address: string
-  status: Status
+  status: RentalStatus
   created_at: Date
   updated_at: Date
   started_at: Date | null
@@ -115,50 +99,6 @@ export type NFT = {
   updatedAt: string
   /** Wether the NFT is LAND or not */
   searchIsLand: boolean
-}
-
-export enum FilterByCategory {
-  LAND = "land",
-  ESTATE = "estate",
-}
-
-export type FilterByPeriod = {
-  minDays: number
-  maxDays: number
-  pricePerDay?: number
-}
-
-export type FilterBy = {
-  category?: FilterByCategory
-  text?: string
-  status?: Status
-  periods?: FilterByPeriod
-  lessor?: string
-  tenant?: string
-  tokenId?: string
-  contractAddresses?: string[]
-  network?: Network
-  nftIds?: string[]
-}
-
-export enum SortDirection {
-  ASC = "asc",
-  DESC = "desc",
-}
-
-export enum RentalsListingsSortBy {
-  /** Order by created at of the listing's metadata */
-  LAND_CREATION_DATE = "land_creation_date",
-  /** Order by created at of the listing */
-  RENTAL_LISTING_DATE = "rental_listing_date",
-  /** Order by rented at of the listing */
-  RENTAL_DATE = "rented_date",
-  /** Order by search text of the listing's metadata */
-  NAME = "name",
-  /** Order by maximum rental price per day of the listing */
-  MAX_RENTAL_PRICE = "max_rental_price",
-  /** Order by minimum rental price per day of the listing */
-  MIN_RENTAL_PRICE = "min_rental_price",
 }
 
 export type IndexerRental = {

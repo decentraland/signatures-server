@@ -1,18 +1,15 @@
-import { Network } from "@dcl/schemas"
+import {
+  Network,
+  RentalsListingsFilterBy,
+  RentalsListingsFilterByCategory,
+  RentalsListingSortDirection,
+  RentalsListingsSortBy,
+  RentalStatus,
+} from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
-import {
-  FilterBy,
-  FilterByCategory,
-  NFTNotFound,
-  RentalAlreadyExists,
-  RentalNotFound,
-  RentalsListingsSortBy,
-  SortDirection,
-  Status,
-  UnauthorizedToRent,
-} from "../../ports/rentals"
+import { NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 export async function getRentalsListingsHandler(
@@ -27,14 +24,19 @@ export async function getRentalsListingsHandler(
   const { page, limit } = getPaginationParams(url.searchParams)
   try {
     const sortBy = getTypedStringQueryParameter(Object.values(RentalsListingsSortBy), url.searchParams, "sortBy")
-    const sortDirection = getTypedStringQueryParameter(Object.values(SortDirection), url.searchParams, "sortDirection")
-    const filterBy: FilterBy = {
+    const sortDirection = getTypedStringQueryParameter(
+      Object.values(RentalsListingSortDirection),
+      url.searchParams,
+      "sortDirection"
+    )
+    const filterBy: RentalsListingsFilterBy = {
       category:
-        getTypedStringQueryParameter(Object.values(FilterByCategory), url.searchParams, "category") ?? undefined,
+        getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
+        undefined,
       text: url.searchParams.get("text") ?? undefined,
       lessor: url.searchParams.get("lessor") ?? undefined,
       tenant: url.searchParams.get("tenant") ?? undefined,
-      status: getTypedStringQueryParameter(Object.values(Status), url.searchParams, "status") ?? undefined,
+      status: getTypedStringQueryParameter(Object.values(RentalStatus), url.searchParams, "status") ?? undefined,
       tokenId: url.searchParams.get("tokenId") ?? undefined,
       contractAddresses: url.searchParams.getAll("contractAddresses"),
       nftIds: url.searchParams.getAll("nftIds"),

@@ -1,6 +1,6 @@
 import { URLSearchParams } from "url"
+import { RentalsListingsFilterByCategory } from "@dcl/schemas"
 import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../src/logic/http"
-import { FilterByCategory } from "../../src/ports/rentals"
 
 describe("when getting the pagination params", () => {
   describe("and the limit is greater than the max limit", () => {
@@ -81,7 +81,7 @@ describe("when getting a single typed query parameter", () => {
     it("should return null", () => {
       expect(
         getTypedStringQueryParameter(
-          Object.values(FilterByCategory),
+          Object.values(RentalsListingsFilterByCategory),
           new URLSearchParams({ otherParameter: "aValue" }),
           "category"
         )
@@ -93,7 +93,7 @@ describe("when getting a single typed query parameter", () => {
     it("should throw an invalid parameter error", () => {
       expect(() =>
         getTypedStringQueryParameter(
-          Object.values(FilterByCategory),
+          Object.values(RentalsListingsFilterByCategory),
           new URLSearchParams({ category: "aValue" }),
           "category"
         )
@@ -105,11 +105,11 @@ describe("when getting a single typed query parameter", () => {
     it("should return the value", () => {
       expect(
         getTypedStringQueryParameter(
-          Object.values(FilterByCategory),
-          new URLSearchParams({ category: FilterByCategory.LAND }),
+          Object.values(RentalsListingsFilterByCategory),
+          new URLSearchParams({ category: RentalsListingsFilterByCategory.LAND }),
           "category"
         )
-      ).toEqual(FilterByCategory.LAND)
+      ).toEqual(RentalsListingsFilterByCategory.LAND)
     })
   })
 })
