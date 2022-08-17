@@ -15,7 +15,7 @@ describe("when verifying the rentals listings signature", () => {
 
   beforeEach(async () => {
     wallet = ethers.Wallet.createRandom()
-    signerAddress = await wallet.getAddress()
+    signerAddress = (await wallet.getAddress()).toLowerCase()
     chainId = ChainId.ETHEREUM_GOERLI
     const rentalsContract: ContractData = getContract(ContractName.Rentals, chainId)
     domain = {
