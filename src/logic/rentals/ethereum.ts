@@ -51,5 +51,5 @@ export async function verifyRentalsListingSignature(
     rentalListingSignatureData.signature
   )
 
-  return signingAddress === rentalListingSignatureData.values.signer
+  return signingAddress.toLowerCase() === rentalListingSignatureData.values.signer
 }
