@@ -193,9 +193,9 @@ export async function createRentalsComponent(
     try {
       await client.query(SQL`BEGIN`)
       const createdMetadata = await client.query<DBMetadata>(
-        SQL`INSERT INTO metadata (id, category, search_text, created_at, updated_at) VALUES (${nft.id}, ${
+        SQL`INSERT INTO metadata (id, category, search_text, updated_at, created_at) VALUES (${nft.id}, ${
           nft.category
-        }, ${nft.searchText}, ${nft.updatedAt} ${new Date(
+        }, ${nft.searchText}, ${new Date(fromSecondsToMilliseconds(Number(nft.updatedAt)))}, ${new Date(
           fromSecondsToMilliseconds(Number(nft.createdAt))
         )}) ON CONFLICT (id) DO UPDATE SET search_text = ${nft.searchText} RETURNING *`
       )
