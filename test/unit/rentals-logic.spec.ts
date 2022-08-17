@@ -30,7 +30,7 @@ describe("when verifying the rentals listings signature", () => {
         { name: "contractAddress", type: "address" },
         { name: "tokenId", type: "uint256" },
         { name: "expiration", type: "uint256" },
-        { name: "nonces", type: "uint256[3]" },
+        { name: "nonces", type: "uint256[]" },
         { name: "pricePerDay", type: "uint256[]" },
         { name: "maxDays", type: "uint256[]" },
         { name: "minDays", type: "uint256[]" },

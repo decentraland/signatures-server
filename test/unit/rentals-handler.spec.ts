@@ -9,6 +9,7 @@ import {
 import {
   DBGetRentalListing,
   DBInsertedRentalListing,
+  InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
   RentalNotFound,
@@ -133,6 +134,31 @@ describe("when creating a new rental listing", () => {
             contractAddress,
             tokenId,
           },
+        },
+      })
+    })
+  })
+
+  describe("and the listing creation fails with an invalid signature error", () => {
+    let contractAddress: string
+    let tokenId: string
+
+    beforeEach(() => {
+      contractAddress = "0x1"
+      tokenId = "1"
+      components = {
+        rentals: createTestRentalsComponent({
+          createRentalListing: jest.fn().mockRejectedValueOnce(new InvalidSignature()),
+        }),
+      }
+    })
+
+    it("should return a response with a bad request status code and a message signaling that there's wrong signature in the creation request", () => {
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: "The provided signature is invalid",
         },
       })
     })
