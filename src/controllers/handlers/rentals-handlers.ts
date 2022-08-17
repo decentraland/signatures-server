@@ -9,7 +9,13 @@ import {
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
-import { NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "../../ports/rentals"
+import {
+  InvalidSignature,
+  NFTNotFound,
+  RentalAlreadyExists,
+  RentalNotFound,
+  UnauthorizedToRent,
+} from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
 export async function getRentalsListingsHandler(
@@ -138,6 +144,14 @@ export async function rentalsListingsCreationHandler(
             contractAddress: error.contractAddress,
             tokenId: error.tokenId,
           },
+        },
+      }
+    } else if (error instanceof InvalidSignature) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
         },
       }
     }
