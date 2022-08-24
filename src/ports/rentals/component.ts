@@ -265,7 +265,7 @@ export async function createRentalsComponent(
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
 
-    const filterByCategory = filterBy?.category ? SQL`AND category = ${filterBy.category}\n` : ""
+    const filterByCategory = filterBy?.category ? SQL`AND metadata.category = ${filterBy.category}\n` : ""
     const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}\n` : ""
     const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
     const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
@@ -308,7 +308,6 @@ export async function createRentalsComponent(
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
       periods.rental_id = rentals.id\n`
-    query.append(filterByCategory)
     query.append(filterByStatus)
     query.append(filterByTokenId)
     query.append(filterByContractAddress)
@@ -320,6 +319,7 @@ export async function createRentalsComponent(
       SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id LIMIT ${limit} OFFSET ${page}) as rentals\n`
     )
     query.append("WHERE metadata.id = rentals.metadata_id\n")
+    query.append(filterByCategory)
     query.append(filterBySearchText)
     query.append(sortByQuery)
 
