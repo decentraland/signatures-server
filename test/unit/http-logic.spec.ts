@@ -106,10 +106,10 @@ describe("when getting a single typed query parameter", () => {
       expect(
         getTypedStringQueryParameter(
           Object.values(RentalsListingsFilterByCategory),
-          new URLSearchParams({ category: RentalsListingsFilterByCategory.LAND }),
+          new URLSearchParams({ category: RentalsListingsFilterByCategory.PARCEL }),
           "category"
         )
-      ).toEqual(RentalsListingsFilterByCategory.LAND)
+      ).toEqual(RentalsListingsFilterByCategory.PARCEL)
     })
   })
 })

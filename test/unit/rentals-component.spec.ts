@@ -430,13 +430,13 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            category: RentalsListingsFilterByCategory.LAND,
+            category: RentalsListingsFilterByCategory.PARCEL,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
 
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND category = $1"))
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["land", 10, 0])
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["parcel", 10, 0])
     })
   })
 
