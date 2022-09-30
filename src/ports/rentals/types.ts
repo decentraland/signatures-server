@@ -135,3 +135,10 @@ export type IndexerRental = {
   /** A string representation of the bytes of the rental signature */
   signature: string
 }
+
+export type IndexerNonceUpdate = {
+  /** The newest nonce */
+  newNonce: string
+  /** The nonce signer */
+  signer: string
+}

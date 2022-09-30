@@ -50,6 +50,14 @@ let logs: ILoggerComponent
 let config: IConfigComponent
 const aDay = 24 * 60 * 60 * 1000
 
+const mockDefaultSubgraphNonces = () => {
+  return rentalsSubgraphQueryMock.mockResolvedValueOnce({
+    contract: [{ newNonce: 0 }],
+    signer: [{ newNonce: 0 }],
+    asset: [{ newNonce: 0 }],
+  })
+}
+
 afterEach(() => {
   jest.resetAllMocks()
 })
@@ -819,6 +827,7 @@ describe("when refreshing rental listings", () => {
     metadata_updated_at: Date
     metadata_id: string
     signature: string
+    nonces: string[]
   }
   let nftFromIndexer: NFT
   let rentalFromIndexer: IndexerRental
@@ -842,6 +851,7 @@ describe("when refreshing rental listings", () => {
       metadata_updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
       metadata_id: "metadataId",
       signature: "aSignature",
+      nonces: ["0", "0", "0"],
     }
     nftFromIndexer = {
       id: rentalFromDb.metadata_id,
@@ -926,6 +936,7 @@ describe("when refreshing rental listings", () => {
             },
           ],
         })
+        mockDefaultSubgraphNonces()
         dbQueryMock.mockResolvedValueOnce({
           rows: [result],
           rowCount: 1,
@@ -949,6 +960,7 @@ describe("when refreshing rental listings", () => {
             },
           ],
         })
+        mockDefaultSubgraphNonces()
         dbQueryMock.mockResolvedValueOnce({
           rows: [result],
           rowCount: 1,
@@ -972,6 +984,7 @@ describe("when refreshing rental listings", () => {
             },
           ],
         })
+        mockDefaultSubgraphNonces()
         dbQueryMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce({
           rows: [result],
           rowCount: 1,
@@ -1006,6 +1019,7 @@ describe("when refreshing rental listings", () => {
           rowCount: 1,
         })
       rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
+      mockDefaultSubgraphNonces()
     })
 
     it("should not update the database entry for the rental and return the rental unchanged", async () => {
@@ -1032,15 +1046,14 @@ describe("when refreshing rental listings", () => {
       })
     })
 
-    describe("and the rental is older than the one in the database", () => {
+    describe("and the rental has been invalidated by a nonce bump", () => {
       beforeEach(() => {
         rentalsSubgraphQueryMock.mockResolvedValueOnce({
-          rentals: [
-            {
-              ...rentalFromIndexer,
-              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
-            },
-          ],
+          rentals: [rentalFromIndexer],
+        })
+        dbQueryMock.mockResolvedValueOnce({
+          rows: [result],
+          rowCount: 1,
         })
         dbQueryMock.mockResolvedValueOnce({
           rows: [result],
@@ -1048,59 +1061,125 @@ describe("when refreshing rental listings", () => {
         })
       })
 
-      it("should not update the database entry for the rental and return the rental unchanged", async () => {
-        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      describe("and the nonce was of type contract", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            contract: [{ newNonce: 1 }],
+            signer: [],
+            asset: [],
+          })
+        })
+        it("should update the rental listing with status cancelled", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
+        })
+      })
+
+      describe("and the nonce was of type signer", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            contract: [],
+            signer: [{ newNonce: 1 }],
+            asset: [],
+          })
+        })
+        it("should update the rental listing with status cancelled", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
+        })
+      })
+      describe("and the nonce was of type asset", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            contract: [],
+            signer: [],
+            asset: [{ newNonce: 1 }],
+          })
+        })
+        it("should update the rental listing with status cancelled", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
+        })
       })
     })
 
-    describe("and the rental has the same date as the one in the database", () => {
-      beforeEach(() => {
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({
-          rentals: [
-            {
-              ...rentalFromIndexer,
-              updatedAt: Math.round(rentalFromDb.updated_at.getTime() / 1000).toString(),
-            },
-          ],
-        })
-        dbQueryMock.mockResolvedValueOnce({
-          rows: [result],
-          rowCount: 1,
-        })
-      })
-
-      it("should not update the database entry for the rental and return the rental unchanged", async () => {
-        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
-      })
-    })
-
-    describe("and the rental is newer than the one in the database", () => {
-      beforeEach(() => {
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({
-          rentals: [
-            {
-              ...rentalFromIndexer,
-              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
-            },
-          ],
-        })
-        dbQueryMock
-          .mockResolvedValueOnce(undefined)
-          .mockResolvedValueOnce(undefined)
-          .mockResolvedValueOnce({
+    describe("and the rental signed nonce was not bumped", () => {
+      describe("and the rental is older than the one in the database", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            rentals: [
+              {
+                ...rentalFromIndexer,
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock.mockResolvedValueOnce({
             rows: [result],
             rowCount: 1,
           })
+        })
+
+        it("should not update the database entry for the rental and return the rental unchanged", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+        })
       })
 
-      it("should update the database entry for the rental and return the rental", async () => {
-        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
-        expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      describe("and the rental has the same date as the one in the database", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            rentals: [
+              {
+                ...rentalFromIndexer,
+                updatedAt: Math.round(rentalFromDb.updated_at.getTime() / 1000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock.mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
+        })
+
+        it("should not update the database entry for the rental and return the rental unchanged", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+        })
+      })
+
+      describe("and the rental is newer than the one in the database", () => {
+        beforeEach(() => {
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({
+            rentals: [
+              {
+                ...rentalFromIndexer,
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+
+        it("should update the database entry for the rental and return the rental", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+        })
       })
     })
   })

@@ -30,6 +30,7 @@ import {
   IndexerRental,
   DBMetadata,
   UpdateType,
+  IndexerNonceUpdate,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 
@@ -128,6 +129,40 @@ export async function createRentalsComponent(
     )
 
     return queryResult.rentals
+  }
+
+  async function getNoncesFromIndexer(options: {
+    filterBy?: Partial<IndexerNonceUpdate>
+    first: number
+    orderBy?: keyof IndexerNonceUpdate
+    orderDirection?: "desc" | "asc"
+  }): Promise<{ contract: IndexerNonceUpdate[]; signer: IndexerNonceUpdate[]; asset: IndexerNonceUpdate[] }> {
+    const { queryVariables, querySignature } = buildQueryParameters<IndexerNonceUpdate>(
+      options?.filterBy,
+      options?.first,
+      options?.orderBy,
+      options?.orderDirection
+    )
+
+    const query = `query Nonces(${queryVariables}) {
+      contract: noncesUpdateContractHistories(${querySignature}){
+        newNonce
+      }
+      signer: noncesUpdateSignerHistories(${querySignature}){
+        newNonce
+      }
+      asset: noncesUpdateAssetHistories(${querySignature}){
+        newNonce
+      }
+    }`
+
+    const queryResult = await rentalsSubgraph.query<{
+      contract: IndexerNonceUpdate[]
+      signer: IndexerNonceUpdate[]
+      asset: IndexerNonceUpdate[]
+    }>(query, options?.filterBy)
+
+    return queryResult
   }
 
   async function createRentalListing(
@@ -337,10 +372,12 @@ export async function createRentalsComponent(
       metadata_updated_at: Date
       metadata_id: string
       signature: string
+      nonces: string[]
+      lessor: string
     }>(
-      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at
-      FROM rentals, metadata
-      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id`
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor
+      FROM rentals, metadata, rentals_listings
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId}`
     )
 
     if (rentalQueryResult.rowCount === 0) {
@@ -348,11 +385,17 @@ export async function createRentalsComponent(
     }
 
     const rentalData = rentalQueryResult.rows[0]
-    const [indexerRentals, [indexerNFT]] = await Promise.all([
+    const [indexerRentals, [indexerNFT], indexerNonceUpdate] = await Promise.all([
       getRentalsFromIndexer({ first: 1, filterBy: { signature: rentalData.signature } }),
       getNFTsFromIndexer({
         filterBy: { contractAddress: rentalData.contract_address, tokenId: rentalData.token_id },
         first: 1,
+      }),
+      getNoncesFromIndexer({
+        filterBy: { signer: rentalData.lessor },
+        first: 1,
+        orderBy: "newNonce",
+        orderDirection: "desc",
       }),
     ])
 
@@ -387,6 +430,23 @@ export async function createRentalsComponent(
         ),
         database.query(
           SQL`UPDATE rentals_listings SET tenant = ${indexerRentals[0].tenant} WHERE id = ${rentalData.id}`
+        )
+      )
+    }
+
+    // Identify if there's any blockchain nonce update
+    const hasUpdatedNonce =
+      indexerNonceUpdate.contract[0]?.newNonce > rentalData.nonces[0] ||
+      indexerNonceUpdate.signer[0]?.newNonce > rentalData.nonces[1] ||
+      indexerNonceUpdate.asset[0]?.newNonce > rentalData.nonces[2]
+
+    if (indexerRentals.length > 0 && hasUpdatedNonce) {
+      logger.info(`[Refresh][Update rental][${rentalId}]`)
+      promisesOfUpdate.push(
+        database.query(
+          SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
+            RentalStatus.CANCELLED
+          } WHERE id = ${rentalData.id}`
         )
       )
     }
