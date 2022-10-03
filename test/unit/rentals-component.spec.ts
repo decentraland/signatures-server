@@ -27,6 +27,8 @@ import {
   UnauthorizedToRent,
   DBRental,
   DBRentalListing,
+  IndexerNonceHistoryUpdate,
+  IndexerHistoryUpdateType,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -1836,6 +1838,216 @@ describe("when updating the rental listings", () => {
 
       it("should release the client", () => {
         expect(dbClientReleaseMock).toHaveBeenCalled()
+      })
+    })
+  })
+})
+
+describe("when cancelling the rental listings", () => {
+  let startDate: Date
+  let nonceUpdate: IndexerNonceHistoryUpdate
+
+  beforeEach(async () => {
+    startDate = new Date()
+    dbQueryMock = jest.fn()
+    dbClientQueryMock = jest.fn()
+    dbClientReleaseMock = jest.fn()
+    database = createTestDbComponent({
+      query: dbQueryMock,
+      getPool: jest
+        .fn()
+        .mockReturnValue({ connect: () => ({ query: dbClientQueryMock, release: dbClientReleaseMock }) }),
+    })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+  })
+
+  describe("and there are no updated nonces since the latest job", () => {
+    beforeEach(async () => {
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [] })
+      await rentalsComponent.cancelRentalsListings()
+    })
+
+    it("should not update any rental", () => {
+      expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]) })
+      )
+    })
+
+    it("should update the time the last update was performed", () => {
+      expect(dbClientQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+          values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+        })
+      )
+    })
+
+    it("should release the client", () => {
+      expect(dbClientReleaseMock).toHaveBeenCalled()
+    })
+  })
+
+  describe("and there are rentals to be updated", () => {
+    describe("and the nonce bump was of type contract", () => {
+      beforeEach(() => {
+        nonceUpdate = {
+          date: "",
+          id: "1",
+          sender: "0xsender",
+          type: IndexerHistoryUpdateType.CONTRACT,
+          signerUpdate: null,
+          assetUpdate: null,
+          contractUpdate: {
+            contractAddress: "0x123",
+            id: "1",
+            newNonce: "2",
+          },
+        }
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+      })
+
+      describe("and the rentals to be updated exist in the database", () => {
+        beforeEach(async () => {
+          await rentalsComponent.cancelRentalsListings()
+        })
+
+        it("should execute the UPDATE query for the correspoding contract and nonce", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+              values: expect.arrayContaining([
+                RentalStatus.CANCELLED,
+                nonceUpdate.contractUpdate?.newNonce,
+                nonceUpdate.contractUpdate?.contractAddress,
+              ]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
+      })
+    })
+
+    describe("and the nonce bump was of type signer", () => {
+      beforeEach(() => {
+        nonceUpdate = {
+          date: "",
+          id: "1",
+          sender: "0xsender",
+          type: IndexerHistoryUpdateType.SIGNER,
+          signerUpdate: {
+            id: "12",
+            newNonce: "2",
+            signer: "0xsigner",
+          },
+          assetUpdate: null,
+          contractUpdate: null,
+        }
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+      })
+
+      describe("and the rentals to be updated exist in the database", () => {
+        beforeEach(async () => {
+          await rentalsComponent.cancelRentalsListings()
+        })
+
+        it("should execute the UPDATE query for the correspoding contract and nonce", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+              values: expect.arrayContaining([
+                RentalStatus.CANCELLED,
+                nonceUpdate.signerUpdate?.newNonce,
+                nonceUpdate.signerUpdate?.signer,
+              ]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
+      })
+    })
+
+    describe("and the nonce bump was of type asset", () => {
+      beforeEach(() => {
+        nonceUpdate = {
+          date: "",
+          id: "1",
+          sender: "0xsender",
+          type: IndexerHistoryUpdateType.ASSET,
+          signerUpdate: null,
+          contractUpdate: null,
+          assetUpdate: {
+            id: "1",
+            tokenId: "3",
+            newNonce: "2",
+            contractAddress: "0xcontract",
+          },
+        }
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+      })
+
+      describe("and the rentals to be updated exist in the database", () => {
+        beforeEach(async () => {
+          await rentalsComponent.cancelRentalsListings()
+        })
+
+        it("should execute the UPDATE query for the correspoding contract and nonce", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+              values: expect.arrayContaining([
+                RentalStatus.CANCELLED,
+                nonceUpdate.assetUpdate?.newNonce,
+                nonceUpdate.assetUpdate?.contractAddress,
+                nonceUpdate.assetUpdate?.tokenId,
+              ]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
       })
     })
   })

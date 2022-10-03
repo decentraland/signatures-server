@@ -32,6 +32,10 @@ import {
   UpdateType,
   IndexerNonceUpdate,
   DBInsertedRentaListingPeriods,
+  IndexerSignerNonceUpdate,
+  IndexerAssettNonceUpdate,
+  IndexerContractNonceUpdate,
+  IndexerNonceHistoryUpdate,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 
@@ -133,11 +137,15 @@ export async function createRentalsComponent(
   }
 
   async function getNoncesFromIndexer(options: {
-    filterBy?: Partial<IndexerNonceUpdate>
+    filterBy?: Partial<IndexerNonceUpdate> & { date_gt?: string }
     first: number
     orderBy?: keyof IndexerNonceUpdate
     orderDirection?: "desc" | "asc"
-  }): Promise<{ contract: IndexerNonceUpdate[]; signer: IndexerNonceUpdate[]; asset: IndexerNonceUpdate[] }> {
+  }): Promise<{
+    contract: IndexerContractNonceUpdate[]
+    signer: IndexerSignerNonceUpdate[]
+    asset: IndexerAssettNonceUpdate[]
+  }> {
     const { queryVariables, querySignature } = buildQueryParameters<IndexerNonceUpdate>(
       options?.filterBy,
       options?.first,
@@ -158,9 +166,52 @@ export async function createRentalsComponent(
     }`
 
     const queryResult = await rentalsSubgraph.query<{
-      contract: IndexerNonceUpdate[]
-      signer: IndexerNonceUpdate[]
-      asset: IndexerNonceUpdate[]
+      contract: IndexerContractNonceUpdate[]
+      signer: IndexerSignerNonceUpdate[]
+      asset: IndexerAssettNonceUpdate[]
+    }>(query, options?.filterBy)
+
+    return queryResult
+  }
+
+  async function getNoncesUpdateHistoriesFromIndexer(options: {
+    filterBy?: Partial<IndexerNonceUpdate> & { date_gt: string }
+    first: number
+    orderBy?: keyof IndexerNonceUpdate
+    orderDirection?: "desc" | "asc"
+  }): Promise<{ noncesUpdateHistories: IndexerNonceHistoryUpdate[] }> {
+    const { queryVariables, querySignature } = buildQueryParameters<IndexerNonceUpdate>(
+      options?.filterBy,
+      options?.first,
+      options?.orderBy,
+      options?.orderDirection
+    )
+
+    const query = `query NoncesUpdateHistories(${queryVariables}) {
+      noncesUpdateHistories(${querySignature}) {
+        id
+        date
+        contractUpdate {
+          id
+          contractAddress
+          newNonce
+        }
+        singerUpdate {
+          id
+          newNonce
+          signer
+        }
+        assetUpdate {
+          id
+          newNonce
+          contractAddress
+          tokenId
+        }
+      }
+    }`
+
+    const queryResult = await rentalsSubgraph.query<{
+      noncesUpdateHistories: IndexerNonceHistoryUpdate[]
     }>(query, options?.filterBy)
 
     return queryResult
@@ -708,11 +759,93 @@ export async function createRentalsComponent(
     }
   }
 
+  async function cancelRentalsListings() {
+    // Truncate the start time to seconds so we can interact with the blockchain date
+    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
+    logger.info(`[Rentals Nonces update][Start updates]`)
+    const { rows } = await database.query<{ updated_at: Date }>(
+      SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.NONCES} ORDER BY updated_at DESC LIMIT 1`
+    )
+    const client = await database.getPool().connect()
+    let lastId: string | undefined
+    try {
+      await client.query("BEGIN")
+      while (true) {
+        const { noncesUpdateHistories } = await getNoncesUpdateHistoriesFromIndexer({
+          filterBy: { date_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString() },
+          first: MAX_GRAPH_FIRST,
+        })
+
+        // Limit the concurrent updates
+        const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
+
+        const promiseOfUpdates = noncesUpdateHistories.map((nonceUpdate) =>
+          limit(async () => {
+            if (nonceUpdate.contractUpdate) {
+              const { newNonce, contractAddress } = nonceUpdate.contractUpdate
+              return await client.query(
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                    select id
+                      from rentals r
+                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newNonce} AND r.rental_contract_address = "${contractAddress}"
+                )`
+              )
+            } else if (nonceUpdate.signerUpdate) {
+              const { newNonce, signer } = nonceUpdate.signerUpdate
+              return await client.query(
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                  select r.id
+                    from rentals r, rentals_listings rl
+                    cross join unnest(nonces) with ordinality as u(nonce, idx)
+                    where r.id = rl.id AND idx = 2 AND u.nonce < ${newNonce} AND rl.lessor = ${signer}
+                )`
+              )
+            } else if (nonceUpdate.assetUpdate) {
+              const { newNonce, contractAddress, tokenId } = nonceUpdate.assetUpdate
+              return await client.query(
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                  select r.id
+                    from rentals r
+                    cross join unnest(nonces) with ordinality as u(nonce, idx)
+                    WHERE idx = 3 AND u.nonce < ${newNonce} AND r.contract_address = ${contractAddress} AND r.token_id = ${tokenId}
+                )`
+              )
+            } else {
+              return Promise.resolve() // fallback
+            }
+          })
+        )
+
+        const updates = await Promise.allSettled(promiseOfUpdates)
+        const rejectedUpdates = updates.filter((result) => result.status === "rejected")
+        if (rejectedUpdates.length > 0) {
+          throw (rejectedUpdates[0] as PromiseRejectedResult).reason
+        }
+
+        // Use last id to query the graph to avoid the indexing limit
+        if (noncesUpdateHistories.length < MAX_GRAPH_FIRST) {
+          break
+        }
+        lastId = noncesUpdateHistories[noncesUpdateHistories.length - 1].id
+      }
+
+      await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.NONCES}`)
+      await client.query("COMMIT")
+      logger.info(`[Rentals update][Successful]`)
+    } catch (error) {
+      logger.info(`[Rentals update][Failed]`)
+      await client.query("ROLLBACK")
+    } finally {
+      client.release()
+    }
+  }
+
   return {
     createRentalListing,
     refreshRentalListing,
     getRentalsListings,
     updateRentalsListings,
+    cancelRentalsListings,
     updateMetadata,
   }
 }
