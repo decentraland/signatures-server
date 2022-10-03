@@ -13,6 +13,7 @@ export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
   refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
   getRentalsListings(params: GetRentalListingParameters): Promise<DBGetRentalListing[]>
+  cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
 }
@@ -28,6 +29,7 @@ export type GetRentalListingParameters = {
 export enum UpdateType {
   METADATA = "metadata",
   RENTALS = "rentals",
+  NONCES = "nonces",
 }
 
 export type DBMetadata = {
@@ -137,8 +139,64 @@ export type IndexerRental = {
 }
 
 export type IndexerNonceUpdate = {
+  /** The nonce update id */
+  id: string
   /** The newest nonce */
   newNonce: string
   /** The nonce signer */
   signer: string
+  /** The token id associated to the nonce update */
+  tokenId: string
+  /** The contractAddress id associated to the nonce update */
+  contractAddress: string
+}
+
+export enum IndexerHistoryUpdateType {
+  CONTRACT,
+  SIGNER,
+  ASSET,
+}
+
+export type IndexerNonceHistoryUpdate = {
+  /** The nonce update id */
+  id: string
+  /** The date for the nonce bump */
+  date: string
+  /** The date for the nonce bump */
+  type: IndexerHistoryUpdateType
+  /** The nonce signer */
+  sender: string
+  /** The contractUpdate */
+  contractUpdate: IndexerContractNonceUpdate | null
+  signerUpdate: IndexerSignerNonceUpdate | null
+  assetUpdate: IndexerAssettNonceUpdate | null
+}
+
+export type IndexerSignerNonceUpdate = {
+  /** The nonce update id */
+  id: string
+  /** The newest nonce */
+  newNonce: string
+  /** The signer id associated to the nonce update */
+  signer: string
+}
+
+export type IndexerContractNonceUpdate = {
+  /** The nonce update id */
+  id: string
+  /** The newest nonce */
+  newNonce: string
+  /** The contractAddress id associated to the nonce update */
+  contractAddress: string
+}
+
+export type IndexerAssettNonceUpdate = {
+  /** The nonce update id */
+  id: string
+  /** The newest nonce */
+  newNonce: string
+  /** The contractAddress id associated to the nonce update */
+  contractAddress: string
+  /** The tokenId id associated to the nonce update */
+  tokenId: string
 }
