@@ -1871,7 +1871,7 @@ describe("when cancelling the rental listings", () => {
 
   describe("and there are no updated nonces since the latest job", () => {
     beforeEach(async () => {
-      rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [] })
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [] })
       await rentalsComponent.cancelRentalsListings()
     })
 
@@ -1911,7 +1911,7 @@ describe("when cancelling the rental listings", () => {
             newIndex: "2",
           },
         }
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
       })
 
       describe("and the rentals to be updated exist in the database", () => {
@@ -1962,7 +1962,7 @@ describe("when cancelling the rental listings", () => {
           assetUpdate: null,
           contractUpdate: null,
         }
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
       })
 
       describe("and the rentals to be updated exist in the database", () => {
@@ -2014,7 +2014,7 @@ describe("when cancelling the rental listings", () => {
             contractAddress: "0xcontract",
           },
         }
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
       })
 
       describe("and the rentals to be updated exist in the database", () => {
