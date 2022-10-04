@@ -152,15 +152,22 @@ export async function createRentalsComponent(
       options?.orderDirection
     )
 
-    const query = `query Nonces(${queryVariables}) {
-      contract: noncesUpdateContractHistories(${querySignature}){
-        newNonce
+    const { querySignature: contractUpdateSignture } = buildQueryParameters<IndexerNonceUpdate>(
+      {},
+      options?.first,
+      options?.orderBy,
+      options?.orderDirection
+    )
+
+    const query = `query IndexUpdates(${queryVariables}) {
+      contract: indexesUpdateContractHistories(${contractUpdateSignture}){
+        newIndex
       }
-      signer: noncesUpdateSignerHistories(${querySignature}){
-        newNonce
+      signer: indexesUpdateSignerHistories(${querySignature}){
+        newIndex
       }
-      asset: noncesUpdateAssetHistories(${querySignature}){
-        newNonce
+      asset: indexesUpdateAssetHistories(${querySignature}){
+        newIndex
       }
     }`
 
@@ -178,7 +185,7 @@ export async function createRentalsComponent(
     first: number
     orderBy?: keyof IndexerNonceUpdate
     orderDirection?: "desc" | "asc"
-  }): Promise<{ noncesUpdateHistories: IndexerNonceHistoryUpdate[] }> {
+  }): Promise<{ indexesUpdateHistories: IndexerNonceHistoryUpdate[] }> {
     const { queryVariables, querySignature } = buildQueryParameters<IndexerNonceUpdate>(
       options?.filterBy,
       options?.first,
@@ -186,23 +193,23 @@ export async function createRentalsComponent(
       options?.orderDirection
     )
 
-    const query = `query NoncesUpdateHistories(${queryVariables}) {
-      noncesUpdateHistories(${querySignature}) {
+    const query = `query IndexesUpdateHistories(${queryVariables}) {
+      indexesUpdateHistories(${querySignature}) {
         id
         date
         contractUpdate {
           id
           contractAddress
-          newNonce
+          newIndex
         }
         singerUpdate {
           id
-          newNonce
+          newIndex
           signer
         }
         assetUpdate {
           id
-          newNonce
+          newIndex
           contractAddress
           tokenId
         }
@@ -210,7 +217,7 @@ export async function createRentalsComponent(
     }`
 
     const queryResult = await rentalsSubgraph.query<{
-      noncesUpdateHistories: IndexerNonceHistoryUpdate[]
+      indexesUpdateHistories: IndexerNonceHistoryUpdate[]
     }>(query, options?.filterBy)
 
     return queryResult
@@ -445,7 +452,7 @@ export async function createRentalsComponent(
       getNoncesFromIndexer({
         filterBy: { signer: rentalData.lessor },
         first: 1,
-        orderBy: "newNonce",
+        orderBy: "newIndex",
         orderDirection: "desc",
       }),
     ])
@@ -487,9 +494,9 @@ export async function createRentalsComponent(
 
     // Identify if there's any blockchain nonce update
     const hasUpdatedNonce =
-      indexerNonceUpdate.contract[0]?.newNonce > rentalData.nonces[0] ||
-      indexerNonceUpdate.signer[0]?.newNonce > rentalData.nonces[1] ||
-      indexerNonceUpdate.asset[0]?.newNonce > rentalData.nonces[2]
+      indexerNonceUpdate.contract[0]?.newIndex > rentalData.nonces[0] ||
+      indexerNonceUpdate.signer[0]?.newIndex > rentalData.nonces[1] ||
+      indexerNonceUpdate.asset[0]?.newIndex > rentalData.nonces[2]
 
     if (indexerRentals.length > 0 && hasUpdatedNonce) {
       logger.info(`[Refresh][Update rental][${rentalId}]`)
@@ -770,7 +777,7 @@ export async function createRentalsComponent(
     try {
       await client.query("BEGIN")
       while (true) {
-        const { noncesUpdateHistories } = await getNoncesUpdateHistoriesFromIndexer({
+        const { indexesUpdateHistories } = await getNoncesUpdateHistoriesFromIndexer({
           filterBy: { date_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString() },
           first: MAX_GRAPH_FIRST,
         })
@@ -778,35 +785,35 @@ export async function createRentalsComponent(
         // Limit the concurrent updates
         const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
 
-        const promiseOfUpdates = noncesUpdateHistories.map((nonceUpdate) =>
+        const promiseOfUpdates = indexesUpdateHistories.map((nonceUpdate) =>
           limit(async () => {
             if (nonceUpdate.contractUpdate) {
-              const { newNonce, contractAddress } = nonceUpdate.contractUpdate
+              const { newIndex, contractAddress } = nonceUpdate.contractUpdate
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                     select id
                       from rentals r
-                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newNonce} AND r.rental_contract_address = "${contractAddress}"
+                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newIndex} AND r.rental_contract_address = "${contractAddress}"
                 )`
               )
             } else if (nonceUpdate.signerUpdate) {
-              const { newNonce, signer } = nonceUpdate.signerUpdate
+              const { newIndex, signer } = nonceUpdate.signerUpdate
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                   select r.id
                     from rentals r, rentals_listings rl
                     cross join unnest(nonces) with ordinality as u(nonce, idx)
-                    where r.id = rl.id AND idx = 2 AND u.nonce < ${newNonce} AND rl.lessor = ${signer}
+                    where r.id = rl.id AND idx = 2 AND u.nonce < ${newIndex} AND rl.lessor = ${signer}
                 )`
               )
             } else if (nonceUpdate.assetUpdate) {
-              const { newNonce, contractAddress, tokenId } = nonceUpdate.assetUpdate
+              const { newIndex, contractAddress, tokenId } = nonceUpdate.assetUpdate
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                   select r.id
                     from rentals r
                     cross join unnest(nonces) with ordinality as u(nonce, idx)
-                    WHERE idx = 3 AND u.nonce < ${newNonce} AND r.contract_address = ${contractAddress} AND r.token_id = ${tokenId}
+                    WHERE idx = 3 AND u.nonce < ${newIndex} AND r.contract_address = ${contractAddress} AND r.token_id = ${tokenId}
                 )`
               )
             } else {
@@ -822,17 +829,17 @@ export async function createRentalsComponent(
         }
 
         // Use last id to query the graph to avoid the indexing limit
-        if (noncesUpdateHistories.length < MAX_GRAPH_FIRST) {
+        if (indexesUpdateHistories.length < MAX_GRAPH_FIRST) {
           break
         }
-        lastId = noncesUpdateHistories[noncesUpdateHistories.length - 1].id
+        lastId = indexesUpdateHistories[indexesUpdateHistories.length - 1].id
       }
 
       await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.NONCES}`)
       await client.query("COMMIT")
-      logger.info(`[Rentals update][Successful]`)
+      logger.info(`[Rentals Nonces update][Successful]`)
     } catch (error) {
-      logger.info(`[Rentals update][Failed]`)
+      logger.info(`[Rentals Nonces update][Failed]`)
       await client.query("ROLLBACK")
     } finally {
       client.release()

@@ -142,7 +142,7 @@ export type IndexerNonceUpdate = {
   /** The nonce update id */
   id: string
   /** The newest nonce */
-  newNonce: string
+  newIndex: string
   /** The nonce signer */
   signer: string
   /** The token id associated to the nonce update */
@@ -151,7 +151,7 @@ export type IndexerNonceUpdate = {
   contractAddress: string
 }
 
-export enum IndexerHistoryUpdateType {
+export enum IndexerIndexUpdateType {
   CONTRACT,
   SIGNER,
   ASSET,
@@ -163,7 +163,7 @@ export type IndexerNonceHistoryUpdate = {
   /** The date for the nonce bump */
   date: string
   /** The date for the nonce bump */
-  type: IndexerHistoryUpdateType
+  type: IndexerIndexUpdateType
   /** The nonce signer */
   sender: string
   /** The contractUpdate */
@@ -176,7 +176,7 @@ export type IndexerSignerNonceUpdate = {
   /** The nonce update id */
   id: string
   /** The newest nonce */
-  newNonce: string
+  newIndex: string
   /** The signer id associated to the nonce update */
   signer: string
 }
@@ -185,7 +185,7 @@ export type IndexerContractNonceUpdate = {
   /** The nonce update id */
   id: string
   /** The newest nonce */
-  newNonce: string
+  newIndex: string
   /** The contractAddress id associated to the nonce update */
   contractAddress: string
 }
@@ -194,7 +194,7 @@ export type IndexerAssettNonceUpdate = {
   /** The nonce update id */
   id: string
   /** The newest nonce */
-  newNonce: string
+  newIndex: string
   /** The contractAddress id associated to the nonce update */
   contractAddress: string
   /** The tokenId id associated to the nonce update */
