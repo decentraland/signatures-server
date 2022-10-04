@@ -27,7 +27,7 @@ import {
   UnauthorizedToRent,
   DBRental,
   DBRentalListing,
-  IndexerNonceHistoryUpdate,
+  IndexerIndexesHistoryUpdate,
   IndexerIndexUpdateType,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
@@ -1845,7 +1845,7 @@ describe("when updating the rental listings", () => {
 
 describe("when cancelling the rental listings", () => {
   let startDate: Date
-  let nonceUpdate: IndexerNonceHistoryUpdate
+  let nonceUpdate: IndexerIndexesHistoryUpdate
 
   beforeEach(async () => {
     startDate = new Date()
