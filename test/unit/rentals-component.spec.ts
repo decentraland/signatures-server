@@ -28,7 +28,7 @@ import {
   DBRental,
   DBRentalListing,
   IndexerNonceHistoryUpdate,
-  IndexerHistoryUpdateType,
+  IndexerIndexUpdateType,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -54,9 +54,9 @@ const aDay = 24 * 60 * 60 * 1000
 
 const mockDefaultSubgraphNonces = () => {
   return rentalsSubgraphQueryMock.mockResolvedValueOnce({
-    contract: [{ newNonce: 0 }],
-    signer: [{ newNonce: 0 }],
-    asset: [{ newNonce: 0 }],
+    contract: [{ newIndex: 0 }],
+    signer: [{ newIndex: 0 }],
+    asset: [{ newIndex: 0 }],
   })
 }
 
@@ -1066,7 +1066,7 @@ describe("when refreshing rental listings", () => {
       describe("and the nonce was of type contract", () => {
         beforeEach(() => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
-            contract: [{ newNonce: 1 }],
+            contract: [{ newIndex: 1 }],
             signer: [],
             asset: [],
           })
@@ -1082,7 +1082,7 @@ describe("when refreshing rental listings", () => {
         beforeEach(() => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
             contract: [],
-            signer: [{ newNonce: 1 }],
+            signer: [{ newIndex: 1 }],
             asset: [],
           })
         })
@@ -1097,7 +1097,7 @@ describe("when refreshing rental listings", () => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
             contract: [],
             signer: [],
-            asset: [{ newNonce: 1 }],
+            asset: [{ newIndex: 1 }],
           })
         })
         it("should update the rental listing with status cancelled", async () => {
@@ -1902,13 +1902,13 @@ describe("when cancelling the rental listings", () => {
           date: "",
           id: "1",
           sender: "0xsender",
-          type: IndexerHistoryUpdateType.CONTRACT,
+          type: IndexerIndexUpdateType.CONTRACT,
           signerUpdate: null,
           assetUpdate: null,
           contractUpdate: {
             contractAddress: "0x123",
             id: "1",
-            newNonce: "2",
+            newIndex: "2",
           },
         }
         rentalsSubgraphQueryMock.mockResolvedValueOnce({ noncesUpdateHistories: [nonceUpdate] })
@@ -1925,7 +1925,7 @@ describe("when cancelling the rental listings", () => {
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
               values: expect.arrayContaining([
                 RentalStatus.CANCELLED,
-                nonceUpdate.contractUpdate?.newNonce,
+                nonceUpdate.contractUpdate?.newIndex,
                 nonceUpdate.contractUpdate?.contractAddress,
               ]),
             })
@@ -1953,10 +1953,10 @@ describe("when cancelling the rental listings", () => {
           date: "",
           id: "1",
           sender: "0xsender",
-          type: IndexerHistoryUpdateType.SIGNER,
+          type: IndexerIndexUpdateType.SIGNER,
           signerUpdate: {
             id: "12",
-            newNonce: "2",
+            newIndex: "2",
             signer: "0xsigner",
           },
           assetUpdate: null,
@@ -1976,7 +1976,7 @@ describe("when cancelling the rental listings", () => {
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
               values: expect.arrayContaining([
                 RentalStatus.CANCELLED,
-                nonceUpdate.signerUpdate?.newNonce,
+                nonceUpdate.signerUpdate?.newIndex,
                 nonceUpdate.signerUpdate?.signer,
               ]),
             })
@@ -2004,13 +2004,13 @@ describe("when cancelling the rental listings", () => {
           date: "",
           id: "1",
           sender: "0xsender",
-          type: IndexerHistoryUpdateType.ASSET,
+          type: IndexerIndexUpdateType.ASSET,
           signerUpdate: null,
           contractUpdate: null,
           assetUpdate: {
             id: "1",
             tokenId: "3",
-            newNonce: "2",
+            newIndex: "2",
             contractAddress: "0xcontract",
           },
         }
@@ -2028,7 +2028,7 @@ describe("when cancelling the rental listings", () => {
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
               values: expect.arrayContaining([
                 RentalStatus.CANCELLED,
-                nonceUpdate.assetUpdate?.newNonce,
+                nonceUpdate.assetUpdate?.newIndex,
                 nonceUpdate.assetUpdate?.contractAddress,
                 nonceUpdate.assetUpdate?.tokenId,
               ]),
