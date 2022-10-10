@@ -36,7 +36,7 @@ function parseDBPeriodText(DBPeriodText: string): RentalListingPeriod {
   }
 }
 
-function fromDBPeriodToPeriod(DBPeriod: DBInsertedRentaListingPeriods): RentalListingPeriod {
+export function fromDBPeriodToPeriod(DBPeriod: DBInsertedRentaListingPeriods): RentalListingPeriod {
   const { row } = DBPeriod
   const { maxDays, minDays, pricePerDay } = parseDBPeriodText(row)
   return {
