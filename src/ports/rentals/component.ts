@@ -153,18 +153,19 @@ export async function createRentalsComponent(
     signer: IndexerIndexSignerUpdate[]
     asset: IndexerIndexAssetUpdate[]
   }> {
+    const { filterBy, first, orderBy, orderDirection } = options
     const { queryVariables, querySignature } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
-      options.filterBy,
-      options.first,
-      options.orderBy,
-      options.orderDirection
+      { signer: filterBy?.signer },
+      first,
+      orderBy,
+      orderDirection
     )
 
     const { querySignature: contractUpdateSignture } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
-      {},
-      options?.first,
-      options?.orderBy,
-      options?.orderDirection
+      { contractAddress: filterBy?.contractAddress },
+      first,
+      orderBy,
+      orderDirection
     )
 
     const query = `query IndexUpdates(${queryVariables}) {
