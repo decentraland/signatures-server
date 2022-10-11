@@ -2,6 +2,7 @@ import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl
 import {
   fromDBGetRentalsListingsToRentalListings,
   fromDBInsertedRentalListingToRental,
+  fromDBPeriodToPeriod,
   fromMillisecondsToSeconds,
   fromRentalCreationToContractRentalListing,
   fromSecondsToMilliseconds,
@@ -35,10 +36,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       started_at: null,
       periods: [
         {
-          min_days: 0,
-          max_days: 30,
-          price_per_day: "1000000",
-          rental_id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+          row: "(0, 30, 1000000, 5884c820-2612-409c-bb9e-a01e8d3569e9)",
         },
       ],
     }
@@ -63,9 +61,9 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
       startedAt: null,
       periods: [
         {
-          minDays: dbInsertedRentalListing.periods[0].min_days,
-          maxDays: dbInsertedRentalListing.periods[0].max_days,
-          pricePerDay: dbInsertedRentalListing.periods[0].price_per_day,
+          minDays: fromDBPeriodToPeriod(dbInsertedRentalListing.periods[0]).minDays,
+          maxDays: fromDBPeriodToPeriod(dbInsertedRentalListing.periods[0]).maxDays,
+          pricePerDay: fromDBPeriodToPeriod(dbInsertedRentalListing.periods[0]).pricePerDay,
         },
       ],
     }

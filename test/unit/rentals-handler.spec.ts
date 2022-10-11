@@ -206,10 +206,7 @@ describe("when creating a new rental listing", () => {
         started_at: null,
         periods: [
           {
-            min_days: 0,
-            max_days: 30,
-            price_per_day: "1000000",
-            rental_id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+            row: "(0, 30, 1000000, 5884c820-2612-409c-bb9e-a01e8d3569e9)",
           },
         ],
       }

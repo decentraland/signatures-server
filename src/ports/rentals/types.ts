@@ -77,8 +77,11 @@ export type DBGetRentalListing = DBRental &
     rentals_listings_count: string
     metadata_id: string
   }
+
+export type DBInsertedRentaListingPeriods = { row: string }
+
 export type DBInsertedRentalListing = DBRental &
-  DBRentalListing & { periods: Omit<DBPeriods, "id">[] } & Pick<DBMetadata, "category" | "search_text">
+  DBRentalListing & { periods: DBInsertedRentaListingPeriods[] } & Pick<DBMetadata, "category" | "search_text">
 
 export type NFT = {
   /** The id of the NFT */

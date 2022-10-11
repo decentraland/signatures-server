@@ -31,6 +31,7 @@ import {
   DBMetadata,
   UpdateType,
   IndexerNonceUpdate,
+  DBInsertedRentaListingPeriods,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 
@@ -263,7 +264,7 @@ export async function createRentalsComponent(
       })
       insertPeriodsQuery.append(SQL` RETURNING (min_days::text, max_days::text, price_per_day, rental_id)`)
 
-      const createdPeriods = await client.query<DBPeriods>(insertPeriodsQuery)
+      const createdPeriods = await client.query<DBInsertedRentaListingPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
 
       await client.query(SQL`COMMIT`)
