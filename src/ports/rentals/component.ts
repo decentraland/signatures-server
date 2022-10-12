@@ -502,12 +502,13 @@ export async function createRentalsComponent(
     }
 
     // Identify if there's any blockchain nonce update
-    const hasUpdatedIndex =
-      indexerIndexesUpdate.contract[0]?.newIndex > rentalData.nonces[0] ||
-      indexerIndexesUpdate.signer[0]?.newIndex > rentalData.nonces[1] ||
-      indexerIndexesUpdate.asset[0]?.newIndex > rentalData.nonces[2]
 
-    if (indexerRentals.length > 0 && hasUpdatedIndex) {
+    const hasUpdatedIndex =
+      Number(indexerIndexesUpdate.contract[0]?.newIndex) > Number(rentalData.nonces[0]) ||
+      Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1]) ||
+      Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
+
+    if (hasUpdatedIndex) {
       logger.info(`[Refresh][Update rental][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
