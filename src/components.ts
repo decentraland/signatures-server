@@ -59,6 +59,14 @@ export async function initComponents(): Promise<AppComponents> {
       startupDelay: thirtySeconds,
     }
   )
+  const cancelRentalsListingsJob = await createJobComponent(
+    { logs },
+    () => rentals.cancelRentalsListings(),
+    fiveMinutes,
+    {
+      startupDelay: thirtySeconds,
+    }
+  )
 
   return {
     config,
@@ -74,5 +82,6 @@ export async function initComponents(): Promise<AppComponents> {
     rentals,
     updateMetadataJob,
     updateRentalsListingsJob,
+    cancelRentalsListingsJob,
   }
 }

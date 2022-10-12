@@ -31,6 +31,7 @@ export type BaseComponents = {
   rentals: IRentalsComponent
   updateMetadataJob: IJobComponent
   updateRentalsListingsJob: IJobComponent
+  cancelRentalsListingsJob: IJobComponent
 }
 
 // components used in runtime

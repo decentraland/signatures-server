@@ -29,6 +29,7 @@ beforeEach(async () => {
     schemaValidator: createSchemaValidatorComponent(),
     updateMetadataJob: createTestJobComponent(),
     updateRentalsListingsJob: createTestJobComponent(),
+    cancelRentalsListingsJob: createTestJobComponent(),
   }
   middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({
     type: "object",

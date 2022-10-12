@@ -13,6 +13,7 @@ export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
   refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
   getRentalsListings(params: GetRentalListingParameters): Promise<DBGetRentalListing[]>
+  cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
 }
@@ -28,6 +29,7 @@ export type GetRentalListingParameters = {
 export enum UpdateType {
   METADATA = "metadata",
   RENTALS = "rentals",
+  INDEXES = "nonces", // TODO: migrate this to "indexes"
 }
 
 export type DBMetadata = {
@@ -139,9 +141,65 @@ export type IndexerRental = {
   signature: string
 }
 
-export type IndexerNonceUpdate = {
-  /** The newest nonce */
-  newNonce: string
-  /** The nonce signer */
+export enum IndexerIndexUpdateType {
+  CONTRACT,
+  SIGNER,
+  ASSET,
+}
+
+export type IndexerIndexesHistoryUpdateQuery = {
+  /** The index update id */
+  id: string
+  /** The newest index */
+  newIndex: string
+  /** The index signer */
   signer: string
+  /** The token id associated to the index update */
+  tokenId: string
+  /** The contractAddress id associated to the index update */
+  contractAddress: string
+}
+
+export type IndexerIndexesHistoryUpdate = {
+  /** The index update id */
+  id: string
+  /** The date for the index bump */
+  date: string
+  /** The date for the index bump */
+  type: IndexerIndexUpdateType
+  /** The index signer */
+  sender: string
+  /** The contractUpdate */
+  contractUpdate: IndexerIndexContractUpdate | null
+  signerUpdate: IndexerIndexSignerUpdate | null
+  assetUpdate: IndexerIndexAssetUpdate | null
+}
+
+export type IndexerIndexContractUpdate = {
+  /** The index update id */
+  id: string
+  /** The newest index */
+  newIndex: string
+  /** The contractAddress id associated to the index update */
+  contractAddress: string
+}
+
+export type IndexerIndexSignerUpdate = {
+  /** The index update id */
+  id: string
+  /** The newest index */
+  newIndex: string
+  /** The signer id associated to the index update */
+  signer: string
+}
+
+export type IndexerIndexAssetUpdate = {
+  /** The index update id */
+  id: string
+  /** The newest index */
+  newIndex: string
+  /** The contractAddress id associated to the index update */
+  contractAddress: string
+  /** The tokenId id associated to the index update */
+  tokenId: string
 }

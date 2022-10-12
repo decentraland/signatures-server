@@ -79,6 +79,7 @@ export async function initComponents(): Promise<TestComponents> {
 
   const updateMetadataJob = createTestJobComponent()
   const updateRentalsListingsJob = createTestJobComponent()
+  const cancelRentalsListingsJob = createTestJobComponent()
 
   return {
     config,
@@ -95,6 +96,7 @@ export async function initComponents(): Promise<TestComponents> {
     localFetch: await createLocalFetchComponent(config),
     updateMetadataJob,
     updateRentalsListingsJob,
+    cancelRentalsListingsJob,
   }
 }
 
@@ -137,12 +139,13 @@ export function createTestRentalsComponent(
     refreshRentalListing = jest.fn(),
     updateMetadata = jest.fn(),
     updateRentalsListings = jest.fn(),
+    cancelRentalsListings = jest.fn(),
   } = {
     createRentalListing: jest.fn(),
     getRentalsListings: jest.fn(),
     refreshRentalListing: jest.fn(),
     updateMetadata: jest.fn(),
-    updateRentalsListings: jest.fn(),
+    cancelRentalsListings: jest.fn(),
   }
 ): IRentalsComponent {
   return {
@@ -151,6 +154,7 @@ export function createTestRentalsComponent(
     refreshRentalListing,
     updateMetadata,
     updateRentalsListings,
+    cancelRentalsListings,
   }
 }
 
