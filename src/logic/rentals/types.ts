@@ -7,7 +7,7 @@ export type ContractRentalListing = {
   tokenId: string
   /** Timestamp when the signature expires in seconds since epoch */
   expiration: string
-  nonces: string[]
+  indexes: string[]
   pricePerDay: string[]
   maxDays: string[]
   minDays: string[]
