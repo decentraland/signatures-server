@@ -14,7 +14,7 @@ async function buildRentalListingSignatureData(
     name: rentalsContract.name,
     verifyingContract: rentalsContract.address,
     version: rentalsContract.version,
-    salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
+    chainId: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
   }
   const types = {
     Listing: [
@@ -22,7 +22,7 @@ async function buildRentalListingSignatureData(
       { name: "contractAddress", type: "address" },
       { name: "tokenId", type: "uint256" },
       { name: "expiration", type: "uint256" },
-      { name: "indexes", type: "uint256[]" },
+      { name: "indexes", type: "uint256[3]" },
       { name: "pricePerDay", type: "uint256[]" },
       { name: "maxDays", type: "uint256[]" },
       { name: "minDays", type: "uint256[]" },
