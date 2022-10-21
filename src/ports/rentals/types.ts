@@ -29,7 +29,7 @@ export type GetRentalListingParameters = {
 export enum UpdateType {
   METADATA = "metadata",
   RENTALS = "rentals",
-  INDEXES = "nonces", // TODO: migrate this to "indexes"
+  INDEXES = "indexes",
 }
 
 export type DBMetadata = {
@@ -54,6 +54,7 @@ export type DBRental = {
   created_at: Date
   updated_at: Date
   started_at: Date | null
+  target: string
 }
 
 export type DBRentalListing = {

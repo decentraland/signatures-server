@@ -22,7 +22,7 @@ describe("when verifying the rentals listings signature", () => {
       name: rentalsContract.name,
       verifyingContract: rentalsContract.address,
       version: rentalsContract.version,
-      salt: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
+      chainId: ethers.utils.hexZeroPad(ethers.utils.hexlify(chainId), 32),
     }
     types = {
       Listing: [
@@ -30,10 +30,11 @@ describe("when verifying the rentals listings signature", () => {
         { name: "contractAddress", type: "address" },
         { name: "tokenId", type: "uint256" },
         { name: "expiration", type: "uint256" },
-        { name: "nonces", type: "uint256[]" },
+        { name: "indexes", type: "uint256[3]" },
         { name: "pricePerDay", type: "uint256[]" },
         { name: "maxDays", type: "uint256[]" },
         { name: "minDays", type: "uint256[]" },
+        { name: "target", type: "address" },
       ],
     }
     values = {
@@ -41,21 +42,23 @@ describe("when verifying the rentals listings signature", () => {
       contractAddress: rentalsContract.address,
       tokenId: "0",
       expiration: (Date.now() + 60 * 60 * 1000).toString(),
-      nonces: ["0", "0", "0"],
+      indexes: ["0", "0", "0"],
       pricePerDay: ["0", "1", "2"],
       maxDays: ["0", "0", "0"],
       minDays: ["1", "2", "3"],
+      target: ethers.constants.AddressZero,
     }
     contractRentalListing = {
       signer: signerAddress,
       contractAddress: values.contractAddress,
       tokenId: values.tokenId,
       expiration: values.expiration,
-      nonces: values.nonces,
+      indexes: values.indexes,
       pricePerDay: values.pricePerDay,
       maxDays: values.maxDays,
       minDays: values.minDays,
       signature: await wallet._signTypedData(domain, types, values),
+      target: ethers.constants.AddressZero,
     }
   })
 
@@ -69,11 +72,12 @@ describe("when verifying the rentals listings signature", () => {
         contractAddress: values.contractAddress,
         tokenId: values.tokenId,
         expiration: values.expiration,
-        nonces: values.nonces,
+        indexes: values.indexes,
         pricePerDay: values.pricePerDay,
         maxDays: values.maxDays,
         minDays: values.minDays,
         signature: await wallet._signTypedData(domain, types, values),
+        target: ethers.constants.AddressZero,
       }
     })
 
