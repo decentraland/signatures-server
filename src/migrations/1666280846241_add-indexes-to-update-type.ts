@@ -11,6 +11,8 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
   pgm.renameType("update", "old_update")
   // Create new enum with a temporal name
   pgm.addType("update_new", ["metadata", "rentals"])
+  // Update DB to remove the value we want to remove
+  pgm.sql("DELETE FROM updates WHERE type = 'indexes'")
   // Change the status column to the new type and drop the default to prevent casting issues
   pgm.alterColumn("updates", "type", {
     type: "update_new",

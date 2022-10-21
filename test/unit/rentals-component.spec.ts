@@ -1,4 +1,5 @@
 import SQL from "sql-template-strings"
+import { ethers } from "ethers"
 import { IConfigComponent, ILoggerComponent } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
@@ -32,7 +33,6 @@ import {
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
-import { ethers } from "ethers"
 
 jest.mock("../../src/logic/rentals")
 
