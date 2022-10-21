@@ -1,4 +1,5 @@
 import SQL from "sql-template-strings"
+import { ethers } from "ethers"
 import { IConfigComponent, ILoggerComponent } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
@@ -100,6 +101,7 @@ describe("when creating a rental listing", () => {
       ],
       signature:
         "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b",
+      target: ethers.constants.AddressZero,
     }
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
   })
