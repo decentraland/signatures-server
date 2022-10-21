@@ -6,7 +6,7 @@ export const shorthands: ColumnDefinitions | undefined = undefined
 export async function up(pgm: MigrationBuilder): Promise<void> {
   // Add the UUID generation extension if it doesn't exist
   pgm.createType("status", ["open", "executed", "cancelled"])
-  pgm.createType("update", ["metadata", "rentals", "nonces"])
+  pgm.createType("update", ["metadata", "rentals"])
 
   pgm.createTable("metadata", {
     id: { type: "string", notNull: true, primaryKey: true },
