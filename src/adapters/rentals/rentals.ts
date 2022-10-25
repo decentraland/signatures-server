@@ -24,6 +24,7 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     updatedAt: DBRental.updated_at.getTime(),
     startedAt: DBRental.started_at ? DBRental.started_at.getTime() : null,
     periods: DBRental.periods.map(fromDBPeriodToPeriod),
+    target: DBRental.target,
   }
 }
 
@@ -55,11 +56,12 @@ export function fromRentalCreationToContractRentalListing(
     contractAddress: rental.contractAddress,
     tokenId: rental.tokenId,
     expiration: fromMillisecondsToSeconds(new Date(rental.expiration).getTime()).toString(),
-    nonces: rental.nonces,
+    indexes: rental.nonces,
     pricePerDay: rental.periods.map((period) => period.pricePerDay),
     maxDays: rental.periods.map((period) => period.maxDays.toString()),
     minDays: rental.periods.map((period) => period.minDays.toString()),
     signature: rental.signature,
+    target: rental.target,
   }
 }
 
@@ -88,5 +90,6 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
       maxDays: Number(period[1]),
       pricePerDay: period[2],
     })),
+    target: rental.target,
   }))
 }

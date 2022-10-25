@@ -296,12 +296,12 @@ export async function createRentalsComponent(
       logger.debug(buildLogMessageForRental("Inserted metadata"))
 
       const createdRental = await client.query<DBRental>(
-        SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status) VALUES (${
+        SQL`INSERT INTO rentals (metadata_id, network, chain_id, expiration, signature, nonces, token_id, contract_address, rental_contract_address, status, target) VALUES (${
           nft.id
         }, ${rental.network}, ${rental.chainId}, ${new Date(rental.expiration)}, ${rental.signature}, ${
           rental.nonces
-        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${
-          RentalStatus.OPEN
+        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${RentalStatus.OPEN}, ${
+          rental.target
         }) RETURNING *`
       )
       logger.debug(buildLogMessageForRental("Inserted rental"))

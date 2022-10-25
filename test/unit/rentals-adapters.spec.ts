@@ -1,4 +1,5 @@
 import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl/schemas"
+import { ethers } from "ethers"
 import {
   fromDBGetRentalsListingsToRentalListings,
   fromDBInsertedRentalListingToRental,
@@ -39,6 +40,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
           row: "(0, 30, 1000000, 5884c820-2612-409c-bb9e-a01e8d3569e9)",
         },
       ],
+      target: ethers.constants.AddressZero,
     }
     rentalListing = {
       id: dbInsertedRentalListing.id,
@@ -66,6 +68,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
           pricePerDay: fromDBPeriodToPeriod(dbInsertedRentalListing.periods[0]).pricePerDay,
         },
       ],
+      target: ethers.constants.AddressZero,
     }
   })
 
@@ -102,6 +105,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         periods: [["30", "50", "1000000000"]],
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
+        target: ethers.constants.AddressZero,
       },
     ]
     rentalListings = [
@@ -131,6 +135,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
             pricePerDay: dbGetRentalListings[0].periods[0][2],
           },
         ],
+        target: ethers.constants.AddressZero,
       },
     ]
   })
@@ -172,6 +177,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
           pricePerDay: "1000000",
         },
       ],
+      target: ethers.constants.AddressZero,
     }
     lessor = "lessor-address"
     contractRentalListing = {
@@ -179,11 +185,12 @@ describe("when transforming a rental creation to a contract rental listing", () 
       contractAddress: rentalCreation.contractAddress,
       tokenId: rentalCreation.tokenId,
       expiration: fromMillisecondsToSeconds(new Date(rentalCreation.expiration).getTime()).toString(),
-      nonces: rentalCreation.nonces,
+      indexes: rentalCreation.nonces,
       pricePerDay: [rentalCreation.periods[0].pricePerDay],
       maxDays: [rentalCreation.periods[0].maxDays.toString()],
       minDays: [rentalCreation.periods[0].minDays.toString()],
       signature: rentalCreation.signature,
+      target: ethers.constants.AddressZero,
     }
   })
 

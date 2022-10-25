@@ -1,3 +1,4 @@
+import { ethers } from "ethers"
 import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental } from "../../src/adapters/rentals"
@@ -209,6 +210,7 @@ describe("when creating a new rental listing", () => {
             row: "(0, 30, 1000000, 5884c820-2612-409c-bb9e-a01e8d3569e9)",
           },
         ],
+        target: ethers.constants.AddressZero,
       }
       returnedListing = fromDBInsertedRentalListingToRental(createdListing)
       components = {
@@ -350,6 +352,7 @@ describe("when getting rental listings", () => {
           periods: [["30", "50", "1000000000"]],
           metadata_created_at: new Date(),
           rentals_listings_count: "1",
+          target: ethers.constants.AddressZero,
         },
       ]
       rentalListings = [
@@ -379,6 +382,7 @@ describe("when getting rental listings", () => {
               pricePerDay: dbRentalListings[0].periods[0][2],
             },
           ],
+          target: ethers.constants.AddressZero,
         },
       ]
       getRentalsListingsMock.mockResolvedValueOnce(dbRentalListings)
@@ -498,6 +502,7 @@ describe("when refreshing a rental listing", () => {
         periods: [["30", "50", "1000000000"]],
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
+        target: ethers.constants.AddressZero,
       }
       rentalListing = {
         id: dbRentalListing.id,
@@ -525,6 +530,7 @@ describe("when refreshing a rental listing", () => {
             pricePerDay: dbRentalListing.periods[0][2],
           },
         ],
+        target: ethers.constants.AddressZero,
       }
       refreshRentalListingMock.mockResolvedValueOnce(dbRentalListing)
     })
