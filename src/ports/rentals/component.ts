@@ -367,7 +367,7 @@ export async function createRentalsComponent(
     if (filterBy?.status && filterBy.status.length > 0) {
       filterByStatus = SQL`AND (`
       filterBy.status.forEach((status, index, array) => {
-        filterByStatus.append(`rentals.status = '${status}'`)
+        filterByStatus.append(SQL`rentals.status = ${status}`)
         if (index < array.length - 1) {
           filterByStatus.append(` OR `)
         }
