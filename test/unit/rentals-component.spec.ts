@@ -1215,6 +1215,68 @@ describe("when refreshing rental listings", () => {
         })
       })
     })
+
+    describe("and the LAND has been claimed by the owner", () => {
+      beforeEach(() => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              ...rentalFromIndexer,
+              ownerHasClaimedAsset: true,
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+            },
+          ],
+        })
+        mockDefaultSubgraphNonces()
+        dbQueryMock
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce({
+            rows: [{ result, status: RentalStatus.CLAIMED }],
+            rowCount: 1,
+          })
+      })
+
+      it("should update the database entry for the rental with the status changed to CLAIMED and return the rental", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual({
+          result,
+          status: RentalStatus.CLAIMED,
+        })
+        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[1][0].values).toContainEqual(RentalStatus.CLAIMED)
+      })
+    })
+
+    describe("and the LAND has not been claimed by the owner", () => {
+      beforeEach(() => {
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              ...rentalFromIndexer,
+              ownerHasClaimedAsset: false,
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+            },
+          ],
+        })
+        mockDefaultSubgraphNonces()
+        dbQueryMock
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce({
+            rows: [{ result, status: RentalStatus.EXECUTED }],
+            rowCount: 1,
+          })
+      })
+
+      it("should update the database entry for the rental with the status changed to EXECUTED and return the rental", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual({
+          result,
+          status: RentalStatus.EXECUTED,
+        })
+        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[1][0].values).toContainEqual(RentalStatus.EXECUTED)
+      })
+    })
   })
 })
 
@@ -1610,61 +1672,119 @@ describe("when updating the rental listings", () => {
         isExtension: false,
         signature: "aSignature",
       }
-      rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
     })
 
     describe("and the rentals to be updated exist in the database", () => {
       let dbRental: Pick<DBRental & DBRentalListing, "id" | "lessor" | "status">
 
-      beforeEach(async () => {
-        dbRental = {
-          id: "rentalId",
-          lessor: "aLessorAddress",
-          status: RentalStatus.OPEN,
-        }
-        dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
-        await rentalsComponent.updateRentalsListings()
+      describe("and the LAND has been claimed by its owner", () => {
+        beforeEach(async () => {
+          dbRental = {
+            id: "rentalId",
+            lessor: "aLessorAddress",
+            status: RentalStatus.OPEN,
+          }
+          rentalFromIndexer = { ...rentalFromIndexer, ownerHasClaimedAsset: true }
+          dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
+          await rentalsComponent.updateRentalsListings()
+        })
+
+        it("should update the rental", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+              values: expect.arrayContaining([
+                new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
+                RentalStatus.CLAIMED,
+                dbRental.id,
+              ]),
+            })
+          )
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals_listings")]),
+              values: expect.arrayContaining([rentalFromIndexer.tenant, dbRental.id]),
+            })
+          )
+        })
+
+        it("should close all expired opened listings", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+              values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
+            })
+          )
+        })
+
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
       })
 
-      it("should update the rental", () => {
-        expect(dbClientQueryMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
-            values: expect.arrayContaining([
-              new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
-              RentalStatus.EXECUTED,
-              dbRental.id,
-            ]),
-          })
-        )
-        expect(dbClientQueryMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals_listings")]),
-            values: expect.arrayContaining([rentalFromIndexer.tenant, dbRental.id]),
-          })
-        )
-      })
+      describe("and the LAND has not been claimed by its owner", () => {
+        beforeEach(async () => {
+          dbRental = {
+            id: "rentalId",
+            lessor: "aLessorAddress",
+            status: RentalStatus.OPEN,
+          }
+          rentalFromIndexer = { ...rentalFromIndexer, ownerHasClaimedAsset: false }
+          dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
+          rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
+          await rentalsComponent.updateRentalsListings()
+        })
 
-      it("should close al expired opened listings", () => {
-        expect(dbClientQueryMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
-            values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
-          })
-        )
-      })
+        it("should update the rental", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+              values: expect.arrayContaining([
+                new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
+                RentalStatus.EXECUTED,
+                dbRental.id,
+              ]),
+            })
+          )
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals_listings")]),
+              values: expect.arrayContaining([rentalFromIndexer.tenant, dbRental.id]),
+            })
+          )
+        })
 
-      it("should update the time the last update was performed", () => {
-        expect(dbClientQueryMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
-            values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
-          })
-        )
-      })
+        it("should close all expired opened listings", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET")]),
+              values: expect.arrayContaining([RentalStatus.CANCELLED, RentalStatus.OPEN]),
+            })
+          )
+        })
 
-      it("should release the client", () => {
-        expect(dbClientReleaseMock).toHaveBeenCalled()
+        it("should update the time the last update was performed", () => {
+          expect(dbClientQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+            })
+          )
+        })
+
+        it("should release the client", () => {
+          expect(dbClientReleaseMock).toHaveBeenCalled()
+        })
       })
     })
 
@@ -1683,6 +1803,7 @@ describe("when updating the rental listings", () => {
           searchIsLand: true,
         }
         newRentalId = "aNewRentalId"
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
         dbClientQueryMock.mockResolvedValueOnce({ rows: [] })
         marketplaceSubgraphQueryMock.mockResolvedValueOnce({ nfts: [nftFromIndexer] })
       })
@@ -1844,6 +1965,7 @@ describe("when updating the rental listings", () => {
     describe("and the process to update the rentals fails", () => {
       beforeEach(async () => {
         dbClientQueryMock.mockRejectedValueOnce(new Error("An error occurred"))
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
         await rentalsComponent.updateRentalsListings()
       })
 
