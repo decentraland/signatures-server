@@ -20,3 +20,14 @@ export function getTypedStringQueryParameter<T>(
   const parameterValue = queryParameters.get(parameterName) as T | null
   return getParameter(values, parameterName, parameterValue)
 }
+
+export function getTypedArrayStringQueryParameter<T extends string>(
+  values: T[],
+  queryParameters: URLSearchParams,
+  parameterName: string
+): T[] {
+  return queryParameters
+    .getAll(parameterName)
+    .map((parameterValue) => getParameter(values, parameterName, parameterValue as T))
+    .filter(Boolean) as T[]
+}

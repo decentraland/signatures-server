@@ -1,6 +1,6 @@
 import { RentalListing, RentalListingCreation, RentalListingPeriod } from "@dcl/schemas"
 import { ContractRentalListing } from "../../logic/rentals/types"
-import { DBInsertedRentalListing, DBGetRentalListing, DBInsertedRentaListingPeriods } from "../../ports/rentals"
+import { DBInsertedRentalListing, DBGetRentalListing, DBInsertedRentalListingPeriods } from "../../ports/rentals"
 import { fromMillisecondsToSeconds } from "./time"
 
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
@@ -36,7 +36,7 @@ function parseDBPeriodText(DBPeriodText: string): RentalListingPeriod {
   }
 }
 
-export function fromDBPeriodToPeriod(DBPeriod: DBInsertedRentaListingPeriods): RentalListingPeriod {
+export function fromDBPeriodToPeriod(DBPeriod: DBInsertedRentalListingPeriods): RentalListingPeriod {
   const { row } = DBPeriod
   const { maxDays, minDays, pricePerDay } = parseDBPeriodText(row)
   return {

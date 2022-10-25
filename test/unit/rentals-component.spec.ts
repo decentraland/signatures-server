@@ -421,7 +421,13 @@ describe("when getting rental listings", () => {
 
     it("should propagate the error", () => {
       expect(
-        rentalsComponent.getRentalsListings({ page: 0, limit: 10, sortBy: null, sortDirection: null, filterBy: null })
+        rentalsComponent.getRentalsListings({
+          page: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: null,
+        })
       ).rejects.toThrowError(errorMessage)
     })
   })
@@ -455,21 +461,44 @@ describe("when getting rental listings", () => {
       dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
     })
 
-    it("should have made the query to get the listings with the status condition", async () => {
-      await expect(
-        rentalsComponent.getRentalsListings({
-          page: 0,
-          limit: 10,
-          sortBy: null,
-          sortDirection: null,
-          filterBy: {
-            status: RentalStatus.EXECUTED,
-          },
-        })
-      ).resolves.toEqual(dbGetRentalListings)
+    describe("and there is only one status to filter by", () => {
+      it("should have made the query to get the listings with the status condition", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            page: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              status: [RentalStatus.EXECUTED],
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
 
-      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = $1"))
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, 10, 0])
+        expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND (rentals.status = $1)"))
+        expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, 10, 0])
+      })
+    })
+
+    describe("and there are multiple statuses to filter by", () => {
+      it("should have made the query to get the listings with the multiple statuses condition", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            page: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              status: [RentalStatus.EXECUTED, RentalStatus.CLAIMED],
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
+
+        expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+          expect.stringContaining("AND (rentals.status = $1 OR rentals.status = $2)")
+        )
+        expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, RentalStatus.CLAIMED, 10, 0])
+      })
     })
   })
 

@@ -8,7 +8,12 @@ import {
 } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
-import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../logic/http"
+import {
+  getPaginationParams,
+  getTypedArrayStringQueryParameter,
+  getTypedStringQueryParameter,
+  InvalidParameterError,
+} from "../../logic/http"
 import {
   InvalidSignature,
   NFTNotFound,
@@ -35,21 +40,27 @@ export async function getRentalsListingsHandler(
       url.searchParams,
       "sortDirection"
     )
-    const filterBy: RentalsListingsFilterBy = {
+    const filterBy: RentalsListingsFilterBy & { status?: RentalStatus[] } = {
       category:
         getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
         undefined,
       text: url.searchParams.get("text") ?? undefined,
       lessor: url.searchParams.get("lessor") ?? undefined,
       tenant: url.searchParams.get("tenant") ?? undefined,
-      status: getTypedStringQueryParameter(Object.values(RentalStatus), url.searchParams, "status") ?? undefined,
+      status: getTypedArrayStringQueryParameter(Object.values(RentalStatus), url.searchParams, "status"),
       tokenId: url.searchParams.get("tokenId") ?? undefined,
       contractAddresses: url.searchParams.getAll("contractAddresses"),
       nftIds: url.searchParams.getAll("nftIds"),
       network:
         (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
     }
-    const rentalListings = await rentals.getRentalsListings({ sortBy, sortDirection, page, limit, filterBy })
+    const rentalListings = await rentals.getRentalsListings({
+      sortBy,
+      sortDirection,
+      page,
+      limit,
+      filterBy,
+    })
     return {
       status: StatusCode.OK,
       body: {

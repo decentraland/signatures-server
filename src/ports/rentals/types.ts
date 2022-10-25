@@ -12,7 +12,7 @@ import {
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
   refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
-  getRentalsListings(params: GetRentalListingParameters): Promise<DBGetRentalListing[]>
+  getRentalsListings(params: GetRentalListingParameters, getHistoricData?: boolean): Promise<DBGetRentalListing[]>
   cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
@@ -23,7 +23,7 @@ export type GetRentalListingParameters = {
   sortDirection: RentalsListingSortDirection | null
   page: number
   limit: number
-  filterBy: RentalsListingsFilterBy | null
+  filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
 }
 
 export enum UpdateType {
@@ -80,10 +80,10 @@ export type DBGetRentalListing = DBRental &
     metadata_id: string
   }
 
-export type DBInsertedRentaListingPeriods = { row: string }
+export type DBInsertedRentalListingPeriods = { row: string }
 
 export type DBInsertedRentalListing = DBRental &
-  DBRentalListing & { periods: DBInsertedRentaListingPeriods[] } & Pick<DBMetadata, "category" | "search_text">
+  DBRentalListing & { periods: DBInsertedRentalListingPeriods[] } & Pick<DBMetadata, "category" | "search_text">
 
 export type NFT = {
   /** The id of the NFT */
