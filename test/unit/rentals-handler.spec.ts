@@ -141,12 +141,7 @@ describe("when creating a new rental listing", () => {
   })
 
   describe("and the listing creation fails with an invalid signature error", () => {
-    let contractAddress: string
-    let tokenId: string
-
     beforeEach(() => {
-      contractAddress = "0x1"
-      tokenId = "1"
       components = {
         rentals: createTestRentalsComponent({
           createRentalListing: jest.fn().mockRejectedValueOnce(new InvalidSignature()),
@@ -321,6 +316,62 @@ describe("when getting rental listings", () => {
 
     it("should propagate the error", () => {
       return expect(getRentalsListingsHandler({ components, url })).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and the process was done with multiple statuses as filters", () => {
+    beforeEach(() => {
+      getRentalsListingsMock.mockResolvedValueOnce([])
+      url = new URL("http://localhost/v1/rental-listing?status=executed&status=open")
+    })
+
+    it("should get the rental listings according to the multiple statuses being asked for", async () => {
+      await expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.OK,
+        body: {
+          ok: true,
+          data: {
+            results: [],
+            total: 0,
+            page: 0,
+            pages: 0,
+            limit: 50,
+          },
+        },
+      })
+
+      expect(getRentalsListingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filterBy: expect.objectContaining({ status: [RentalStatus.EXECUTED, RentalStatus.OPEN] }),
+        })
+      )
+    })
+  })
+
+  describe("and the process was done with a single status as filter", () => {
+    beforeEach(() => {
+      getRentalsListingsMock.mockResolvedValueOnce([])
+      url = new URL("http://localhost/v1/rental-listing?status=executed")
+    })
+
+    it("should get the rental listings according to the single status being asked for", async () => {
+      await expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.OK,
+        body: {
+          ok: true,
+          data: {
+            results: [],
+            total: 0,
+            page: 0,
+            pages: 0,
+            limit: 50,
+          },
+        },
+      })
+
+      expect(getRentalsListingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ filterBy: expect.objectContaining({ status: [RentalStatus.EXECUTED] }) })
+      )
     })
   })
 

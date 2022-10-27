@@ -1,6 +1,11 @@
 import { URLSearchParams } from "url"
 import { RentalsListingsFilterByCategory } from "@dcl/schemas"
-import { getPaginationParams, getTypedStringQueryParameter, InvalidParameterError } from "../../src/logic/http"
+import {
+  getPaginationParams,
+  getTypedArrayStringQueryParameter,
+  getTypedStringQueryParameter,
+  InvalidParameterError,
+} from "../../src/logic/http"
 
 describe("when getting the pagination params", () => {
   describe("and the limit is greater than the max limit", () => {
@@ -110,6 +115,50 @@ describe("when getting a single typed query parameter", () => {
           "category"
         )
       ).toEqual(RentalsListingsFilterByCategory.PARCEL)
+    })
+  })
+})
+
+describe("when getting an arrayed typed query parameter", () => {
+  describe("and the parameter doesn't exist", () => {
+    it("should return an empty array", () => {
+      expect(
+        getTypedArrayStringQueryParameter(
+          Object.values(RentalsListingsFilterByCategory),
+          new URLSearchParams({ otherParameter: "aValue" }),
+          "category"
+        )
+      ).toEqual([])
+    })
+  })
+
+  describe("and one of the parameters don't have a valid value", () => {
+    let params: URLSearchParams
+    beforeEach(() => {
+      params = new URLSearchParams()
+      params.append("category", "aValue")
+      params.append("category", "anotherValue")
+    })
+
+    it("should throw an invalid parameter error", () => {
+      expect(() =>
+        getTypedArrayStringQueryParameter(Object.values(RentalsListingsFilterByCategory), params, "category")
+      ).toThrow(new InvalidParameterError("category", "aValue"))
+    })
+  })
+
+  describe("and the parameters have a valid value", () => {
+    let params: URLSearchParams
+    beforeEach(() => {
+      params = new URLSearchParams()
+      params.append("category", RentalsListingsFilterByCategory.PARCEL)
+      params.append("category", RentalsListingsFilterByCategory.ESTATE)
+    })
+
+    it("should return the values", () => {
+      expect(
+        getTypedArrayStringQueryParameter(Object.values(RentalsListingsFilterByCategory), params, "category")
+      ).toEqual([RentalsListingsFilterByCategory.PARCEL, RentalsListingsFilterByCategory.ESTATE])
     })
   })
 })

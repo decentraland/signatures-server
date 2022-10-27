@@ -24,14 +24,13 @@ import {
   DBRentalListing,
   NFT,
   DBRental,
-  DBPeriods,
   DBInsertedRentalListing,
   DBGetRentalListing,
   IndexerRental,
   DBMetadata,
   UpdateType,
   IndexerIndexSignerUpdate,
-  DBInsertedRentaListingPeriods,
+  DBInsertedRentalListingPeriods,
   IndexerIndexAssetUpdate,
   IndexerIndexContractUpdate,
   IndexerIndexesHistoryUpdate,
@@ -136,13 +135,6 @@ export async function createRentalsComponent(
     return queryResult.rentals
   }
 
-  type IndexUpdateQueryParameters<T> = {
-    filterBy?: Partial<T>
-    first: number
-    orderBy?: keyof T
-    orderDirection?: "desc" | "asc"
-  }
-
   async function getIndexUpdatesFromIndexer(options: {
     filterBy?: { signer: string; contractAddress: string }
     first: number
@@ -161,7 +153,7 @@ export async function createRentalsComponent(
       orderDirection
     )
 
-    const { querySignature: contractUpdateSignture } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
+    const { querySignature: contractUpdateSignature } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
       { contractAddress: filterBy?.contractAddress },
       first,
       orderBy,
@@ -169,7 +161,7 @@ export async function createRentalsComponent(
     )
 
     const query = `query IndexUpdates(${queryVariables}) {
-      contract: indexesUpdateContractHistories(${contractUpdateSignture}){
+      contract: indexesUpdateContractHistories(${contractUpdateSignature}){
         newIndex
       }
       signer: indexesUpdateSignerHistories(${querySignature}){
@@ -330,7 +322,7 @@ export async function createRentalsComponent(
       })
       insertPeriodsQuery.append(SQL` RETURNING (min_days::text, max_days::text, price_per_day, rental_id)`)
 
-      const createdPeriods = await client.query<DBInsertedRentaListingPeriods>(insertPeriodsQuery)
+      const createdPeriods = await client.query<DBInsertedRentalListingPeriods>(insertPeriodsQuery)
       logger.debug(buildLogMessageForRental("Inserted periods"))
 
       await client.query(SQL`COMMIT`)
@@ -356,19 +348,32 @@ export async function createRentalsComponent(
     }
   }
 
-  async function getRentalsListings(params: {
-    sortBy: RentalsListingsSortBy | null
-    sortDirection: RentalsListingSortDirection | null
-    filterBy: RentalsListingsFilterBy | null
-    page: number
-    limit: number
-  }): Promise<DBGetRentalListing[]> {
+  async function getRentalsListings(
+    params: {
+      sortBy: RentalsListingsSortBy | null
+      sortDirection: RentalsListingSortDirection | null
+      filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
+      page: number
+      limit: number
+    },
+    getHistoricData?: boolean
+  ): Promise<DBGetRentalListing[]> {
     const { sortBy, page, limit, filterBy, sortDirection } = params
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
 
     const filterByCategory = filterBy?.category ? SQL`AND metadata.category = ${filterBy.category}\n` : ""
-    const filterByStatus = filterBy?.status ? SQL`AND rentals.status = ${filterBy.status}\n` : ""
+    let filterByStatus = SQL``
+    if (filterBy?.status && filterBy.status.length > 0) {
+      filterByStatus = SQL`AND (`
+      filterBy.status.forEach((status, index, array) => {
+        filterByStatus.append(SQL`rentals.status = ${status}`)
+        if (index < array.length - 1) {
+          filterByStatus.append(` OR `)
+        }
+      })
+      filterByStatus.append(`)\n`)
+    }
     const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
     const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
     const filterBySearchText = filterBy?.text
@@ -404,12 +409,16 @@ export async function createRentalsComponent(
 
     // The periods array items must be casted to string because the numeric arrays are considered as number by node-pg
     let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata,
-      (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor,
+      (SELECT `
+    if (!getHistoricData) {
+      query.append("DISTINCT ON (rentals.metadata_id) ")
+    }
+    query.append(`rentals.*, rentals_listings.tenant, rentals_listings.lessor,
       COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.id) as periods,
       min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
-      periods.rental_id = rentals.id\n`
+      periods.rental_id = rentals.id\n`)
     query.append(filterByStatus)
     query.append(filterByTokenId)
     query.append(filterByContractAddress)
@@ -424,7 +433,6 @@ export async function createRentalsComponent(
     query.append(filterByCategory)
     query.append(filterBySearchText)
     query.append(sortByQuery)
-
     const results = await database.query<DBGetRentalListing>(query)
     return results.rows
   }
@@ -490,7 +498,7 @@ export async function createRentalsComponent(
       promisesOfUpdate.push(
         database.query(
           SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
-            RentalStatus.EXECUTED
+            indexerRentals[0].ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
           }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
             rentalData.id
           }`
@@ -685,8 +693,11 @@ export async function createRentalsComponent(
                   SQL`UPDATE rentals SET updated_at = ${new Date(
                     fromSecondsToMilliseconds(Number(rental.updatedAt))
                   )}, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
-                    RentalStatus.EXECUTED
+                    rental.ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
                   } WHERE id = ${dbRental.id}`
+                ),
+                client.query(
+                  SQL`UPDATE rentals SET status = ${RentalStatus.CLAIMED} WHERE contract_address = ${rental.contractAddress} AND token_id = ${rental.tokenId} AND status = ${RentalStatus.EXECUTED}`
                 ),
                 client.query(SQL`UPDATE rentals_listings SET tenant = ${rental.tenant} WHERE id = ${dbRental.id}`),
               ])
