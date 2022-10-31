@@ -861,6 +861,7 @@ describe("when refreshing rental listings", () => {
     metadata_id: string
     signature: string
     nonces: string[]
+    status: RentalStatus
   }
   let nftFromIndexer: NFT
   let rentalFromIndexer: IndexerRental
@@ -885,6 +886,7 @@ describe("when refreshing rental listings", () => {
       metadata_id: "metadataId",
       signature: "aSignature",
       nonces: ["0", "0", "0"],
+      status: RentalStatus.OPEN
     }
     nftFromIndexer = {
       id: rentalFromDb.metadata_id,
