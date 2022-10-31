@@ -487,7 +487,7 @@ export async function createRentalsComponent(
       logger.info(`[Refresh][Update metadata][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText}, updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
         )
       )
     }
@@ -520,9 +520,9 @@ export async function createRentalsComponent(
       logger.info(`[Refresh][Update rental][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
-            RentalStatus.CANCELLED
-          } WHERE id = ${rentalData.id}`
+          SQL`UPDATE rentals SET updated_at = ${new Date()}, status = ${RentalStatus.CANCELLED} WHERE id = ${
+            rentalData.id
+          }`
         )
       )
     }
