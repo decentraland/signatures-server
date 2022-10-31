@@ -439,6 +439,7 @@ export async function createRentalsComponent(
 
   async function refreshRentalListing(rentalId: string) {
     logger.info(`[Refresh][Start][${rentalId}]`)
+    const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(Date.now())))
     const rentalQueryResult = await database.query<{
       id: string
       contract_address: string
@@ -448,9 +449,10 @@ export async function createRentalsComponent(
       metadata_id: string
       signature: string
       nonces: string[]
+      status: RentalStatus
       lessor: string
     }>(
-      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor
       FROM rentals, metadata, rentals_listings
       WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId}`
     )
@@ -487,7 +489,7 @@ export async function createRentalsComponent(
       logger.info(`[Refresh][Update metadata][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText} updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText}, updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
         )
       )
     }
@@ -516,13 +518,11 @@ export async function createRentalsComponent(
       Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1]) ||
       Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
 
-    if (hasUpdatedIndex) {
+    if (hasUpdatedIndex && rentalData.status === RentalStatus.OPEN) {
       logger.info(`[Refresh][Update rental][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
-            RentalStatus.CANCELLED
-          } WHERE id = ${rentalData.id}`
+          SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`
         )
       )
     }
