@@ -55,7 +55,7 @@ export function fromRentalCreationToContractRentalListing(
     signer: lessor,
     contractAddress: rental.contractAddress,
     tokenId: rental.tokenId,
-    expiration: fromMillisecondsToSeconds(new Date(rental.expiration).getTime()).toString(),
+    expiration: fromMillisecondsToSeconds(rental.expiration).toString(),
     indexes: rental.nonces,
     pricePerDay: rental.periods.map((period) => period.pricePerDay),
     maxDays: rental.periods.map((period) => period.maxDays.toString()),
