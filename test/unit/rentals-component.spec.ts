@@ -30,6 +30,7 @@ import {
   DBRentalListing,
   IndexerIndexesHistoryUpdate,
   IndexerIndexUpdateType,
+  IndexUpdateEventType,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -886,7 +887,7 @@ describe("when refreshing rental listings", () => {
       metadata_id: "metadataId",
       signature: "aSignature",
       nonces: ["0", "0", "0"],
-      status: RentalStatus.OPEN
+      status: RentalStatus.OPEN,
     }
     nftFromIndexer = {
       id: rentalFromDb.metadata_id,
@@ -1096,7 +1097,7 @@ describe("when refreshing rental listings", () => {
         })
       })
 
-      describe("and the nonce was of type contract", () => {
+      describe("and the index bump was of type contract", () => {
         beforeEach(() => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
             contract: [{ newIndex: 1 }],
@@ -1111,7 +1112,7 @@ describe("when refreshing rental listings", () => {
         })
       })
 
-      describe("and the nonce was of type signer", () => {
+      describe("and the index bump was of type signer", () => {
         beforeEach(() => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
             contract: [],
@@ -1125,23 +1126,39 @@ describe("when refreshing rental listings", () => {
           expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
         })
       })
-      describe("and the nonce was of type asset", () => {
-        beforeEach(() => {
-          rentalsSubgraphQueryMock.mockResolvedValueOnce({
-            contract: [],
-            signer: [],
-            asset: [{ newIndex: 1 }],
+      describe("and the index bump was of type asset", () => {
+        describe("and it was due to a RENT action", () => {
+          beforeEach(() => {
+            rentalsSubgraphQueryMock.mockResolvedValueOnce({
+              contract: [],
+              signer: [],
+              asset: [{ newIndex: 1, type: IndexUpdateEventType.RENT }],
+            })
+          })
+          it("should not update the rental listing with status cancelled", async () => {
+            await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+            expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+            expect(dbQueryMock.mock.calls[1][0].values[1]).not.toEqual(RentalStatus.CANCELLED)
           })
         })
-        it("should update the rental listing with status cancelled", async () => {
-          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
-          expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
+        describe("and it was due to a CANCEL action", () => {
+          beforeEach(() => {
+            rentalsSubgraphQueryMock.mockResolvedValueOnce({
+              contract: [],
+              signer: [],
+              asset: [{ newIndex: 1, type: IndexUpdateEventType.CANCEL }],
+            })
+          })
+          it("should update the rental listing with status cancelled", async () => {
+            await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+            expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
+            expect(dbQueryMock.mock.calls[1][0].values[1]).toEqual(RentalStatus.CANCELLED)
+          })
         })
       })
     })
 
-    describe("and the rental signed nonce was not bumped", () => {
+    describe("and the rental signed index was not bumped", () => {
       describe("and the rental is older than the one in the database", () => {
         beforeEach(() => {
           rentalsSubgraphQueryMock.mockResolvedValueOnce({
@@ -2051,7 +2068,7 @@ describe("when cancelling the rental listings", () => {
   })
 
   describe("and there are rentals to be updated", () => {
-    describe("and the nonce bump was of type contract", () => {
+    describe("and the index bump was of type contract", () => {
       beforeEach(() => {
         nonceUpdate = {
           date: "",
@@ -2074,7 +2091,7 @@ describe("when cancelling the rental listings", () => {
           await rentalsComponent.cancelRentalsListings()
         })
 
-        it("should execute the UPDATE query for the correspoding contract and nonce", () => {
+        it("should execute the UPDATE query for the correspoding contract and index", () => {
           expect(dbClientQueryMock).toHaveBeenCalledWith(
             expect.objectContaining({
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
@@ -2102,7 +2119,7 @@ describe("when cancelling the rental listings", () => {
       })
     })
 
-    describe("and the nonce bump was of type signer", () => {
+    describe("and the index bump was of type signer", () => {
       beforeEach(() => {
         nonceUpdate = {
           date: "",
@@ -2153,55 +2170,90 @@ describe("when cancelling the rental listings", () => {
       })
     })
 
-    describe("and the nonce bump was of type asset", () => {
-      beforeEach(() => {
-        nonceUpdate = {
-          date: "",
-          id: "1",
-          sender: "0xsender",
-          type: IndexerIndexUpdateType.ASSET,
-          signerUpdate: null,
-          contractUpdate: null,
-          assetUpdate: {
-            id: "1",
-            tokenId: "3",
-            newIndex: "2",
-            contractAddress: "0xcontract",
-          },
-        }
-        rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
-      })
-
+    describe("and the index bump was of type asset", () => {
       describe("and the rentals to be updated exist in the database", () => {
-        beforeEach(async () => {
-          await rentalsComponent.cancelRentalsListings()
+        describe("and the type of the index bump was is of type RENT", () => {
+          beforeEach(async () => {
+            nonceUpdate = {
+              date: "",
+              id: "1",
+              sender: "0xsender",
+              type: IndexerIndexUpdateType.ASSET,
+              signerUpdate: null,
+              contractUpdate: null,
+              assetUpdate: {
+                id: "1",
+                tokenId: "3",
+                newIndex: "2",
+                contractAddress: "0xcontract",
+                type: IndexUpdateEventType.RENT,
+              },
+            }
+            rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
+            await rentalsComponent.cancelRentalsListings()
+          })
+          it("should not execute the UPDATE query for the corresponding asset and index", () => {
+            expect(dbClientQueryMock).not.toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+                values: expect.arrayContaining([
+                  RentalStatus.CANCELLED,
+                  nonceUpdate.assetUpdate?.newIndex,
+                  nonceUpdate.assetUpdate?.contractAddress,
+                  nonceUpdate.assetUpdate?.tokenId,
+                ]),
+              })
+            )
+          })
         })
 
-        it("should execute the UPDATE query for the correspoding contract and nonce", () => {
-          expect(dbClientQueryMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
-              values: expect.arrayContaining([
-                RentalStatus.CANCELLED,
-                nonceUpdate.assetUpdate?.newIndex,
-                nonceUpdate.assetUpdate?.contractAddress,
-                nonceUpdate.assetUpdate?.tokenId,
-              ]),
-            })
-          )
-        })
+        describe("and the type of the index bump was is of type CANCEL", () => {
+          beforeEach(async () => {
+            nonceUpdate = {
+              date: "",
+              id: "1",
+              sender: "0xsender",
+              type: IndexerIndexUpdateType.ASSET,
+              signerUpdate: null,
+              contractUpdate: null,
+              assetUpdate: {
+                id: "1",
+                tokenId: "3",
+                newIndex: "2",
+                contractAddress: "0xcontract",
+                type: IndexUpdateEventType.CANCEL,
+              },
+            }
+            rentalsSubgraphQueryMock.mockResolvedValueOnce({ indexesUpdateHistories: [nonceUpdate] })
+            await rentalsComponent.cancelRentalsListings()
+          })
 
-        it("should update the time the last update was performed", () => {
-          expect(dbClientQueryMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
-              values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
-            })
-          )
-        })
+          it("should execute the UPDATE query for the correspoding asset and index", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
+                values: expect.arrayContaining([
+                  RentalStatus.CANCELLED,
+                  nonceUpdate.assetUpdate?.newIndex,
+                  nonceUpdate.assetUpdate?.contractAddress,
+                  nonceUpdate.assetUpdate?.tokenId,
+                ]),
+              })
+            )
+          })
 
-        it("should release the client", () => {
-          expect(dbClientReleaseMock).toHaveBeenCalled()
+          it("should update the time the last update was performed", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+              })
+            )
+          })
+
+          it("should release the client", () => {
+            expect(dbClientReleaseMock).toHaveBeenCalled()
+          })
         })
       })
     })
