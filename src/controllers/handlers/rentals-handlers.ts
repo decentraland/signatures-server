@@ -40,6 +40,7 @@ export async function getRentalsListingsHandler(
       url.searchParams,
       "sortDirection"
     )
+    const getHistoricData = url.searchParams.get("history") === "true"
     const filterBy: RentalsListingsFilterBy & { status?: RentalStatus[] } = {
       category:
         getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
@@ -54,13 +55,16 @@ export async function getRentalsListingsHandler(
       network:
         (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
     }
-    const rentalListings = await rentals.getRentalsListings({
-      sortBy,
-      sortDirection,
-      page,
-      limit,
-      filterBy,
-    })
+    const rentalListings = await rentals.getRentalsListings(
+      {
+        sortBy,
+        sortDirection,
+        page,
+        limit,
+        filterBy,
+      },
+      getHistoricData
+    )
     return {
       status: StatusCode.OK,
       body: {
