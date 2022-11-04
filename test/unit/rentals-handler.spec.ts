@@ -343,7 +343,8 @@ describe("when getting rental listings", () => {
       expect(getRentalsListingsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           filterBy: expect.objectContaining({ status: [RentalStatus.EXECUTED, RentalStatus.OPEN] }),
-        })
+        }),
+        false
       )
     })
   })
@@ -370,8 +371,120 @@ describe("when getting rental listings", () => {
       })
 
       expect(getRentalsListingsMock).toHaveBeenCalledWith(
-        expect.objectContaining({ filterBy: expect.objectContaining({ status: [RentalStatus.EXECUTED] }) })
+        expect.objectContaining({ filterBy: expect.objectContaining({ status: [RentalStatus.EXECUTED] }) }),
+        false
       )
+    })
+  })
+
+  describe("and the process was done with history as a parameter", () => {
+    let dbRentalListings: DBGetRentalListing[]
+    let rentalListings: RentalListing[]
+
+    beforeEach(() => {
+      dbRentalListings = [
+        {
+          id: "5884c820-2612-409c-bb9e-a01e8d3569e9",
+          category: NFTCategory.PARCEL,
+          search_text: "someText",
+          metadata_id: "someId",
+          network: Network.ETHEREUM,
+          chain_id: ChainId.ETHEREUM_GOERLI,
+          expiration: new Date(),
+          signature: "0x0",
+          nonces: ["0x0", "0x1", "0x2"],
+          token_id: "1",
+          contract_address: "0x959e104e1a4db6317fa58f8295f586e1a978c297",
+          rental_contract_address: "0x09305998a531fade369ebe30adf868c96a34e813",
+          lessor: "0x9abdcb8825696cc2ef3a0a955f99850418847f5d",
+          tenant: null,
+          status: RentalStatus.OPEN,
+          created_at: new Date("2022-06-13T22:56:36.755Z"),
+          updated_at: new Date("2022-06-13T22:56:36.755Z"),
+          started_at: null,
+          periods: [["30", "50", "1000000000"]],
+          metadata_created_at: new Date(),
+          rentals_listings_count: "1",
+          target: ethers.constants.AddressZero,
+        },
+      ]
+      rentalListings = [
+        {
+          id: dbRentalListings[0].id,
+          nftId: dbRentalListings[0].metadata_id,
+          category: dbRentalListings[0].category,
+          searchText: dbRentalListings[0].search_text,
+          network: dbRentalListings[0].network,
+          chainId: dbRentalListings[0].chain_id,
+          expiration: dbRentalListings[0].expiration.getTime(),
+          signature: dbRentalListings[0].signature,
+          nonces: dbRentalListings[0].nonces,
+          tokenId: dbRentalListings[0].token_id,
+          contractAddress: dbRentalListings[0].contract_address,
+          rentalContractAddress: dbRentalListings[0].rental_contract_address,
+          lessor: dbRentalListings[0].lessor,
+          tenant: dbRentalListings[0].tenant,
+          status: dbRentalListings[0].status,
+          createdAt: dbRentalListings[0].created_at.getTime(),
+          updatedAt: dbRentalListings[0].updated_at.getTime(),
+          startedAt: null,
+          periods: [
+            {
+              minDays: Number(dbRentalListings[0].periods[0][0]),
+              maxDays: Number(dbRentalListings[0].periods[0][1]),
+              pricePerDay: dbRentalListings[0].periods[0][2],
+            },
+          ],
+          target: ethers.constants.AddressZero,
+        },
+      ]
+      getRentalsListingsMock.mockResolvedValueOnce(dbRentalListings)
+    })
+
+    describe("and the history parameter is set as false", () => {
+      beforeEach(() => {
+        url = new URL("http://localhost/v1/rental-listing?history=false")
+      })
+
+      it("should return a response with an ok status code and the listings history", async () => {
+        await expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+          status: StatusCode.OK,
+          body: {
+            ok: true,
+            data: {
+              results: rentalListings,
+              total: 1,
+              page: 0,
+              pages: 1,
+              limit: 50,
+            },
+          },
+        })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(expect.anything(), false)
+      })
+    })
+
+    describe("and the history parameter is set as true", () => {
+      beforeEach(() => {
+        url = new URL("http://localhost/v1/rental-listing?history=true")
+      })
+
+      it("should return a response with an ok status code and the historic listings", async () => {
+        await expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+          status: StatusCode.OK,
+          body: {
+            ok: true,
+            data: {
+              results: rentalListings,
+              total: 1,
+              page: 0,
+              pages: 1,
+              limit: 50,
+            },
+          },
+        })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(expect.anything(), true)
+      })
     })
   })
 
