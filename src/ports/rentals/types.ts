@@ -203,4 +203,11 @@ export type IndexerIndexAssetUpdate = {
   contractAddress: string
   /** The tokenId id associated to the index update */
   tokenId: string
+  /** The tokenId id associated to the index update */
+  type: IndexUpdateEventType
+}
+
+export enum IndexUpdateEventType {
+  RENT = "RENT",
+  CANCEL = "CANCEL",
 }

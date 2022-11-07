@@ -35,6 +35,7 @@ import {
   IndexerIndexContractUpdate,
   IndexerIndexesHistoryUpdate,
   IndexerIndexesHistoryUpdateQuery,
+  IndexUpdateEventType,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 
@@ -513,18 +514,24 @@ export async function createRentalsComponent(
 
     // Identify if there's any blockchain nonce update
 
-    const hasUpdatedIndex =
-      Number(indexerIndexesUpdate.contract[0]?.newIndex) > Number(rentalData.nonces[0]) ||
-      Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1]) ||
-      Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
+    const hasContractIndexUpdate = Number(indexerIndexesUpdate.contract[0]?.newIndex) > Number(rentalData.nonces[0])
+    const hasSignerIndexUpdate = Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1])
+    const hasAssetIndexUpdate = Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
+    const hasUpdatedIndex = hasContractIndexUpdate || hasSignerIndexUpdate || hasAssetIndexUpdate
 
     if (hasUpdatedIndex && rentalData.status === RentalStatus.OPEN) {
-      logger.info(`[Refresh][Update rental][${rentalId}]`)
-      promisesOfUpdate.push(
-        database.query(
-          SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`
+      if (
+        hasContractIndexUpdate ||
+        hasSignerIndexUpdate ||
+        (hasAssetIndexUpdate && indexerIndexesUpdate.asset[0].type === IndexUpdateEventType.CANCEL)
+      ) {
+        logger.info(`[Refresh][Update rental][${rentalId}]`)
+        promisesOfUpdate.push(
+          database.query(
+            SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`
+          )
         )
-      )
+      }
     }
 
     await Promise.all(promisesOfUpdate)
@@ -827,7 +834,7 @@ export async function createRentalsComponent(
                     where r.id = rl.id AND idx = 2 AND u.nonce < ${newIndex} AND rl.lessor = ${signer}
                 )`
               )
-            } else if (indexUpdate.assetUpdate) {
+            } else if (indexUpdate.assetUpdate && indexUpdate.assetUpdate.type === IndexUpdateEventType.CANCEL) {
               const { newIndex, contractAddress, tokenId } = indexUpdate.assetUpdate
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
