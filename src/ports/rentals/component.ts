@@ -514,18 +514,18 @@ export async function createRentalsComponent(
 
     // Identify if there's any blockchain nonce update
 
-    const hasAContractIndexUpdate = Number(indexerIndexesUpdate.contract[0]?.newIndex) > Number(rentalData.nonces[0])
-    const hasASignerIndexUpdate = Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1])
-    const hasAnAssetIndexUpdate = Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
-    const hasUpdatedIndex = hasAContractIndexUpdate || hasASignerIndexUpdate || hasAnAssetIndexUpdate
+    const hasContractIndexUpdate = Number(indexerIndexesUpdate.contract[0]?.newIndex) > Number(rentalData.nonces[0])
+    const hasSignerIndexUpdate = Number(indexerIndexesUpdate.signer[0]?.newIndex) > Number(rentalData.nonces[1])
+    const hasAssetIndexUpdate = Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
+    const hasUpdatedIndex = hasContractIndexUpdate || hasSignerIndexUpdate || hasAssetIndexUpdate
 
     if (hasUpdatedIndex && rentalData.status === RentalStatus.OPEN) {
-      logger.info(`[Refresh][Update rental][${rentalId}]`)
       if (
-        hasAContractIndexUpdate ||
-        hasASignerIndexUpdate ||
-        (hasAnAssetIndexUpdate && indexerIndexesUpdate.asset[0].type === IndexUpdateEventType.CANCEL)
+        hasContractIndexUpdate ||
+        hasSignerIndexUpdate ||
+        (hasAssetIndexUpdate && indexerIndexesUpdate.asset[0].type === IndexUpdateEventType.CANCEL)
       ) {
+        logger.info(`[Refresh][Update rental][${rentalId}]`)
         promisesOfUpdate.push(
           database.query(
             SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`

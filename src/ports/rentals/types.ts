@@ -208,6 +208,6 @@ export type IndexerIndexAssetUpdate = {
 }
 
 export enum IndexUpdateEventType {
-  RENT,
-  CANCEL,
+  RENT = "RENT",
+  CANCEL = "CANCEL",
 }
