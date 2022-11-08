@@ -540,7 +540,7 @@ export async function createRentalsComponent(
     const result =
       await database.query<DBGetRentalListing>(SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata, 
     (SELECT rentals.*, rentals_listings.tenant, rentals_listings.lessor, COUNT(*) OVER() as rentals_listings_count, 
-      array_agg(ARRAY[periods.min_days, periods.max_days, periods.price_per_day] ORDER BY periods.id) as periods FROM rentals, rentals_listings, periods
+      array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods FROM rentals, rentals_listings, periods
       WHERE rentals.id = rentals_listings.id AND periods.rental_id = rentals.id
       GROUP BY rentals.id, rentals_listings.id, periods.rental_id) as rentals
     WHERE metadata.id = rentals.metadata_id AND rentals.id = ${rentalId}`)
