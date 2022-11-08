@@ -505,7 +505,7 @@ export async function createRentalsComponent(
         database.query(
           SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
             indexerRentals[0].ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
-          }, "rentedDays" = ${indexerRentals[0].rentalDays}, "periodChosen" = ${
+          }, rented_days = ${indexerRentals[0].rentalDays}, period_chosen = ${
             rentalData.period_id
           }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
             rentalData.id
@@ -713,7 +713,7 @@ export async function createRentalsComponent(
                 client.query(
                   SQL`UPDATE rentals SET updated_at = ${new Date(
                     fromSecondsToMilliseconds(Number(rental.updatedAt))
-                  )}, "rentedDays" = ${rental.rentalDays}, "periodChosen" = ${
+                  )}, rented_days = ${rental.rentalDays}, period_chosen = ${
                     dbRental.period_id
                   }, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
                     rental.ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED

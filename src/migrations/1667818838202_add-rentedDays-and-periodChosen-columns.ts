@@ -4,8 +4,8 @@ import { MigrationBuilder, ColumnDefinitions } from "node-pg-migrate"
 export const shorthands: ColumnDefinitions | undefined = undefined
 
 const tableName = "rentals"
-const rentedDaysColumn = "rentedDays"
-const periodIndexChosen = "periodChosen"
+const rentedDaysColumn = "rented_days"
+const periodIndexChosen = "period_chosen"
 const columns = {
   [rentedDaysColumn]: {
     type: "integer",
