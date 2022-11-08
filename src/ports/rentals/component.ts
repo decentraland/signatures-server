@@ -706,6 +706,8 @@ export async function createRentalsComponent(
                 rental.tokenId
               }]`
             )
+            // Right now, we can only compare with `rentalDays` to `max_days` to find out the period. When adding custom min and max dates for rents
+            // we will need to re-evaluate this logic
             const dbRental = dbRentals.find(({ max_days }) => max_days === Number(rental.rentalDays)) || dbRentals[0]
             // If there's a rental in the database updated it, else, create it
             if (dbRental) {
