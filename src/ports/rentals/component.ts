@@ -456,9 +456,9 @@ export async function createRentalsComponent(
       max_days: number
       min_days: number
     }>(
-      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, p.id period_id, p.max_days, p.min_days 
-      FROM rentals JOIN periods p on p.rental_id = rentals.id, metadata, rentals_listings
-      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId}`
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, periods.id period_id, periods.max_days, periods.min_days 
+      FROM rentals, periods, metadata, rentals_listings
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId} AND periods.rental_id = rentals.id`
     )
 
     if (rentalQueryResult.rowCount === 0) {
@@ -696,9 +696,9 @@ export async function createRentalsComponent(
               }
             >(
               SQL`
-                SELECT rentals.id, lessor, status, p.id period_id, p.max_days, p.min_days 
-                FROM rentals JOIN periods p on p.rental_id = rentals.id, rentals_listings 
-                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature}
+                SELECT rentals.id, lessor, status, periods.id period_id, periods.max_days, periods.min_days 
+                FROM rentals, rentals_listings, periods
+                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature} AND periods.rental_id = rentals.id
               `
             )
             logger.debug(
