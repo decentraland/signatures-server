@@ -415,7 +415,7 @@ export async function createRentalsComponent(
       query.append("DISTINCT ON (rentals.metadata_id) ")
     }
     query.append(`rentals.*, rentals_listings.tenant, rentals_listings.lessor,
-      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.id) as periods,
+      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods,
       min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
@@ -452,10 +452,13 @@ export async function createRentalsComponent(
       nonces: string[]
       status: RentalStatus
       lessor: string
+      period_id: number
+      max_days: number
+      min_days: number
     }>(
-      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor
-      FROM rentals, metadata, rentals_listings
-      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId}`
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, periods.id period_id, periods.max_days, periods.min_days 
+      FROM rentals, periods, metadata, rentals_listings
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId} AND periods.rental_id = rentals.id`
     )
 
     if (rentalQueryResult.rowCount === 0) {
@@ -502,6 +505,8 @@ export async function createRentalsComponent(
         database.query(
           SQL`UPDATE rentals SET updated_at = ${new Date(indexerRentalLastUpdate)}, status = ${
             indexerRentals[0].ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
+          }, rented_days = ${indexerRentals[0].rentalDays}, period_chosen = ${
+            rentalData.period_id
           }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
             rentalData.id
           }`
@@ -683,23 +688,36 @@ export async function createRentalsComponent(
             logger.debug(
               `[Rentals update][Start rental update][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
             )
-            const {
-              rows: [dbRental],
-            } = await client.query<Pick<DBRental & DBRentalListing, "id" | "lessor" | "status">>(
-              SQL`SELECT rentals.id, lessor, status FROM rentals, rentals_listings WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature}`
+            const { rows: dbRentals } = await client.query<
+              Pick<DBRental & DBRentalListing, "id" | "lessor" | "status"> & {
+                period_id: number
+                max_days: number
+                min_days: number
+              }
+            >(
+              SQL`
+                SELECT rentals.id, lessor, status, periods.id period_id, periods.max_days, periods.min_days 
+                FROM rentals, rentals_listings, periods
+                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature} AND periods.rental_id = rentals.id
+              `
             )
             logger.debug(
-              `[Rentals update][Exists:${Boolean(dbRental)}][contractAddress:${rental.contractAddress}][tokenId:${
+              `[Rentals update][Exists:${Boolean(dbRentals[0])}][contractAddress:${rental.contractAddress}][tokenId:${
                 rental.tokenId
               }]`
             )
+            // Right now, we can only compare with `rentalDays` to `max_days` to find out the period. When adding custom min and max dates for rents
+            // we will need to re-evaluate this logic
+            const dbRental = dbRentals.find(({ max_days }) => max_days === Number(rental.rentalDays)) || dbRentals[0]
             // If there's a rental in the database updated it, else, create it
             if (dbRental) {
               await Promise.all([
                 client.query(
                   SQL`UPDATE rentals SET updated_at = ${new Date(
                     fromSecondsToMilliseconds(Number(rental.updatedAt))
-                  )}, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
+                  )}, rented_days = ${rental.rentalDays}, period_chosen = ${
+                    dbRental.period_id
+                  }, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
                     rental.ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
                   } WHERE id = ${dbRental.id}`
                 ),
