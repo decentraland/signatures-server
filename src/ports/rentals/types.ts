@@ -55,6 +55,8 @@ export type DBRental = {
   updated_at: Date
   started_at: Date | null
   target: string
+  rented_days: number | null
+  period_chosen: string | null
 }
 
 export type DBRentalListing = {

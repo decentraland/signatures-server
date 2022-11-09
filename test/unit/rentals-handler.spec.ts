@@ -206,6 +206,8 @@ describe("when creating a new rental listing", () => {
           },
         ],
         target: ethers.constants.AddressZero,
+        rented_days: null,
+        period_chosen: null,
       }
       returnedListing = fromDBInsertedRentalListingToRental(createdListing)
       components = {
@@ -406,6 +408,8 @@ describe("when getting rental listings", () => {
           metadata_created_at: new Date(),
           rentals_listings_count: "1",
           target: ethers.constants.AddressZero,
+          rented_days: null,
+          period_chosen: null,
         },
       ]
       rentalListings = [
@@ -436,6 +440,7 @@ describe("when getting rental listings", () => {
             },
           ],
           target: ethers.constants.AddressZero,
+          rentedDays: null,
         },
       ]
       getRentalsListingsMock.mockResolvedValueOnce(dbRentalListings)
@@ -517,6 +522,8 @@ describe("when getting rental listings", () => {
           metadata_created_at: new Date(),
           rentals_listings_count: "1",
           target: ethers.constants.AddressZero,
+          rented_days: null,
+          period_chosen: null,
         },
       ]
       rentalListings = [
@@ -547,6 +554,7 @@ describe("when getting rental listings", () => {
             },
           ],
           target: ethers.constants.AddressZero,
+          rentedDays: null,
         },
       ]
       getRentalsListingsMock.mockResolvedValueOnce(dbRentalListings)
@@ -667,6 +675,8 @@ describe("when refreshing a rental listing", () => {
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
         target: ethers.constants.AddressZero,
+        rented_days: null,
+        period_chosen: null,
       }
       rentalListing = {
         id: dbRentalListing.id,
@@ -695,6 +705,7 @@ describe("when refreshing a rental listing", () => {
           },
         ],
         target: ethers.constants.AddressZero,
+        rentedDays: null,
       }
       refreshRentalListingMock.mockResolvedValueOnce(dbRentalListing)
     })
