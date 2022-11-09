@@ -41,6 +41,8 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
         },
       ],
       target: ethers.constants.AddressZero,
+      rented_days: null,
+      period_chosen: null,
     }
     rentalListing = {
       id: dbInsertedRentalListing.id,
@@ -69,6 +71,7 @@ describe("when transforming a DB inserted rental listing to a rental listing", (
         },
       ],
       target: ethers.constants.AddressZero,
+      rentedDays: dbInsertedRentalListing.rented_days,
     }
   })
 
@@ -106,6 +109,8 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
         metadata_created_at: new Date(),
         rentals_listings_count: "1",
         target: ethers.constants.AddressZero,
+        rented_days: 30,
+        period_chosen: null,
       },
     ]
     rentalListings = [
@@ -136,6 +141,7 @@ describe("when transforming DB retrieved rental listings to rental listings", ()
           },
         ],
         target: ethers.constants.AddressZero,
+        rentedDays: dbGetRentalListings[0].rented_days,
       },
     ]
   })
@@ -178,6 +184,7 @@ describe("when transforming a rental creation to a contract rental listing", () 
         },
       ],
       target: ethers.constants.AddressZero,
+      rentedDays: null,
     }
     lessor = "lessor-address"
     contractRentalListing = {

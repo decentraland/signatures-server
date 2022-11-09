@@ -25,6 +25,7 @@ export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalLi
     startedAt: DBRental.started_at ? DBRental.started_at.getTime() : null,
     periods: DBRental.periods.map(fromDBPeriodToPeriod),
     target: DBRental.target,
+    rentedDays: DBRental.rented_days,
   }
 }
 
@@ -91,5 +92,6 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
       pricePerDay: period[2],
     })),
     target: rental.target,
+    rentedDays: rental.rented_days,
   }))
 }
