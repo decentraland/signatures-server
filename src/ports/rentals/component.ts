@@ -689,14 +689,14 @@ export async function createRentalsComponent(
               `[Rentals update][Start rental update][contractAddress:${rental.contractAddress}][tokenId:${rental.tokenId}]`
             )
             const { rows: dbRentals } = await client.query<
-              Pick<DBRental & DBRentalListing, "id" | "lessor" | "status"> & {
+              Pick<DBRental & DBRentalListing, "id" | "lessor" | "status" | "started_at"> & {
                 period_id: number
                 max_days: number
                 min_days: number
               }
             >(
               SQL`
-                SELECT rentals.id, lessor, status, periods.id period_id, periods.max_days, periods.min_days 
+                SELECT rentals.id, lessor, status, started_at, periods.id period_id, periods.max_days, periods.min_days 
                 FROM rentals, rentals_listings, periods
                 WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature} AND periods.rental_id = rentals.id
               `
@@ -722,7 +722,7 @@ export async function createRentalsComponent(
                   } WHERE id = ${dbRental.id}`
                 ),
                 client.query(
-                  SQL`UPDATE rentals SET status = ${RentalStatus.CLAIMED} WHERE contract_address = ${rental.contractAddress} AND token_id = ${rental.tokenId} AND status = ${RentalStatus.EXECUTED}`
+                  SQL`UPDATE rentals SET status = ${RentalStatus.CLAIMED} WHERE contract_address = ${rental.contractAddress} AND token_id = ${rental.tokenId} AND status = ${RentalStatus.EXECUTED} AND started_at < ${dbRental.started_at}`
                 ),
                 client.query(SQL`UPDATE rentals_listings SET tenant = ${rental.tenant} WHERE id = ${dbRental.id}`),
               ])
