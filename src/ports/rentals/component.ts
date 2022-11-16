@@ -137,7 +137,7 @@ export async function createRentalsComponent(
   }
 
   async function getIndexUpdatesFromIndexer(options: {
-    filterBy?: { signer: string; contractAddress: string }
+    filterBy?: { signer: string; contractAddress: string; tokenId: string }
     first: number
     orderBy?: keyof IndexerIndexesHistoryUpdateQuery
     orderDirection?: "desc" | "asc"
@@ -147,7 +147,7 @@ export async function createRentalsComponent(
     asset: IndexerIndexAssetUpdate[]
   }> {
     const { filterBy, first, orderBy, orderDirection } = options
-    const { queryVariables, querySignature } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
+    const { querySignature: signerUpdateSignature } = buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
       { signer: filterBy?.signer },
       first,
       orderBy,
@@ -161,15 +161,24 @@ export async function createRentalsComponent(
       orderDirection
     )
 
+    const { queryVariables, querySignature: assetUpdateSignature } =
+      buildQueryParameters<IndexerIndexesHistoryUpdateQuery>(
+        { contractAddress: filterBy?.contractAddress, tokenId: filterBy?.tokenId, signer: filterBy?.signer },
+        first,
+        orderBy,
+        orderDirection
+      )
+
     const query = `query IndexUpdates(${queryVariables}) {
       contract: indexesUpdateContractHistories(${contractUpdateSignature}){
         newIndex
       }
-      signer: indexesUpdateSignerHistories(${querySignature}){
+      signer: indexesUpdateSignerHistories(${signerUpdateSignature}){
         newIndex
       }
-      asset: indexesUpdateAssetHistories(${querySignature}){
+      asset: indexesUpdateAssetHistories(${assetUpdateSignature}){
         newIndex
+        type
       }
     }`
 
@@ -473,7 +482,11 @@ export async function createRentalsComponent(
         first: 1,
       }),
       getIndexUpdatesFromIndexer({
-        filterBy: { signer: rentalData.lessor, contractAddress: rentalData.contract_address },
+        filterBy: {
+          signer: rentalData.lessor,
+          contractAddress: rentalData.contract_address,
+          tokenId: rentalData.token_id,
+        },
         first: 1,
         orderBy: "newIndex",
         orderDirection: "desc",
