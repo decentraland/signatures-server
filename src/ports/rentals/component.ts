@@ -122,6 +122,7 @@ export async function createRentalsComponent(
           tenant,
           operator,
           rentalDays,
+          endsAt,
           startedAt,
           updatedAt,
           pricePerDay,
