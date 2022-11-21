@@ -863,6 +863,7 @@ describe("when refreshing rental listings", () => {
     signature: string
     nonces: string[]
     status: RentalStatus
+    lessor: string
   }
   let nftFromIndexer: NFT
   let rentalFromIndexer: IndexerRental
@@ -880,6 +881,7 @@ describe("when refreshing rental listings", () => {
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
     rentalFromDb = {
       id: "an id",
+      lessor: "anAddress",
       contract_address: "aContractAddress",
       token_id: "aTokenId",
       updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
@@ -1010,26 +1012,57 @@ describe("when refreshing rental listings", () => {
     })
 
     describe("and it was updated after the one in the database", () => {
-      beforeEach(() => {
-        marketplaceSubgraphQueryMock.mockResolvedValueOnce({
-          nfts: [
-            {
-              ...nftFromIndexer,
-              createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
-              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
-            },
-          ],
+      describe("and the owner has not changed", () => {
+        beforeEach(() => {
+          marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+            nfts: [
+              {
+                ...nftFromIndexer,
+                createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
         })
-        mockDefaultSubgraphNonces()
-        dbQueryMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce({
-          rows: [result],
-          rowCount: 1,
+        it("should update the metadata in the database and return the rental", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE metadata SET"))
         })
       })
 
-      it("should update the metadata in the database and return the rental", async () => {
-        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE metadata SET"))
+      describe("and the owner has changed", () => {
+        beforeEach(() => {
+          marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+            nfts: [
+              {
+                ...nftFromIndexer,
+                owner: {
+                  address: "aNewOwner",
+                },
+                createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+        it("should cancel the listing if the owner has changed", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining(`UPDATE rentals SET status`))
+          expect(dbQueryMock.mock.calls[2][0].values).toEqual(expect.arrayContaining([RentalStatus.CANCELLED]))
+        })
       })
     })
   })

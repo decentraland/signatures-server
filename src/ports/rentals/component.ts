@@ -509,6 +509,12 @@ export async function createRentalsComponent(
           SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText}, updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
         )
       )
+
+      // If the nft has been transfered, but not due to a rent starting
+      // Cancel the rental listing that now has a different owner
+      if (rentalData.status === RentalStatus.OPEN && indexerNFT.owner.address !== rentalData.lessor) {
+        database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
+      }
     }
 
     // Identify the latest blockchain rental
