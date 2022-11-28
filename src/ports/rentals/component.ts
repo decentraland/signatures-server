@@ -438,7 +438,11 @@ export async function createRentalsComponent(
     query.append(filterByTenant)
     query.append(filterByNftIds)
     query.append(
-      SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id LIMIT ${limit} OFFSET ${page}) as rentals\n`
+      SQL`
+        GROUP BY rentals.id, rentals_listings.id, periods.rental_id
+        ORDER BY rentals.metadata_id, rentals.created_at desc
+        LIMIT ${limit} OFFSET ${page}) as rentals\n
+      `
     )
     query.append("WHERE metadata.id = rentals.metadata_id\n")
     query.append(filterByCategory)
