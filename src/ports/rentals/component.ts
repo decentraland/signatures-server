@@ -838,7 +838,7 @@ export async function createRentalsComponent(
   async function cancelRentalsListings() {
     // Truncate the start time to seconds so we can interact with the blockchain date
     const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
-    logger.info(`[Rentals Indexes update][Start updates]`)
+    logger.info(`[Rentals Indexes update][Start updates][time:${startTime}]`)
     const { rows } = await database.query<{ updated_at: Date }>(
       SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.INDEXES} ORDER BY updated_at DESC LIMIT 1`
     )
@@ -851,6 +851,7 @@ export async function createRentalsComponent(
           filterBy: { date_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString() },
           first: MAX_GRAPH_FIRST,
         })
+        logger.info(`[Rentals Indexes update][Retrieved index updates][size:${indexesUpdateHistories.length}]`)
 
         // Limit the concurrent updates
         const limit = pLimit(MAX_CONCURRENT_RENTAL_UPDATES)
@@ -859,6 +860,9 @@ export async function createRentalsComponent(
           limit(async () => {
             if (indexUpdate.contractUpdate) {
               const { newIndex, contractAddress } = indexUpdate.contractUpdate
+              logger.info(
+                `[Rentals Indexes update][Contract index update][contractAddress:${contractAddress}][newIndex:$${newIndex}]`
+              )
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                     select id
@@ -868,6 +872,7 @@ export async function createRentalsComponent(
               )
             } else if (indexUpdate.signerUpdate) {
               const { newIndex, signer } = indexUpdate.signerUpdate
+              logger.info(`[Rentals Indexes update][Singer index update][signer:${signer}][newIndex:$${newIndex}]`)
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                   select r.id
@@ -878,6 +883,9 @@ export async function createRentalsComponent(
               )
             } else if (indexUpdate.assetUpdate && indexUpdate.assetUpdate.type === IndexUpdateEventType.CANCEL) {
               const { newIndex, contractAddress, tokenId } = indexUpdate.assetUpdate
+              logger.info(
+                `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][newIndex:$${newIndex}]`
+              )
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                   select r.id
@@ -887,6 +895,7 @@ export async function createRentalsComponent(
                 )`
               )
             } else {
+              logger.info(`[Rentals Indexes update][Unknown index update]`)
               return Promise.resolve() // fallback
             }
           })
@@ -895,6 +904,9 @@ export async function createRentalsComponent(
         const updates = await Promise.allSettled(promiseOfUpdates)
         const rejectedUpdates = updates.filter((result) => result.status === "rejected")
         if (rejectedUpdates.length > 0) {
+          logger.debug(
+            `[Rentals Indexes update][Rejected updates][reason:${(rejectedUpdates[0] as PromiseRejectedResult).reason}]`
+          )
           throw (rejectedUpdates[0] as PromiseRejectedResult).reason
         }
 
@@ -909,7 +921,7 @@ export async function createRentalsComponent(
       await client.query("COMMIT")
       logger.info(`[Rentals Indexes update][Successful]`)
     } catch (error) {
-      logger.info(`[Rentals Indexes update][Failed]`)
+      logger.info(`[Rentals Indexes update][Failed][reason:${(error as Error).message}]`)
       await client.query("ROLLBACK")
     } finally {
       client.release()
