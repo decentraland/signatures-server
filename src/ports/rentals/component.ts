@@ -838,9 +838,14 @@ export async function createRentalsComponent(
   async function cancelRentalsListings() {
     // Truncate the start time to seconds so we can interact with the blockchain date
     const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(new Date().getTime())))
-    logger.info(`[Rentals Indexes update][Start updates][time:${startTime}]`)
+    logger.info(`[Rentals Indexes update][Start updates][startTime:${startTime.getTime()}]`)
     const { rows } = await database.query<{ updated_at: Date }>(
       SQL`SELECT updated_at FROM updates WHERE type = ${UpdateType.INDEXES} ORDER BY updated_at DESC LIMIT 1`
+    )
+    logger.info(
+      `[Rentals Indexes update][Start updates][lastUpdate:${
+        rows.length > 0 ? rows[0].updated_at.getTime() : "No last update was found"
+      }]`
     )
     const client = await database.getPool().connect()
     let lastId: string | undefined
