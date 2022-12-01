@@ -221,6 +221,7 @@ export async function createRentalsComponent(
         }
         assetUpdate {
           id
+          type
           newIndex
           contractAddress
           tokenId
@@ -900,7 +901,6 @@ export async function createRentalsComponent(
                 )`
               )
             } else {
-              logger.info(`[Rentals Indexes update][Unknown index update]`)
               return Promise.resolve() // fallback
             }
           })
