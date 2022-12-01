@@ -867,7 +867,7 @@ export async function createRentalsComponent(
             if (indexUpdate.contractUpdate) {
               const { newIndex, contractAddress } = indexUpdate.contractUpdate
               logger.info(
-                `[Rentals Indexes update][Contract index update][contractAddress:${contractAddress}][newIndex:$${newIndex}]`
+                `[Rentals Indexes update][Contract index update][contractAddress:${contractAddress}][newIndex:${newIndex}]`
               )
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
@@ -878,7 +878,7 @@ export async function createRentalsComponent(
               )
             } else if (indexUpdate.signerUpdate) {
               const { newIndex, signer } = indexUpdate.signerUpdate
-              logger.info(`[Rentals Indexes update][Singer index update][signer:${signer}][newIndex:$${newIndex}]`)
+              logger.info(`[Rentals Indexes update][Singer index update][signer:${signer}][newIndex:${newIndex}]`)
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                   select r.id
@@ -890,7 +890,7 @@ export async function createRentalsComponent(
             } else if (indexUpdate.assetUpdate && indexUpdate.assetUpdate.type === IndexUpdateEventType.CANCEL) {
               const { newIndex, contractAddress, tokenId } = indexUpdate.assetUpdate
               logger.info(
-                `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][newIndex:$${newIndex}]`
+                `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][newIndex:${newIndex}]`
               )
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
