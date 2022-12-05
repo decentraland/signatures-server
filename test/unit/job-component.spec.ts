@@ -20,7 +20,7 @@ beforeEach(() => {
   mockedSetTimeout.mockReset()
   mockedSetTimeout.mockImplementation((handler) => {
     ;(handler as any)()
-    return 1
+    return 1 as any
   })
 })
 
