@@ -575,7 +575,6 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(
         expect.stringContaining("AND metadata.search_text ILIKE '%' || ")
       )
-      console.log(dbQueryMock.mock.calls[0][0].values)
       expect(dbQueryMock.mock.calls[0][0].values).toEqual(["someText", 10, 0])
     })
   })
