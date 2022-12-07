@@ -75,7 +75,7 @@ describe("when getting the pagination params", () => {
     it("should return the value as the page", () => {
       expect(getPaginationParams(new URLSearchParams({ page: "1" }))).toEqual({
         limit: 100,
-        offset: 50,
+        offset: 100,
       })
     })
   })
