@@ -21,7 +21,7 @@ export type IRentalsComponent = {
 export type GetRentalListingParameters = {
   sortBy: RentalsListingsSortBy | null
   sortDirection: RentalsListingSortDirection | null
-  page: number
+  offset: number
   limit: number
   filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
 }

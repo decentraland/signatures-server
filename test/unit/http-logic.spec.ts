@@ -12,7 +12,7 @@ describe("when getting the pagination params", () => {
     it("should return the default limit", () => {
       expect(getPaginationParams(new URLSearchParams({ limit: "200" }))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
@@ -21,7 +21,7 @@ describe("when getting the pagination params", () => {
     it("should return the default limit", () => {
       expect(getPaginationParams(new URLSearchParams({ limit: "-100" }))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
@@ -30,7 +30,7 @@ describe("when getting the pagination params", () => {
     it("should return the default limit", () => {
       expect(getPaginationParams(new URLSearchParams({ limit: "notAnInteger" }))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
@@ -39,7 +39,7 @@ describe("when getting the pagination params", () => {
     it("should return the value as the limit", () => {
       expect(getPaginationParams(new URLSearchParams({ limit: "10" }))).toEqual({
         limit: 10,
-        page: 0,
+        offset: 0,
       })
     })
   })
@@ -48,25 +48,25 @@ describe("when getting the pagination params", () => {
     it("should return the default page", () => {
       expect(getPaginationParams(new URLSearchParams({}))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
 
   describe("and the page is set to a a value that can't be parsed as a number", () => {
-    it("should return the default page", () => {
+    it("should return the default offset", () => {
       expect(getPaginationParams(new URLSearchParams({ page: "notAnInteger" }))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
 
   describe("and the page is set to a negative integer", () => {
-    it("should return the default page", () => {
+    it("should return the default offset", () => {
       expect(getPaginationParams(new URLSearchParams({ page: "-20" }))).toEqual({
         limit: 50,
-        page: 0,
+        offset: 0,
       })
     })
   })
@@ -75,7 +75,7 @@ describe("when getting the pagination params", () => {
     it("should return the value as the page", () => {
       expect(getPaginationParams(new URLSearchParams({ page: "1" }))).toEqual({
         limit: 50,
-        page: 1,
+        offset: 50,
       })
     })
   })

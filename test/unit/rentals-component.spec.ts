@@ -425,7 +425,7 @@ describe("when getting rental listings", () => {
     it("should propagate the error", () => {
       expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -444,7 +444,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the category condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -453,8 +453,8 @@ describe("when getting rental listings", () => {
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
-      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND metadata.category = $3"))
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([10, 0, "parcel"])
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND metadata.category = $1"))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["parcel", 10, 0])
     })
   })
 
@@ -468,7 +468,7 @@ describe("when getting rental listings", () => {
       it("should have made the query to get the listings with the status condition", async () => {
         await expect(
           rentalsComponent.getRentalsListings({
-            page: 0,
+            offset: 0,
             limit: 10,
             sortBy: null,
             sortDirection: null,
@@ -487,7 +487,7 @@ describe("when getting rental listings", () => {
       it("should have made the query to get the listings with the multiple statuses condition", async () => {
         await expect(
           rentalsComponent.getRentalsListings({
-            page: 0,
+            offset: 0,
             limit: 10,
             sortBy: null,
             sortDirection: null,
@@ -514,7 +514,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the lessor condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -538,7 +538,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the tenant condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -562,7 +562,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the text condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -575,7 +575,8 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(
         expect.stringContaining("AND metadata.search_text ILIKE '%' || ")
       )
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([10, 0, "someText"])
+      console.log(dbQueryMock.mock.calls[0][0].values)
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual(["someText", 10, 0])
     })
   })
 
@@ -588,7 +589,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the tokenId condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -622,7 +623,7 @@ describe("when getting rental listings", () => {
       it("should not have made the query to get the listings with the contract addresses condition", async () => {
         await expect(
           rentalsComponent.getRentalsListings({
-            page: 0,
+            offset: 0,
             limit: 10,
             sortBy: null,
             sortDirection: null,
@@ -648,7 +649,7 @@ describe("when getting rental listings", () => {
       it("should have made the query to get the listings with the contract addresses condition", async () => {
         await expect(
           rentalsComponent.getRentalsListings({
-            page: 0,
+            offset: 0,
             limit: 10,
             sortBy: null,
             sortDirection: null,
@@ -677,7 +678,7 @@ describe("when getting rental listings", () => {
     it("should have made the query to get the listings with the network condition", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -705,7 +706,7 @@ describe("when getting rental listings", () => {
     it("should not include any filters in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -730,7 +731,7 @@ describe("when getting rental listings", () => {
     it("should include the default order and order direction in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: null,
@@ -751,7 +752,7 @@ describe("when getting rental listings", () => {
     it("should include the default order and the specified order direction in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: null,
           sortDirection: RentalsListingSortDirection.DESC,
@@ -772,7 +773,7 @@ describe("when getting rental listings", () => {
     it("should include the search by text order in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: RentalsListingsSortBy.NAME,
           sortDirection: null,
@@ -793,7 +794,7 @@ describe("when getting rental listings", () => {
     it("should include the created_at order in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: RentalsListingsSortBy.RENTAL_LISTING_DATE,
           sortDirection: null,
@@ -814,7 +815,7 @@ describe("when getting rental listings", () => {
     it("should include the max_price_per_day order in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: RentalsListingsSortBy.MAX_RENTAL_PRICE,
           sortDirection: null,
@@ -837,7 +838,7 @@ describe("when getting rental listings", () => {
     it("should include the min_price_per_day order in the query", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
-          page: 0,
+          offset: 0,
           limit: 10,
           sortBy: RentalsListingsSortBy.MIN_RENTAL_PRICE,
           sortDirection: null,
