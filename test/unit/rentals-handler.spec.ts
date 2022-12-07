@@ -337,7 +337,7 @@ describe("when getting rental listings", () => {
             total: 0,
             page: 0,
             pages: 0,
-            limit: 50,
+            limit: 100,
           },
         },
       })
@@ -367,7 +367,7 @@ describe("when getting rental listings", () => {
             total: 0,
             page: 0,
             pages: 0,
-            limit: 50,
+            limit: 100,
           },
         },
       })
@@ -461,7 +461,7 @@ describe("when getting rental listings", () => {
               total: 1,
               page: 0,
               pages: 1,
-              limit: 50,
+              limit: 100,
             },
           },
         })
@@ -484,7 +484,7 @@ describe("when getting rental listings", () => {
               total: 1,
               page: 0,
               pages: 1,
-              limit: 50,
+              limit: 100,
             },
           },
         })
@@ -570,7 +570,7 @@ describe("when getting rental listings", () => {
             total: 1,
             page: 0,
             pages: 1,
-            limit: 50,
+            limit: 100,
           },
         },
       })

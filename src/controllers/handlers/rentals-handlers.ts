@@ -32,7 +32,7 @@ export async function getRentalsListingsHandler(
     components: { rentals },
   } = context
 
-  const { page, limit } = getPaginationParams(url.searchParams)
+  const { limit, offset } = getPaginationParams(url.searchParams)
   try {
     const sortBy = getTypedStringQueryParameter(Object.values(RentalsListingsSortBy), url.searchParams, "sortBy")
     const sortDirection = getTypedStringQueryParameter(
@@ -59,12 +59,13 @@ export async function getRentalsListingsHandler(
       {
         sortBy,
         sortDirection,
-        page,
+        offset,
         limit,
         filterBy,
       },
       getHistoricData
     )
+
     return {
       status: StatusCode.OK,
       body: {
@@ -72,7 +73,7 @@ export async function getRentalsListingsHandler(
         data: {
           results: fromDBGetRentalsListingsToRentalListings(rentalListings),
           total: rentalListings.length > 0 ? Number(rentalListings[0].rentals_listings_count) : 0,
-          page,
+          page: Math.floor(offset / limit),
           pages: rentalListings.length > 0 ? Math.ceil(Number(rentalListings[0].rentals_listings_count) / limit) : 0,
           limit,
         },

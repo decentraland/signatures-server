@@ -365,12 +365,12 @@ export async function createRentalsComponent(
       sortBy: RentalsListingsSortBy | null
       sortDirection: RentalsListingSortDirection | null
       filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
-      page: number
+      offset: number
       limit: number
     },
     getHistoricData?: boolean
   ): Promise<DBGetRentalListing[]> {
-    const { sortBy, page, limit, filterBy, sortDirection } = params
+    const { sortBy, offset, limit, filterBy, sortDirection } = params
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
 
@@ -420,13 +420,13 @@ export async function createRentalsComponent(
     }
 
     // The periods array items must be casted to string because the numeric arrays are considered as number by node-pg
-    let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at FROM metadata,
+    let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at, COUNT(*) OVER() as rentals_listings_count FROM metadata,
       (SELECT `
     if (!getHistoricData) {
       query.append("DISTINCT ON (rentals.metadata_id) ")
     }
     query.append(`rentals.*, rentals_listings.tenant, rentals_listings.lessor,
-      COUNT(*) OVER() as rentals_listings_count, array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods,
+      array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods,
       min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
@@ -441,14 +441,15 @@ export async function createRentalsComponent(
     query.append(
       SQL`
         GROUP BY rentals.id, rentals_listings.id, periods.rental_id
-        ORDER BY rentals.metadata_id, rentals.created_at desc
-        LIMIT ${limit} OFFSET ${page}) as rentals\n
+        ORDER BY rentals.metadata_id, rentals.created_at desc) as rentals\n
       `
     )
     query.append("WHERE metadata.id = rentals.metadata_id\n")
     query.append(filterByCategory)
     query.append(filterBySearchText)
     query.append(sortByQuery)
+    query.append(SQL`LIMIT ${limit} OFFSET ${offset}`)
+
     const results = await database.query<DBGetRentalListing>(query)
     return results.rows
   }
