@@ -1,4 +1,4 @@
-const MAX_LIMIT = 50
+const MAX_LIMIT = 100
 const DEFAULT_PAGE = 0
 
 export const getPaginationParams = (params: URLSearchParams): { limit: number; offset: number } => {
