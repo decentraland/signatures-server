@@ -91,4 +91,24 @@ describe("when verifying the rentals listings signature", () => {
       return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(true)
     })
   })
+
+  describe("and the signature has an invalid V", () => {
+    beforeEach(() => {
+      contractRentalListing.signature = contractRentalListing.signature.slice(-2) + "00"
+    })
+
+    it("should return false", () => {
+      return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(false)
+    })
+  })
+
+  describe("and the signature length is invalid", () => {
+    beforeEach(() => {
+      contractRentalListing.signature = "0x0000"
+    })
+
+    it("should return false", () => {
+      return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(false)
+    })
+  })
 })

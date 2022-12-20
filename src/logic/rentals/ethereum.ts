@@ -2,6 +2,7 @@ import { ethers } from "ethers"
 import { ChainId } from "@dcl/schemas"
 import { _TypedDataEncoder } from "@ethersproject/hash"
 import { ContractData, ContractName, getContract } from "decentraland-transactions"
+import { hasECDSASignatureAValidV } from "../../ports/rentals/utils"
 import { ContractRentalListing, RentalListingSignatureData } from "./types"
 
 async function buildRentalListingSignatureData(
@@ -52,5 +53,6 @@ export async function verifyRentalsListingSignature(
     rentalListingSignatureData.signature
   )
 
-  return signingAddress.toLowerCase() === rentalListingSignatureData.values.signer
+  const isVValid = hasECDSASignatureAValidV(rentalListing.signature)
+  return signingAddress.toLowerCase() === rentalListingSignatureData.values.signer && isVValid
 }
