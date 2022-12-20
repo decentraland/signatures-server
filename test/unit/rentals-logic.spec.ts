@@ -86,25 +86,27 @@ describe("when verifying the rentals listings signature", () => {
     })
   })
 
-  describe("and the signature is not expired and was signed by the provided address", () => {
+  describe("and the signature is not expired, it was signed by the provided address and its V is 28", () => {
     it("should return true", () => {
       return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(true)
     })
   })
 
-  describe("and the signature has an invalid V", () => {
+  describe("and the signature has a V of 0 or 1", () => {
     beforeEach(() => {
-      contractRentalListing.signature = contractRentalListing.signature.slice(-2) + "00"
-    })
-
-    it("should return false", () => {
-      return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(false)
-    })
-  })
-
-  describe("and the signature length is invalid", () => {
-    beforeEach(() => {
-      contractRentalListing.signature = "0x0000"
+      contractRentalListing = {
+        signer: "0x343889d9f2a54fc1c790880f8f8dc309ce7359d7",
+        contractAddress: "0x959e104e1a4db6317fa58f8295f586e1a978c297",
+        tokenId: "4364",
+        expiration: new Date("2023-02-28 00:00:00").getTime().toString(),
+        indexes: ["0", "0", "0"],
+        pricePerDay: ["8000000000000000000"],
+        maxDays: ["365"],
+        minDays: ["365"],
+        signature:
+          "0xb7cc6d9d616a6124cdb7dda758346499f5fe883e391bc3018c18eb4cd8f5b9957e1f4d82f5dfe3679262f983d0e587dcffe19c1647574dab439ac084f95570f401",
+        target: ethers.constants.AddressZero,
+      }
     })
 
     it("should return false", () => {

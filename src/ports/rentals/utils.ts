@@ -14,10 +14,6 @@ function getLastECDSASignatureByte(signature: string) {
  * @returns true if the v value is decimal 27 or 28 else otherwise.
  */
 export function hasECDSASignatureAValidV(signature: string): boolean {
-  if (signature.length !== 130) {
-    return true
-  }
-
   const lastSignatureByte = getLastECDSASignatureByte(signature)
   return lastSignatureByte === 27 || lastSignatureByte === 28
 }

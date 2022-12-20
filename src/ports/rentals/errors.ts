@@ -23,7 +23,7 @@ export class RentalNotFound extends Error {
 }
 
 export class InvalidSignature extends Error {
-  constructor() {
-    super("The provided signature is invalid")
+  constructor(public reason?: string) {
+    super(`The provided signature is invalid ${reason ? `: ${reason}` : ""}`)
   }
 }

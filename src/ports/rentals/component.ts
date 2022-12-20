@@ -38,7 +38,7 @@ import {
   IndexUpdateEventType,
 } from "./types"
 import { buildQueryParameters } from "./graph"
-import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV } from "./utils"
+import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
@@ -252,6 +252,10 @@ export async function createRentalsComponent(
       rental.chainId
     )
     if (!isSignatureValid) {
+      if (!hasECDSASignatureAValidV(rental.signature)) {
+        logger.error(buildLogMessageForRental("Invalid signature: ECDSA signature with V as 0 or 1"))
+        throw new InvalidSignature("The server does not accept ECDSA signatures with V as 0 or 1")
+      }
       logger.error(buildLogMessageForRental("Invalid signature"))
       throw new InvalidSignature()
     }
