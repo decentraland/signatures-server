@@ -901,7 +901,8 @@ describe("when refreshing rental listings", () => {
       updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
       metadata_updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
       metadata_id: "metadataId",
-      signature: "aSignature",
+      signature:
+        "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf51b",
       nonces: ["0", "0", "0"],
       status: RentalStatus.OPEN,
     }
@@ -1021,7 +1022,9 @@ describe("when refreshing rental listings", () => {
 
       it("should not update the metadata in the database and return the rental", async () => {
         await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE metadata SET"))
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({ text: expect.not.stringContaining("UPDATE metadata SET") })
+        )
       })
     })
 
@@ -1080,6 +1083,7 @@ describe("when refreshing rental listings", () => {
       })
     })
   })
+
   describe("and there's no rental in the blockchain for the signature", () => {
     beforeEach(() => {
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
@@ -1091,23 +1095,79 @@ describe("when refreshing rental listings", () => {
           },
         ],
       })
-      dbQueryMock
-        .mockResolvedValueOnce({
-          rows: [rentalFromDb],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [result],
-          rowCount: 1,
-        })
       rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
       mockDefaultSubgraphNonces()
     })
 
-    it("should not update the database entry for the rental and return the rental unchanged", async () => {
-      await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
-      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+    describe("and the signature has a V of value 27 or 28", () => {
+      beforeEach(() => {
+        dbQueryMock
+          .mockResolvedValueOnce({
+            rows: [rentalFromDb],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
+      })
+
+      it("should not update the database entry for the rental and return the rental unchanged", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      })
+    })
+
+    describe("and the signature does not have a V of value 27 or 28", () => {
+      beforeEach(() => {
+        rentalFromDb.signature =
+          "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf500"
+      })
+
+      describe("and the rental is open", () => {
+        beforeEach(() => {
+          rentalFromDb.status = RentalStatus.OPEN
+          dbQueryMock
+            .mockResolvedValueOnce({
+              rows: [rentalFromDb],
+              rowCount: 1,
+            })
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+
+        it("should update the rental signature and return the updated rental", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({ strings: expect.arrayContaining(["UPDATE rentals SET signature = "]) })
+          )
+        })
+      })
+
+      describe("and the rental is not open", () => {
+        beforeEach(() => {
+          rentalFromDb.status = RentalStatus.EXECUTED
+          dbQueryMock
+            .mockResolvedValueOnce({
+              rows: [rentalFromDb],
+              rowCount: 1,
+            })
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+
+        it("should not update the database entry for the rental and return the rental unchanged", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+        })
+      })
     })
   })
 

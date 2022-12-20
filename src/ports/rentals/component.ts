@@ -548,6 +548,16 @@ export async function createRentalsComponent(
           SQL`UPDATE rentals_listings SET tenant = ${indexerRentals[0].tenant} WHERE id = ${rentalData.id}`
         )
       )
+    } else if (
+      indexerRentalLastUpdate === 0 &&
+      rentalData.status === RentalStatus.OPEN &&
+      !hasECDSASignatureAValidV(rentalData.signature)
+    ) {
+      logger.info(`[Refresh][Update rental signature][${rentalId}]`)
+      // If the rental has not been executed and the signature is invalid, change it.
+      promisesOfUpdate.push(
+        database.query(SQL`UPDATE rentals SET signature = ${signature} WHERE id = ${rentalData.id}`)
+      )
     }
 
     // Identify if there's any blockchain nonce update
