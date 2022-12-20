@@ -38,6 +38,7 @@ import {
   IndexUpdateEventType,
 } from "./types"
 import { buildQueryParameters } from "./graph"
+import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
@@ -251,6 +252,11 @@ export async function createRentalsComponent(
       rental.chainId
     )
     if (!isSignatureValid) {
+      if (!hasECDSASignatureAValidV(rental.signature)) {
+        logger.error(buildLogMessageForRental("Invalid signature: ECDSA signature with V as 0 or 1"))
+        throw new InvalidSignature("The server does not accept ECDSA signatures with V as 0 or 1")
+      }
+      logger.error(buildLogMessageForRental("Invalid signature"))
       throw new InvalidSignature()
     }
 
@@ -482,8 +488,9 @@ export async function createRentalsComponent(
     }
 
     const rentalData = rentalQueryResult.rows[0]
+    const signature = generateECDSASignatureWithValidV(rentalData.signature)
     const [indexerRentals, [indexerNFT], indexerIndexesUpdate] = await Promise.all([
-      getRentalsFromIndexer({ first: 1, filterBy: { signature: rentalData.signature } }),
+      getRentalsFromIndexer({ first: 1, filterBy: { signature } }),
       getNFTsFromIndexer({
         filterBy: { contractAddress: rentalData.contract_address, tokenId: rentalData.token_id },
         first: 1,
@@ -517,7 +524,7 @@ export async function createRentalsComponent(
         )
       )
 
-      // If the nft has been transfered, but not due to a rent starting
+      // If the nft has been transferred, but not due to a rent starting
       // Cancel the rental listing that now has a different owner
       if (rentalData.status === RentalStatus.OPEN && indexerNFT.owner.address !== rentalData.lessor) {
         database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
@@ -533,13 +540,23 @@ export async function createRentalsComponent(
             indexerRentals[0].ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
           }, rented_days = ${indexerRentals[0].rentalDays}, period_chosen = ${
             rentalData.period_id
-          }, started_at = ${new Date(fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt)))} WHERE id = ${
-            rentalData.id
-          }`
+          }, started_at = ${new Date(
+            fromSecondsToMilliseconds(Number(indexerRentals[0].startedAt))
+          )}, signature = ${signature} WHERE id = ${rentalData.id}`
         ),
         database.query(
           SQL`UPDATE rentals_listings SET tenant = ${indexerRentals[0].tenant} WHERE id = ${rentalData.id}`
         )
+      )
+    } else if (
+      indexerRentalLastUpdate === 0 &&
+      rentalData.status === RentalStatus.OPEN &&
+      !hasECDSASignatureAValidV(rentalData.signature)
+    ) {
+      logger.info(`[Refresh][Update rental signature][${rentalId}]`)
+      // If the rental has not been executed and the signature is invalid, change it.
+      promisesOfUpdate.push(
+        database.query(SQL`UPDATE rentals SET signature = ${signature} WHERE id = ${rentalData.id}`)
       )
     }
 
@@ -724,7 +741,11 @@ export async function createRentalsComponent(
               SQL`
                 SELECT rentals.id, lessor, status, started_at, periods.id period_id, periods.max_days, periods.min_days 
                 FROM rentals, rentals_listings, periods
-                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${rental.signature} AND periods.rental_id = rentals.id
+                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${
+                  rental.signature
+                } OR rentals.signature = ${generateECDSASignatureWithInvalidV(
+                rental.signature
+              )} AND periods.rental_id = rentals.id
               `
             )
             logger.debug(
@@ -745,7 +766,7 @@ export async function createRentalsComponent(
                     dbRental.period_id
                   }, started_at = ${new Date(fromSecondsToMilliseconds(Number(rental.startedAt)))}, status = ${
                     rental.ownerHasClaimedAsset ? RentalStatus.CLAIMED : RentalStatus.EXECUTED
-                  } WHERE id = ${dbRental.id}`
+                  }, signature = ${generateECDSASignatureWithValidV(rental.signature)} WHERE id = ${dbRental.id}`
                 ),
                 client.query(
                   SQL`UPDATE rentals SET status = ${RentalStatus.CLAIMED} WHERE contract_address = ${rental.contractAddress} AND token_id = ${rental.tokenId} AND status = ${RentalStatus.EXECUTED} AND started_at < ${dbRental.started_at}`

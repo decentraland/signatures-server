@@ -112,10 +112,24 @@ describe("when creating a rental listing", () => {
       mockedRentalsLogic.verifyRentalsListingSignature.mockReset().mockResolvedValueOnce(false)
     })
 
-    it("should throw an invalid signature error", () => {
-      return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
-        new InvalidSignature()
-      )
+    describe("and it's not valid due to having a V as 0 or 1", () => {
+      beforeEach(() => {
+        rentalListingCreation.signature = rentalListingCreation.signature.slice(0, -2) + "00"
+      })
+
+      it("should throw an invalid signature error with the reason", () => {
+        return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+          new InvalidSignature("The server does not accept ECDSA signatures with V as 0 or 1")
+        )
+      })
+    })
+
+    describe("and it's not valid due to another error", () => {
+      it("should throw an invalid signature error", () => {
+        return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+          new InvalidSignature()
+        )
+      })
     })
   })
 
@@ -887,7 +901,8 @@ describe("when refreshing rental listings", () => {
       updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
       metadata_updated_at: new Date(Math.round(Date.now() / 1000) * 1000),
       metadata_id: "metadataId",
-      signature: "aSignature",
+      signature:
+        "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf51b",
       nonces: ["0", "0", "0"],
       status: RentalStatus.OPEN,
     }
@@ -1007,7 +1022,9 @@ describe("when refreshing rental listings", () => {
 
       it("should not update the metadata in the database and return the rental", async () => {
         await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE metadata SET"))
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({ text: expect.not.stringContaining("UPDATE metadata SET") })
+        )
       })
     })
 
@@ -1078,23 +1095,79 @@ describe("when refreshing rental listings", () => {
           },
         ],
       })
-      dbQueryMock
-        .mockResolvedValueOnce({
-          rows: [rentalFromDb],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [result],
-          rowCount: 1,
-        })
       rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [] })
       mockDefaultSubgraphNonces()
     })
 
-    it("should not update the database entry for the rental and return the rental unchanged", async () => {
-      await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
-      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
-      expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+    describe("and the signature has a V of value 27 or 28", () => {
+      beforeEach(() => {
+        dbQueryMock
+          .mockResolvedValueOnce({
+            rows: [rentalFromDb],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
+      })
+
+      it("should not update the database entry for the rental and return the rental unchanged", async () => {
+        await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+        expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+      })
+    })
+
+    describe("and the signature does not have a V of value 27 or 28", () => {
+      beforeEach(() => {
+        rentalFromDb.signature =
+          "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf500"
+      })
+
+      describe("and the rental is open", () => {
+        beforeEach(() => {
+          rentalFromDb.status = RentalStatus.OPEN
+          dbQueryMock
+            .mockResolvedValueOnce({
+              rows: [rentalFromDb],
+              rowCount: 1,
+            })
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+
+        it("should update the rental signature and return the updated rental", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({ strings: expect.arrayContaining(["UPDATE rentals SET signature = "]) })
+          )
+        })
+      })
+
+      describe("and the rental is not open", () => {
+        beforeEach(() => {
+          rentalFromDb.status = RentalStatus.EXECUTED
+          dbQueryMock
+            .mockResolvedValueOnce({
+              rows: [rentalFromDb],
+              rowCount: 1,
+            })
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+
+        it("should not update the database entry for the rental and return the rental unchanged", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals SET"))
+          expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE rentals_listings SET"))
+        })
+      })
     })
   })
 
@@ -1327,6 +1400,50 @@ describe("when refreshing rental listings", () => {
         })
         expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE rentals SET"))
         expect(dbQueryMock.mock.calls[1][0].values).toContainEqual(RentalStatus.EXECUTED)
+      })
+    })
+
+    describe("and the signature in the DB has a V with value 0 or 1", () => {
+      let newSignature: string
+
+      beforeEach(async () => {
+        rentalFromDb.signature =
+          "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf501"
+        newSignature =
+          "0x402a10749ebca5d35af41b5780a2667e7edbc2ec64bad157714f533c69cb694c4e4595b88dce064a92772850e903c23d0f67625aeccf9308841ad34929daf51c"
+        rentalsSubgraphQueryMock.mockResolvedValueOnce({
+          rentals: [
+            {
+              ...rentalFromIndexer,
+              signature: newSignature,
+              ownerHasClaimedAsset: false,
+              updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+            },
+          ],
+        })
+        mockDefaultSubgraphNonces()
+        dbQueryMock
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce(undefined)
+          .mockResolvedValueOnce({
+            rows: [{ result, status: RentalStatus.EXECUTED }],
+            rowCount: 1,
+          })
+
+        await rentalsComponent.refreshRentalListing("an id")
+      })
+
+      it("should update the database entry for the rental with the a signature with a valid V", () => {
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            text: expect.stringContaining("UPDATE rentals SET"),
+            values: expect.arrayContaining([newSignature]),
+          })
+        )
+      })
+
+      it("should have queried the graph with a signature based on the original that contains a valid V", () => {
+        expect(rentalsSubgraphQueryMock).toHaveBeenCalledWith(expect.anything(), { signature: newSignature })
       })
     })
   })
@@ -1705,7 +1822,13 @@ describe("when updating the rental listings", () => {
   })
 
   describe("and there are rentals to be updated", () => {
+    let newSignature: string
+    let oldSignature: string
+
     beforeEach(() => {
+      newSignature =
+        "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b"
+      oldSignature = newSignature.slice(0, -2) + "00"
       rentalFromIndexer = {
         id: "aRentalId",
         contractAddress: "aContractAddress",
@@ -1722,12 +1845,12 @@ describe("when updating the rental listings", () => {
         ownerHasClaimedAsset: false,
         rentalContractAddress: "aRentalContractAddress",
         isExtension: false,
-        signature: "aSignature",
+        signature: newSignature,
       }
     })
 
     describe("and the rentals to be updated exist in the database", () => {
-      let dbRental: Pick<DBRental & DBRentalListing, "id" | "lessor" | "status">
+      let dbRental: Pick<DBRental & DBRentalListing, "id" | "lessor" | "status" | "signature">
 
       describe("and the LAND has been claimed by its owner", () => {
         beforeEach(async () => {
@@ -1735,6 +1858,7 @@ describe("when updating the rental listings", () => {
             id: "rentalId",
             lessor: "aLessorAddress",
             status: RentalStatus.OPEN,
+            signature: oldSignature,
           }
           rentalFromIndexer = { ...rentalFromIndexer, ownerHasClaimedAsset: true }
           dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
@@ -1748,6 +1872,7 @@ describe("when updating the rental listings", () => {
               strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals")]),
               values: expect.arrayContaining([
                 new Date(Math.floor(Number(rentalFromIndexer.startedAt) * 1000)),
+                newSignature,
                 RentalStatus.CLAIMED,
                 dbRental.id,
               ]),
@@ -1778,10 +1903,6 @@ describe("when updating the rental listings", () => {
             })
           )
         })
-
-        it("should release the client", () => {
-          expect(dbClientReleaseMock).toHaveBeenCalled()
-        })
       })
 
       describe("and the LAND has not been claimed by its owner", () => {
@@ -1790,6 +1911,8 @@ describe("when updating the rental listings", () => {
             id: "rentalId",
             lessor: "aLessorAddress",
             status: RentalStatus.OPEN,
+            signature:
+              "0x38fbaabfdf15b5b0ccc66c6eaab45a525fc03ff7590ed28da5894365e4bfee16008e28064a418203b0e3186ff3bce4cccb58b06bac2519b9ca73cdc13ecc3cea1b",
           }
           rentalFromIndexer = { ...rentalFromIndexer, ownerHasClaimedAsset: false }
           dbClientQueryMock.mockResolvedValueOnce({ rows: [dbRental] })
