@@ -1901,12 +1901,6 @@ describe("when updating the rental listings", () => {
           expect(dbClientReleaseMock).toHaveBeenCalled()
         })
       })
-
-      it("should have", () => {
-        expect(dbClientQueryMock).toHaveBeenCalledWith(
-          expect.objectContaining({ values: expect.arrayContaining(["falopa"]) })
-        )
-      })
     })
 
     describe("and the rentals to be updated don't exist in the database", () => {
