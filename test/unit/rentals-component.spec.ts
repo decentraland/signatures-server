@@ -730,6 +730,8 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
       expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.tenant = "))
       expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals.status = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals.target = "))
+      expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals.updated_at > "))
       expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND rentals_listings.lessor = "))
       expect(dbQueryMock.mock.calls[0][0].text).not.toEqual(expect.stringContaining("AND metadata.search_text ILIKE %"))
     })
@@ -861,6 +863,62 @@ describe("when getting rental listings", () => {
 
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(
         expect.stringContaining("ORDER BY rentals.min_price_per_day asc")
+      )
+    })
+  })
+
+  describe("and the target filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the target condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            target: "0x0",
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND rentals.target = ")]),
+          values: ["0x0", 10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and the updated after filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the updated after", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            updatedAfter: 1000000,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND rentals.updated_at > ")]),
+          values: [new Date(1000000), 10, 0],
+        })
       )
     })
   })

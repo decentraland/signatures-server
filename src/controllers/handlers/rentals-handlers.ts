@@ -7,6 +7,7 @@ import {
   RentalStatus,
 } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
+import { ethers } from "ethers"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import {
   getPaginationParams,
@@ -41,7 +42,7 @@ export async function getRentalsListingsHandler(
       "sortDirection"
     )
     const getHistoricData = url.searchParams.get("history") === "true"
-    const filterBy: RentalsListingsFilterBy & { status?: RentalStatus[] } = {
+    const filterBy: RentalsListingsFilterBy & { updatedAfter?: number; target: string } = {
       category:
         getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
         undefined,
@@ -54,6 +55,8 @@ export async function getRentalsListingsHandler(
       nftIds: url.searchParams.getAll("nftIds"),
       network:
         (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
+      updatedAfter: url.searchParams.get("updatedAfter") ? Number(url.searchParams.get("updatedAfter")) : undefined,
+      target: url.searchParams.get("target") ?? ethers.constants.AddressZero,
     }
     const rentalListings = await rentals.getRentalsListings(
       {
