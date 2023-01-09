@@ -370,9 +370,7 @@ export async function createRentalsComponent(
     params: {
       sortBy: RentalsListingsSortBy | null
       sortDirection: RentalsListingSortDirection | null
-      filterBy:
-        | (RentalsListingsFilterBy & { status?: RentalStatus[] } & { updatedAfter?: number; target?: string })
-        | null
+      filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
       offset: number
       limit: number
     },

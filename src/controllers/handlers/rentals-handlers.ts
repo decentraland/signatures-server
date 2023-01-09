@@ -42,7 +42,7 @@ export async function getRentalsListingsHandler(
       "sortDirection"
     )
     const getHistoricData = url.searchParams.get("history") === "true"
-    const filterBy: RentalsListingsFilterBy & { updatedAfter?: number; target: string } = {
+    const filterBy: RentalsListingsFilterBy = {
       category:
         getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
         undefined,
