@@ -575,6 +575,64 @@ describe("when getting rental listings", () => {
         },
       })
     })
+
+    describe("and the process is done with the target parameter set", () => {
+      const target = "0x1"
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing?target=${target}`)
+      })
+
+      it("should have retrieved the rental listings with the given target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ target }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the target parameter unset", () => {
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing`)
+      })
+
+      it("should have retrieved the rental listings with the zero address as the target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ target: ethers.constants.AddressZero }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the updatedAfter parameter set", () => {
+      const updatedAfter = Date.now()
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing?updatedAfter=${updatedAfter}`)
+      })
+
+      it("should have retrieved the rental listings that were updated after the given timestamp", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ updatedAfter }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the updatedAfter parameter unset", () => {
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing`)
+      })
+
+      it("should have retrieved the rental listings without an updated after timestamp", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.not.objectContaining({ updatedAfter: expect.anything() }) }),
+          false
+        )
+      })
+    })
   })
 })
 

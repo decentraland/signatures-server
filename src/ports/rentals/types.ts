@@ -23,7 +23,7 @@ export type GetRentalListingParameters = {
   sortDirection: RentalsListingSortDirection | null
   offset: number
   limit: number
-  filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
+  filterBy: RentalsListingsFilterBy | null
 }
 
 export enum UpdateType {

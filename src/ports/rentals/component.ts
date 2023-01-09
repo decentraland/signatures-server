@@ -393,6 +393,10 @@ export async function createRentalsComponent(
       filterByStatus.append(`)\n`)
     }
     const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
+    const filterByTarget = filterBy?.target ? SQL`AND rentals.target = ${filterBy.target}\n` : ""
+    const filterByUpdatedAfter = filterBy?.updatedAfter
+      ? SQL`AND rentals.updated_at > ${new Date(filterBy.updatedAfter)}\n`
+      : ""
     const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
     const filterBySearchText = filterBy?.text
       ? SQL`AND metadata.search_text ILIKE '%' || ${filterBy.text} || '%'\n`
@@ -438,6 +442,8 @@ export async function createRentalsComponent(
       rentals.id = rentals_listings.id AND
       periods.rental_id = rentals.id\n`)
     query.append(filterByStatus)
+    query.append(filterByTarget)
+    query.append(filterByUpdatedAfter)
     query.append(filterByTokenId)
     query.append(filterByContractAddress)
     query.append(filterByNetwork)
