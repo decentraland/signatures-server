@@ -409,7 +409,13 @@ export async function createRentalsComponent(
     const filterByNftIds =
       filterBy?.nftIds && filterBy.nftIds.length > 0 ? SQL`AND rentals.metadata_id = ANY(${filterBy.nftIds})\n` : ""
     const filterByNetwork = filterBy?.network ? SQL`AND rentals.network = ${filterBy.network}\n` : ""
-
+  
+    const filterByPriceItems = [
+      ...(filterBy?.minPricePerDay ? [SQL `min(periods.price_per_day) > ${filterBy.minPricePerDay}`]: []),
+      ...(filterBy?.maxPricePerDay ? [SQL `max(periods.price_per_day) > ${filterBy.maxPricePerDay}`]: []),
+    ]
+    const filterByPrice = filterByPriceItems.length ? SQL`HAVING ${filterByPriceItems.join(' AND ')}` : ""
+  
     let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
     switch (sortByParam) {
       case RentalsListingsSortBy.LAND_CREATION_DATE:
@@ -450,12 +456,9 @@ export async function createRentalsComponent(
     query.append(filterByLessor)
     query.append(filterByTenant)
     query.append(filterByNftIds)
-    query.append(
-      SQL`
-        GROUP BY rentals.id, rentals_listings.id, periods.rental_id
-        ORDER BY rentals.metadata_id, rentals.created_at desc) as rentals\n
-      `
-    )
+    query.append(SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id`)
+    query.append(filterByPrice)
+    query.append(SQL`ORDER BY rentals.metadata_id, rentals.created_at desc) as rentals\n`)
     query.append("WHERE metadata.id = rentals.metadata_id\n")
     query.append(filterByCategory)
     query.append(filterBySearchText)

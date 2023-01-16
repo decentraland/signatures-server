@@ -57,6 +57,8 @@ export async function getRentalsListingsHandler(
         (getTypedStringQueryParameter(Object.values(Network), url.searchParams, "network") as Network) ?? undefined,
       updatedAfter: url.searchParams.get("updatedAfter") ? Number(url.searchParams.get("updatedAfter")) : undefined,
       target: url.searchParams.get("target") ?? ethers.constants.AddressZero,
+      minPricePerDay: url.searchParams.get("minPricePerDay") ?? undefined,
+      maxPricePerDay: url.searchParams.get("maxPricePerDay") ?? undefined,
     }
     const rentalListings = await rentals.getRentalsListings(
       {
