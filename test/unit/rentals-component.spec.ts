@@ -449,6 +449,60 @@ describe("when getting rental listings", () => {
     })
   })
 
+  describe("and the minPricePerDay filter is set", () => {
+    let minPricePerDay: string
+    beforeEach(() => {
+      minPricePerDay = "10000000"
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the min price condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            minPricePerDay,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining(`HAVING max(periods.price_per_day) >= $1`)
+      )
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([minPricePerDay, 10, 0])
+    })
+  })
+
+  describe("and the maxPricePerDay filter is set", () => {
+    let maxPricePerDay: string
+    beforeEach(() => {
+      maxPricePerDay = "10000000"
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the max price condition", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            maxPricePerDay,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining(`HAVING min(periods.price_per_day) <= $1`)
+      )
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([maxPricePerDay, 10, 0])
+    })
+  })
+
   describe("and the category filter is set", () => {
     beforeEach(() => {
       dbGetRentalListings = []

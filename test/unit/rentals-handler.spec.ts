@@ -576,6 +576,64 @@ describe("when getting rental listings", () => {
       })
     })
 
+    describe("and the process is done with the minPricePerDay parameter set", () => {
+      const minPricePerDay = "1"
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing?minPricePerDay=${minPricePerDay}`)
+      })
+
+      it("should have retrieved the rental listings with the given target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ minPricePerDay }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the minPricePerDay parameter unset", () => {
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing`)
+      })
+
+      it("should have retrieved the rental listings with the given target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.not.objectContaining({ minPricePerDay: expect.anything() }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the maxPricePerDay parameter set", () => {
+      const maxPricePerDay = "100"
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing?maxPricePerDay=${maxPricePerDay}`)
+      })
+
+      it("should have retrieved the rental listings with the given target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ maxPricePerDay }) }),
+          false
+        )
+      })
+    })
+
+    describe("and the process is done with the maxPricePerDay parameter unset", () => {
+      beforeEach(() => {
+        url = new URL(`http://localhost/v1/rental-listing`)
+      })
+
+      it("should have retrieved the rental listings with the given target", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.not.objectContaining({ maxPricePerDay: expect.anything() }) }),
+          false
+        )
+      })
+    })
+
     describe("and the process is done with the target parameter set", () => {
       const target = "0x1"
       beforeEach(() => {
