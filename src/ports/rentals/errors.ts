@@ -27,3 +27,9 @@ export class InvalidSignature extends Error {
     super(`The provided signature is invalid${reason ? `: ${reason}` : ""}`)
   }
 }
+
+export class InvalidEstate extends Error {
+  constructor(public contractAddress: string, public tokenId: string) {
+    super("Estates with size 0 can't be listed for rent")
+  }
+}
