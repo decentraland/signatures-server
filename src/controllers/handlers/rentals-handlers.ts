@@ -15,6 +15,7 @@ import {
   getTypedStringQueryParameter,
   InvalidParameterError,
 } from "../../logic/http"
+import { ContractNotFound } from "../../logic/rentals/errors"
 import {
   InvalidSignature,
   NFTNotFound,
@@ -173,6 +174,18 @@ export async function rentalsListingsCreationHandler(
         body: {
           ok: false,
           message: error.message,
+        },
+      }
+    } else if (error instanceof ContractNotFound) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            contractName: error.contractName,
+            chainId: error.chainId,
+          },
         },
       }
     }

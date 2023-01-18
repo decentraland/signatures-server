@@ -16,6 +16,7 @@ import {
   RentalNotFound,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
+import { ContractNotFound } from "../../src/logic/rentals/errors"
 import { AppComponents, HandlerContextWithPath, StatusCode } from "../../src/types"
 import { createTestRentalsComponent } from "../components"
 
@@ -155,6 +156,36 @@ describe("when creating a new rental listing", () => {
         body: {
           ok: false,
           message: "The provided signature is invalid",
+        },
+      })
+    })
+  })
+
+  describe("and the listing creation fails with a contract not found error", () => {
+    let contractName: string
+    let chainId: number
+
+    beforeEach(() => {
+      contractName = "aContractName"
+      chainId = 1
+
+      components = {
+        rentals: createTestRentalsComponent({
+          createRentalListing: jest.fn().mockRejectedValueOnce(new ContractNotFound(contractName, chainId)),
+        }),
+      }
+    })
+
+    it("should return a response with a bad request status code and a message signaling that the contract in the rental listing was not found", () => {
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: "The contract with the provided name and chain id was not found",
+          data: {
+            contractName,
+            chainId,
+          },
         },
       })
     })
