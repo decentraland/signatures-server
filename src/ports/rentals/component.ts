@@ -688,9 +688,10 @@ export async function createRentalsComponent(
               logger.debug(
                 `[Metadata update][Single update:${nft.id}][Cancelling listing due to being a dissolved estate]`
               )
-              return client.query(
+              await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
               )
+              return
             }
 
             if (!ownerIsTheSame) {
