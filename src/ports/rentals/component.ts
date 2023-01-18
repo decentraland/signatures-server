@@ -254,7 +254,7 @@ export async function createRentalsComponent(
     logger.info(buildLogMessageForRental("Started"))
 
     if (rental.expiration < Date.now()) {
-      throw new RentalAlreadyExpired(rental.contractAddress, rental.tokenId)
+      throw new RentalAlreadyExpired(rental.contractAddress, rental.tokenId, rental.expiration)
     }
 
     // Verifying the signature

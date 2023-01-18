@@ -115,7 +115,11 @@ describe("when creating a rental listing", () => {
 
     it("should throw a rental already expired error", () => {
       return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
-        new RentalAlreadyExpired(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
+        new RentalAlreadyExpired(
+          rentalListingCreation.contractAddress,
+          rentalListingCreation.tokenId,
+          rentalListingCreation.expiration
+        )
       )
     })
   })
