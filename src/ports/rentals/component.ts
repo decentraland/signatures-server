@@ -683,6 +683,16 @@ export async function createRentalsComponent(
             const ownerIsTheSame = nft.owner.address === idsOfOpenRentalsOfNFT[0].lessor
             const isEstateWithSizeZero = nft.category === NFTCategory.ESTATE && nft.searchEstateSize === 0
 
+            if (isEstateWithSizeZero) {
+              // Cancel the rental listing that is a dissolved estate
+              logger.debug(
+                `[Metadata update][Single update:${nft.id}][Cancelling listing due to being a dissolved estate]`
+              )
+              return client.query(
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+              )
+            }
+
             if (!ownerIsTheSame) {
               logger.debug(`[Metadata update][Single update:${nft.id}][The owner is not the same]`)
 
@@ -699,25 +709,12 @@ export async function createRentalsComponent(
                 })
 
                 // If the owner is not the same one as the listing through the rental contract, cancel it
-                if (nft.owner.address !== rental?.lessor) {
-                  // Cancel the rental listing that now has a different owner
-                  await client.query(
-                    SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
-                  )
-                  logger.debug(
-                    `[Metadata update][Single update:${nft.id}][Cancelling listing due to a different owner]`
-                  )
+                if (nft.owner.address === rental?.lessor) {
+                  return
                 }
               }
-            }
-
-            if (isEstateWithSizeZero) {
-              // Cancel the rental listing that is a dissolved estate
               await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
-              )
-              logger.debug(
-                `[Metadata update][Single update:${nft.id}][Cancelling listing due to being a dissolved estate]`
               )
             }
           })

@@ -1896,6 +1896,45 @@ describe("when updating the metadata", () => {
           })
         })
 
+        describe("and the estate has been dissolved", () => {
+          beforeEach(async () => {
+            nftFromIndexer.category = NFTCategory.ESTATE
+            nftFromIndexer.searchEstateSize = 0
+            await rentalsComponent.updateMetadata()
+          })
+
+          it("should update the metadata", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                values: expect.arrayContaining([NFTCategory.ESTATE]),
+              })
+            )
+          })
+
+          it("should cancel the open rental", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
+                values: expect.arrayContaining([RentalStatus.CANCELLED, openRental.id]),
+              })
+            )
+          })
+
+          it("should update the time the last update was performed", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+              })
+            )
+          })
+
+          it("should release the client", () => {
+            expect(dbClientReleaseMock).toHaveBeenCalled()
+          })
+        })
+
         describe("and the owner is the same", () => {
           beforeEach(async () => {
             await rentalsComponent.updateMetadata()
