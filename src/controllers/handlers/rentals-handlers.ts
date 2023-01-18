@@ -16,6 +16,7 @@ import {
   InvalidParameterError,
 } from "../../logic/http"
 import {
+  InvalidEstate,
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
@@ -152,6 +153,18 @@ export async function rentalsListingsCreationHandler(
           data: {
             ownerAddress: error.ownerAddress,
             lessorAddress: error.lessorAddress,
+          },
+        },
+      }
+    } else if (error instanceof InvalidEstate) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            contractAddress: error.contractAddress,
+            tokenId: error.tokenId,
           },
         },
       }
