@@ -13,6 +13,7 @@ import {
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
@@ -155,6 +156,41 @@ describe("when creating a new rental listing", () => {
         body: {
           ok: false,
           message: "The provided signature is invalid",
+        },
+      })
+    })
+  })
+
+  describe("and the listing creation fails with a rental already expired error", () => {
+    let contractAddress: string
+    let tokenId: string
+    let expiration: number
+
+    beforeEach(() => {
+      contractAddress = "aContractAddress"
+      tokenId = "aTokenId"
+      expiration = 0
+
+      components = {
+        rentals: createTestRentalsComponent({
+          createRentalListing: jest
+            .fn()
+            .mockRejectedValueOnce(new RentalAlreadyExpired(contractAddress, tokenId, expiration)),
+        }),
+      }
+    })
+
+    it("should return a response with a bad request status code and a message signaling that there's wrong signature in the creation request", () => {
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: "The rental listings is already expired",
+          data: {
+            contractAddress,
+            tokenId,
+            expiration,
+          },
         },
       })
     })

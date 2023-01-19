@@ -18,7 +18,14 @@ import {
 } from "../../adapters/rentals"
 import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
-import { InvalidSignature, NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "./errors"
+import {
+  InvalidSignature,
+  NFTNotFound,
+  RentalAlreadyExists,
+  RentalAlreadyExpired,
+  RentalNotFound,
+  UnauthorizedToRent,
+} from "./errors"
 import {
   IRentalsComponent,
   DBRentalListing,
@@ -245,6 +252,10 @@ export async function createRentalsComponent(
       buildLogMessage("Creating", event, rental.contractAddress, rental.tokenId, lessorAddress)
 
     logger.info(buildLogMessageForRental("Started"))
+
+    if (rental.expiration < Date.now()) {
+      throw new RentalAlreadyExpired(rental.contractAddress, rental.tokenId, rental.expiration)
+    }
 
     // Verifying the signature
     const isSignatureValid = await verifyRentalsListingSignature(
