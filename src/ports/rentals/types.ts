@@ -107,6 +107,8 @@ export type NFT = {
   updatedAt: string
   /** Wether the NFT is LAND or not */
   searchIsLand: boolean
+  /** The Estate size if the NFT is an Estate */
+  searchEstateSize: number | null
 }
 
 export type IndexerRental = {
