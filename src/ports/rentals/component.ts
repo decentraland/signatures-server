@@ -7,6 +7,7 @@ import {
   RentalsListingsFilterBy,
   RentalsListingSortDirection,
   RentalsListingsSortBy,
+  NFTCategory,
 } from "@dcl/schemas"
 import { getNetwork } from "@dcl/schemas/dist/dapps/chain-id"
 import { ethers } from "ethers"
@@ -18,7 +19,15 @@ import {
 } from "../../adapters/rentals"
 import { verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
-import { InvalidSignature, NFTNotFound, RentalAlreadyExists, RentalNotFound, UnauthorizedToRent } from "./errors"
+import {
+  InvalidEstate,
+  InvalidSignature,
+  NFTNotFound,
+  RentalAlreadyExists,
+  RentalAlreadyExpired,
+  RentalNotFound,
+  UnauthorizedToRent,
+} from "./errors"
 import {
   IRentalsComponent,
   DBRentalListing,
@@ -62,17 +71,14 @@ export async function createRentalsComponent(
   }
 
   async function getNFTsFromIndexer(options?: {
-    filterBy?: Partial<Omit<NFT, "owner"> & { updatedAt_gt: string; id_gt: string }>
+    filterBy?: Partial<Omit<NFT, "owner"> & { updatedAt_gt: string; id_gt: string; searchEstateSize: number }>
     first?: number
     orderBy?: keyof Omit<NFT, "owner">
     orderDirection?: "desc" | "asc"
   }): Promise<NFT[]> {
-    const { queryVariables, querySignature } = buildQueryParameters<NFT & { updatedAt_gt: string; id_gt: string }>(
-      options?.filterBy,
-      options?.first,
-      options?.orderBy,
-      options?.orderDirection
-    )
+    const { queryVariables, querySignature } = buildQueryParameters<
+      NFT & { updatedAt_gt: string; id_gt: string; searchEstateSize: number }
+    >(options?.filterBy, options?.first, options?.orderBy, options?.orderDirection)
     const variables = options?.filterBy
       ? Object.fromEntries(Object.entries(options.filterBy).filter(([_, value]) => value))
       : undefined
@@ -92,7 +98,8 @@ export async function createRentalsComponent(
           searchText,
           searchIsLand,
           createdAt,
-          updatedAt
+          updatedAt,
+          searchEstateSize
         }
       }`,
       variables
@@ -246,6 +253,10 @@ export async function createRentalsComponent(
 
     logger.info(buildLogMessageForRental("Started"))
 
+    if (rental.expiration < Date.now()) {
+      throw new RentalAlreadyExpired(rental.contractAddress, rental.tokenId, rental.expiration)
+    }
+
     // Verifying the signature
     const isSignatureValid = await verifyRentalsListingSignature(
       fromRentalCreationToContractRentalListing(lessorAddress, rental),
@@ -296,6 +307,10 @@ export async function createRentalsComponent(
 
     if (!lessorOwnsTheLand && !lessorOwnsTheLandThroughTheRentalContract) {
       throw new UnauthorizedToRent(nft.owner.address, lessorAddress)
+    }
+
+    if (nft.category === NFTCategory.ESTATE && nft.searchEstateSize === 0) {
+      throw new InvalidEstate(nft.contractAddress, nft.tokenId)
     }
 
     logger.info(buildLogMessageForRental("Authorized"))
@@ -542,9 +557,12 @@ export async function createRentalsComponent(
         )
       )
 
-      // If the nft has been transferred, but not due to a rent starting
-      // Cancel the rental listing that now has a different owner
-      if (rentalData.status === RentalStatus.OPEN && indexerNFT.owner.address !== rentalData.lessor) {
+      // If the nft has been transferred, but not to the rentals contract due to a rent starting or if the estate was dissolved,
+      // cancel the rental listing
+      if (
+        (rentalData.status === RentalStatus.OPEN && indexerNFT.owner.address !== rentalData.lessor) ||
+        (indexerNFT.category === NFTCategory.ESTATE && indexerNFT.searchEstateSize === 0)
+      ) {
         database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
       }
     }
@@ -668,6 +686,18 @@ export async function createRentalsComponent(
 
             const ownerIsContractAddress = nft.owner.address === idsOfOpenRentalsOfNFT[0].rental_contract_address
             const ownerIsTheSame = nft.owner.address === idsOfOpenRentalsOfNFT[0].lessor
+            const isEstateWithSizeZero = nft.category === NFTCategory.ESTATE && nft.searchEstateSize === 0
+
+            if (isEstateWithSizeZero) {
+              // Cancel the rental listing that is a dissolved estate
+              logger.debug(
+                `[Metadata update][Single update:${nft.id}][Cancelling listing due to being a dissolved estate]`
+              )
+              await client.query(
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+              )
+              return
+            }
 
             if (!ownerIsTheSame) {
               logger.debug(`[Metadata update][Single update:${nft.id}][The owner is not the same]`)
@@ -684,17 +714,14 @@ export async function createRentalsComponent(
                   orderDirection: "desc",
                 })
 
-                // If the owner is still the same one as the listing through the rental contract, don't continue with the update
+                // If the owner is not the same one as the listing through the rental contract, cancel it
                 if (nft.owner.address === rental?.lessor) {
                   return
                 }
               }
-
-              // Cancel the rental listing that now has a different owner
               await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
               )
-              logger.debug(`[Metadata update][Single update:${nft.id}][Cancelling listing due to a different owner]`)
             }
           })
         )

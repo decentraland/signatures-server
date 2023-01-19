@@ -17,9 +17,11 @@ import {
 } from "../../logic/http"
 import { ContractNotFound } from "../../logic/rentals/errors"
 import {
+  InvalidEstate,
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
 } from "../../ports/rentals"
@@ -156,6 +158,18 @@ export async function rentalsListingsCreationHandler(
           },
         },
       }
+    } else if (error instanceof InvalidEstate) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            contractAddress: error.contractAddress,
+            tokenId: error.tokenId,
+          },
+        },
+      }
     } else if (error instanceof RentalAlreadyExists) {
       return {
         status: StatusCode.CONFLICT,
@@ -185,6 +199,19 @@ export async function rentalsListingsCreationHandler(
           data: {
             contractName: error.contractName,
             chainId: error.chainId,
+          },
+        },
+      }
+    } else if (error instanceof RentalAlreadyExpired) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            contractAddress: error.contractAddress,
+            tokenId: error.tokenId,
+            expiration: error.expiration,
           },
         },
       }

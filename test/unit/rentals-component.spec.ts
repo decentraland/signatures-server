@@ -31,6 +31,8 @@ import {
   IndexerIndexesHistoryUpdate,
   IndexerIndexUpdateType,
   IndexUpdateEventType,
+  InvalidEstate,
+  RentalAlreadyExpired,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -105,6 +107,22 @@ describe("when creating a rental listing", () => {
       target: ethers.constants.AddressZero,
     }
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+  })
+
+  describe("and the rental listings has already expired", () => {
+    beforeEach(() => {
+      rentalListingCreation.expiration = Date.now() - 2000000
+    })
+
+    it("should throw a rental already expired error", () => {
+      return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+        new RentalAlreadyExpired(
+          rentalListingCreation.contractAddress,
+          rentalListingCreation.tokenId,
+          rentalListingCreation.expiration
+        )
+      )
+    })
   })
 
   describe("and the signature is not valid", () => {
@@ -230,6 +248,50 @@ describe("when creating a rental listing", () => {
           new UnauthorizedToRent(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
         )
       })
+    })
+  })
+
+  describe("and the land is an Estate of size 0", () => {
+    beforeEach(() => {
+      marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+        nfts: [
+          {
+            owner: {
+              address: lessor,
+            },
+            category: NFTCategory.ESTATE,
+            searchEstateSize: 0,
+            contractAddress: rentalListingCreation.contractAddress,
+            tokenId: rentalListingCreation.tokenId,
+          },
+        ],
+      })
+      rentalsSubgraphQueryMock.mockResolvedValueOnce({
+        rentals: [
+          {
+            id: "rentalId",
+            contractAddress: rentalListingCreation.contractAddress,
+            tokenId: rentalListingCreation.tokenId,
+            lessor,
+            tenant: null,
+            operator: "0x0",
+            rentalDays: "2",
+            startedAt: fromMillisecondsToSeconds(Date.now()).toString(),
+            endsAt: fromMillisecondsToSeconds(Date.now()).toString(),
+            pricePerDay: "1",
+            sender: "0x0",
+            rentalContractAddress: "0x1",
+            isExtension: false,
+            ownerHasClaimedAsset: false,
+          },
+        ],
+      })
+    })
+
+    it("should throw an invalid estate error", () => {
+      return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+        new InvalidEstate(rentalListingCreation.contractAddress, rentalListingCreation.tokenId)
+      )
     })
   })
 
@@ -1027,6 +1089,7 @@ describe("when refreshing rental listings", () => {
         address: "anAddress",
       },
       searchText: "aSearchText",
+      searchEstateSize: null,
       searchIsLand: true,
       createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
       updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
@@ -1187,10 +1250,43 @@ describe("when refreshing rental listings", () => {
               rowCount: 1,
             })
         })
-        it("should cancel the listing if the owner has changed", async () => {
+        it("should cancel the listing and return it updated", async () => {
           await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
           expect(dbQueryMock.mock.calls[2][0].text).toEqual(expect.stringContaining(`UPDATE rentals SET status`))
           expect(dbQueryMock.mock.calls[2][0].values).toEqual(expect.arrayContaining([RentalStatus.CANCELLED]))
+        })
+      })
+
+      describe("and the Estate has been dissolved", () => {
+        beforeEach(() => {
+          marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+            nfts: [
+              {
+                ...nftFromIndexer,
+                category: NFTCategory.ESTATE,
+                searchEstateSize: 0,
+                createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) + 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({
+              rows: [result],
+              rowCount: 1,
+            })
+        })
+        it("should cancel the listing and return it updated", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
+          expect(dbQueryMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              text: expect.stringContaining(`UPDATE rentals SET status`),
+              values: expect.arrayContaining([RentalStatus.CANCELLED]),
+            })
+          )
         })
       })
     })
@@ -1616,6 +1712,7 @@ describe("when updating the metadata", () => {
         contractAddress: "aContractAddress",
         tokenId: "aTokenId",
         owner: { address: lessor },
+        searchEstateSize: null,
         searchText: "0,0",
         createdAt: "100000",
         updatedAt: "200000",
@@ -1813,6 +1910,45 @@ describe("when updating the metadata", () => {
             it("should release the client", () => {
               expect(dbClientReleaseMock).toHaveBeenCalled()
             })
+          })
+        })
+
+        describe("and the estate has been dissolved", () => {
+          beforeEach(async () => {
+            nftFromIndexer.category = NFTCategory.ESTATE
+            nftFromIndexer.searchEstateSize = 0
+            await rentalsComponent.updateMetadata()
+          })
+
+          it("should update the metadata", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE metadata SET")]),
+                values: expect.arrayContaining([NFTCategory.ESTATE]),
+              })
+            )
+          })
+
+          it("should cancel the open rental", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE rentals SET status")]),
+                values: expect.arrayContaining([RentalStatus.CANCELLED, openRental.id]),
+              })
+            )
+          })
+
+          it("should update the time the last update was performed", () => {
+            expect(dbClientQueryMock).toHaveBeenCalledWith(
+              expect.objectContaining({
+                strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
+                values: expect.arrayContaining([new Date(Math.floor(startDate.getTime() / 1000) * 1000)]),
+              })
+            )
+          })
+
+          it("should release the client", () => {
+            expect(dbClientReleaseMock).toHaveBeenCalled()
           })
         })
 
@@ -2084,6 +2220,7 @@ describe("when updating the rental listings", () => {
           contractAddress: "aContractAddress",
           tokenId: "aTokenId",
           owner: { address: lessor },
+          searchEstateSize: null,
           searchText: "0,0",
           createdAt: "100000",
           updatedAt: "200000",

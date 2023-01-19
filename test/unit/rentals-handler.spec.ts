@@ -10,9 +10,11 @@ import {
 import {
   DBGetRentalListing,
   DBInsertedRentalListing,
+  InvalidEstate,
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
 } from "../../src/ports/rentals"
@@ -74,6 +76,35 @@ describe("when creating a new rental listing", () => {
         body: {
           ok: false,
           message: "The NFT was not found",
+          data: {
+            tokenId,
+            contractAddress,
+          },
+        },
+      })
+    })
+  })
+
+  describe("and the listing creation fails with an invalid estate error", () => {
+    let contractAddress: string
+    let tokenId: string
+
+    beforeEach(() => {
+      contractAddress = "0x1"
+      tokenId = "0"
+      components = {
+        rentals: createTestRentalsComponent({
+          createRentalListing: jest.fn().mockRejectedValueOnce(new InvalidEstate(contractAddress, tokenId)),
+        }),
+      }
+    })
+
+    it("should return a response with a bad request status code and a message signaling that the estate is of size 0", () => {
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: "Estates with size 0 can't be listed for rent",
           data: {
             tokenId,
             contractAddress,
@@ -160,7 +191,6 @@ describe("when creating a new rental listing", () => {
       })
     })
   })
-
   describe("and the listing creation fails with a contract not found error", () => {
     let contractName: string
     let chainId: number
@@ -185,6 +215,41 @@ describe("when creating a new rental listing", () => {
           data: {
             contractName,
             chainId,
+          },
+        },
+      })
+    })
+  })
+
+  describe("and the listing creation fails with a rental already expired error", () => {
+    let contractAddress: string
+    let tokenId: string
+    let expiration: number
+
+    beforeEach(() => {
+      contractAddress = "aContractAddress"
+      tokenId = "aTokenId"
+      expiration = 0
+
+      components = {
+        rentals: createTestRentalsComponent({
+          createRentalListing: jest
+            .fn()
+            .mockRejectedValueOnce(new RentalAlreadyExpired(contractAddress, tokenId, expiration)),
+        }),
+      }
+    })
+
+    it("should return a response with a bad request status code and a message signaling that there's wrong signature in the creation request", () => {
+      return expect(rentalsListingsCreationHandler({ components, verification, request })).resolves.toEqual({
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: "The rental listings is already expired",
+          data: {
+            contractAddress,
+            tokenId,
+            expiration,
           },
         },
       })
