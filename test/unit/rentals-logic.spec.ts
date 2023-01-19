@@ -3,6 +3,7 @@ import { ContractData, ContractName, getContract } from "decentraland-transactio
 import { ethers } from "ethers"
 import { TypedDataDomain, TypedDataField } from "@ethersproject/abstract-signer"
 import { ContractRentalListing, verifyRentalsListingSignature } from "../../src/logic/rentals"
+import { ContractNotFound } from "../../src/logic/rentals/errors"
 
 describe("when verifying the rentals listings signature", () => {
   let contractRentalListing: ContractRentalListing
@@ -60,6 +61,18 @@ describe("when verifying the rentals listings signature", () => {
       signature: await wallet._signTypedData(domain, types, values),
       target: ethers.constants.AddressZero,
     }
+  })
+
+  describe("and there's no contract with the given chain id", () => {
+    beforeEach(() => {
+      chainId = 3242342
+    })
+
+    it("should reject into a contract not found error", () => {
+      return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).rejects.toThrow(
+        new ContractNotFound(ContractName.Rentals, chainId)
+      )
+    })
   })
 
   describe("and the signature was signed by a different address", () => {

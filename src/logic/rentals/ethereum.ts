@@ -4,12 +4,18 @@ import { _TypedDataEncoder } from "@ethersproject/hash"
 import { ContractData, ContractName, getContract } from "decentraland-transactions"
 import { hasECDSASignatureAValidV } from "../../ports/rentals/utils"
 import { ContractRentalListing, RentalListingSignatureData } from "./types"
+import { ContractNotFound } from "./errors"
 
 async function buildRentalListingSignatureData(
   rentalListing: ContractRentalListing,
   chainId: ChainId
 ): Promise<RentalListingSignatureData> {
-  const rentalsContract: ContractData = getContract(ContractName.Rentals, chainId)
+  let rentalsContract: ContractData
+  try {
+    rentalsContract = getContract(ContractName.Rentals, chainId)
+  } catch (error) {
+    throw new ContractNotFound(ContractName.Rentals, chainId)
+  }
 
   const domain = {
     name: rentalsContract.name,
