@@ -32,6 +32,7 @@ import {
   IndexerIndexUpdateType,
   IndexUpdateEventType,
   InvalidEstate,
+  RentalAlreadyExpired,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -106,6 +107,22 @@ describe("when creating a rental listing", () => {
       target: ethers.constants.AddressZero,
     }
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+  })
+
+  describe("and the rental listings has already expired", () => {
+    beforeEach(() => {
+      rentalListingCreation.expiration = Date.now() - 2000000
+    })
+
+    it("should throw a rental already expired error", () => {
+      return expect(rentalsComponent.createRentalListing(rentalListingCreation, lessor)).rejects.toEqual(
+        new RentalAlreadyExpired(
+          rentalListingCreation.contractAddress,
+          rentalListingCreation.tokenId,
+          rentalListingCreation.expiration
+        )
+      )
+    })
   })
 
   describe("and the signature is not valid", () => {

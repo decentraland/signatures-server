@@ -16,6 +16,12 @@ export class RentalAlreadyExists extends Error {
   }
 }
 
+export class RentalAlreadyExpired extends Error {
+  constructor(public contractAddress: string, public tokenId: string, public expiration: number) {
+    super("The rental listings is already expired")
+  }
+}
+
 export class RentalNotFound extends Error {
   constructor(public id?: string) {
     super("The rental was not found")

@@ -20,6 +20,7 @@ import {
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
+  RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
 } from "../../ports/rentals"
@@ -186,6 +187,19 @@ export async function rentalsListingsCreationHandler(
         body: {
           ok: false,
           message: error.message,
+        },
+      }
+    } else if (error instanceof RentalAlreadyExpired) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            contractAddress: error.contractAddress,
+            tokenId: error.tokenId,
+            expiration: error.expiration,
+          },
         },
       }
     }
