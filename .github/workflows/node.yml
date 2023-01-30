@@ -15,8 +15,14 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+        languages: typescript
       - name: Build
         run: npm run build
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
       - name: Test
         run: npm run test
       - name: Report coverage
