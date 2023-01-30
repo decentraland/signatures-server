@@ -1,7 +1,6 @@
 name: node
 
-on:
-  push:
+on: push
 
 jobs:
   install:
