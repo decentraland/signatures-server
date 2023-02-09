@@ -12,6 +12,7 @@ import { ISchemaValidatorComponent } from "./ports/schema-validator"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
 import { IJobComponent } from "./ports/job/types"
+import { TraceComponent } from "./ports/tracing/types"
 
 export type GlobalContext = {
   components: BaseComponents
@@ -29,6 +30,7 @@ export type BaseComponents = {
   rentalsSubgraph: ISubgraphComponent
   schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
+  trace: TraceComponent
   updateMetadataJob: IJobComponent
   updateRentalsListingsJob: IJobComponent
   cancelRentalsListingsJob: IJobComponent

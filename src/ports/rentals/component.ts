@@ -50,9 +50,9 @@ import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
 
 export async function createRentalsComponent(
-  components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
+  components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "trace" | "rentalsSubgraph" | "config">
 ): Promise<IRentalsComponent> {
-  const { database, marketplaceSubgraph, rentalsSubgraph, logs, config } = components
+  const { database, marketplaceSubgraph, rentalsSubgraph, trace, logs, config } = components
   const logger = logs.getLogger("rentals")
   const CHAIN_NAME: ChainName = (await config.requireString("CHAIN_NAME")) as ChainName
   if (!Object.values(ChainName).includes(CHAIN_NAME)) {
@@ -67,7 +67,9 @@ export async function createRentalsComponent(
   const MAX_GRAPH_FIRST = 1000
 
   function buildLogMessage(action: string, event: string, contractAddress: string, tokenId: string, lessor: string) {
-    return `[${action}][${event}][contractAddress:${contractAddress}][tokenId:${tokenId}][lessor:${lessor}]`
+    return `[${
+      trace.getCurrentTraceParent() ?? "no-trace"
+    }][${action}][${event}][contractAddress:${contractAddress}][tokenId:${tokenId}][lessor:${lessor}]`
   }
 
   async function getNFTsFromIndexer(options?: {
@@ -392,6 +394,7 @@ export async function createRentalsComponent(
     getHistoricData?: boolean
   ): Promise<DBGetRentalListing[]> {
     const { sortBy, offset, limit, filterBy, sortDirection } = params
+    logger.info(`Getting the trace parent ${components.trace.getCurrentTraceParent() ?? "no-trace"}`)
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
 
