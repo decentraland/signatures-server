@@ -19,7 +19,10 @@ export async function setupRouter(
   router.get("/ping", pingHandler)
   router.post(
     "/v1/rentals-listings",
-    authorizationMiddleware.wellKnownComponents({ optional: false }),
+    authorizationMiddleware.wellKnownComponents({
+      optional: false,
+      expiration: 5 * 60 * 1000, // 5 minutes
+    }),
     components.schemaValidator.withSchemaValidatorMiddleware(RentalListingCreation.schema),
     rentalsListingsCreationHandler
   )
