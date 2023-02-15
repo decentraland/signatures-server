@@ -1,5 +1,7 @@
 import { createConfigComponent } from "@well-known-components/env-config-provider"
+import * as nodeFetch from "node-fetch"
 import { createTestServerComponent } from "@well-known-components/http-server"
+import { createTracerComponent } from "@well-known-components/tracer-component"
 import { createTestMetricsComponent } from "@well-known-components/metrics"
 import { createFetchComponent } from "../../src/ports/fetch"
 import { createSchemaValidatorComponent } from "../../src/ports/schema-validator"
@@ -17,7 +19,8 @@ let components: BaseComponents
 
 beforeEach(async () => {
   components = {
-    fetch: await createFetchComponent(),
+    fetch: await createFetchComponent(nodeFetch.default),
+    tracer: createTracerComponent(),
     server: createTestServerComponent(),
     rentals: createTestRentalsComponent(),
     logs: createTestConsoleLogComponent(),
