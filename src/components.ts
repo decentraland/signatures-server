@@ -68,12 +68,17 @@ export async function initComponents(): Promise<AppComponents> {
 
   const schemaValidator = await createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
-  const updateMetadataJob = await createJobComponent({ logs }, () => rentals.updateMetadata(), fiveMinutes, {
-    startupDelay: thirtySeconds,
-  })
+  const updateMetadataJob = await createJobComponent(
+    { logs },
+    () => tracer.span("Update metadata job", () => rentals.updateMetadata()),
+    fiveMinutes,
+    {
+      startupDelay: thirtySeconds,
+    }
+  )
   const updateRentalsListingsJob = await createJobComponent(
     { logs },
-    () => rentals.updateRentalsListings(),
+    () => tracer.span("Update rentals listings job", () => rentals.updateRentalsListings()),
     fiveMinutes,
     {
       startupDelay: thirtySeconds,
@@ -81,7 +86,7 @@ export async function initComponents(): Promise<AppComponents> {
   )
   const cancelRentalsListingsJob = await createJobComponent(
     { logs },
-    () => rentals.cancelRentalsListings(),
+    () => tracer.span("Update rentals listings job", () => rentals.cancelRentalsListings()),
     fiveMinutes,
     {
       startupDelay: thirtySeconds,
