@@ -5,6 +5,8 @@ import { createServerComponent, createStatusCheckComponent } from "@well-known-c
 import { createLogComponent } from "@well-known-components/logger"
 import { createSubgraphComponent } from "@well-known-components/thegraph-component"
 import { createPgComponent } from "@well-known-components/pg-component"
+import { createTracerComponent } from "@well-known-components/tracer-component"
+import { createHttpTracerComponent } from "@well-known-components/http-tracer-component"
 import { createMetricsComponent } from "@well-known-components/metrics"
 import { AppComponents, GlobalContext } from "./types"
 import { createFetchComponent } from "./ports/fetch/fetch"
@@ -12,7 +14,6 @@ import { metricDeclarations } from "./metrics"
 import { createSchemaValidatorComponent } from "./ports/schema-validator"
 import { createRentalsComponent } from "./ports/rentals/component"
 import { createJobComponent } from "./ports/job/component"
-import { createTraceComponent } from "./ports/tracing"
 import { RequestInterceptor } from "./ports/fetch"
 
 // Initialize all the components of the app
@@ -20,7 +21,6 @@ export async function initComponents(): Promise<AppComponents> {
   const config = await createDotEnvConfigComponent({ path: [".env.default", ".env"] })
   const MARKETPLACE_SUBGRAPH_URL = await config.requireString("MARKETPLACE_SUBGRAPH_URL")
   const RENTALS_SUBGRAPH_URL = await config.requireString("RENTALS_SUBGRAPH_URL")
-  const LOG_LEVEL = await config.requireString("LOG_LEVEL")
   const thirtySeconds = 30 * 1000
   const fiveMinutes = 5 * 60 * 1000
 
@@ -29,16 +29,17 @@ export async function initComponents(): Promise<AppComponents> {
     methods: await config.requireString("CORS_METHODS"),
   }
 
-  const logs = createLogComponent({ config: { logLevel: LOG_LEVEL } })
+  const tracer = createTracerComponent()
+  const logs = await createLogComponent({ tracer })
   const server = await createServerComponent<GlobalContext>({ config, logs }, { cors })
-  const trace = createTraceComponent({ server })
-  const statusChecks = await createStatusCheckComponent({ server, config })
+  createHttpTracerComponent({ server, tracer })
+
   const traceRequestInterceptor: RequestInterceptor = (url, init) => {
     const headers: nodeFetch.HeadersInit = { ...init?.headers }
-    const traceParent = trace.getChildTraceParent()
+    const traceParent = tracer.isInsideOfTraceSpan() ? tracer.getTraceChildString() : null
     if (traceParent) {
       ;(headers as { [key: string]: string }).traceparent = traceParent
-      const traceState = trace.getTraceState()
+      const traceState = tracer.getTraceStateString()
       if (traceState) {
         ;(headers as { [key: string]: string }).tracestate = traceState
       }
@@ -46,6 +47,7 @@ export async function initComponents(): Promise<AppComponents> {
 
     return [url, { ...init, headers }]
   }
+  const statusChecks = await createStatusCheckComponent({ server, config })
 
   const fetch = createFetchComponent(nodeFetch.default, { requestInterceptors: [traceRequestInterceptor] })
   const metrics = await createMetricsComponent(metricDeclarations, { server, config })
@@ -65,7 +67,7 @@ export async function initComponents(): Promise<AppComponents> {
   )
 
   const schemaValidator = await createSchemaValidatorComponent()
-  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, trace, rentalsSubgraph, config })
+  const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
   const updateMetadataJob = await createJobComponent({ logs }, () => rentals.updateMetadata(), fiveMinutes, {
     startupDelay: thirtySeconds,
   })
@@ -94,7 +96,7 @@ export async function initComponents(): Promise<AppComponents> {
     fetch,
     metrics,
     database,
-    trace,
+    tracer,
     marketplaceSubgraph,
     rentalsSubgraph,
     schemaValidator,

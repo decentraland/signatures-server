@@ -8,11 +8,11 @@ import type {
 } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { ITracerComponent } from "@well-known-components/tracer-component"
 import { ISchemaValidatorComponent } from "./ports/schema-validator"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
 import { IJobComponent } from "./ports/job/types"
-import { TraceComponent } from "./ports/tracing/types"
 
 export type GlobalContext = {
   components: BaseComponents
@@ -30,7 +30,7 @@ export type BaseComponents = {
   rentalsSubgraph: ISubgraphComponent
   schemaValidator: ISchemaValidatorComponent
   rentals: IRentalsComponent
-  trace: TraceComponent
+  tracer: ITracerComponent
   updateMetadataJob: IJobComponent
   updateRentalsListingsJob: IJobComponent
   cancelRentalsListingsJob: IJobComponent
