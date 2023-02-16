@@ -1,5 +1,4 @@
 import { createConfigComponent } from "@well-known-components/env-config-provider"
-import * as nodeFetch from "node-fetch"
 import { createTestServerComponent } from "@well-known-components/http-server"
 import { createTracerComponent } from "@well-known-components/tracer-component"
 import { createTestMetricsComponent } from "@well-known-components/metrics"
