@@ -18,9 +18,11 @@ let middleware: ReturnType<ReturnType<typeof createSchemaValidatorComponent>["wi
 let components: BaseComponents
 
 beforeEach(async () => {
+  const tracer = createTracerComponent()
+
   components = {
-    fetch: await createFetchComponent(nodeFetch.default),
-    tracer: createTracerComponent(),
+    fetch: await createFetchComponent({ tracer }),
+    tracer,
     server: createTestServerComponent(),
     rentals: createTestRentalsComponent(),
     logs: createTestConsoleLogComponent(),
