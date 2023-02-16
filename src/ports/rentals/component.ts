@@ -391,6 +391,7 @@ export async function createRentalsComponent(
     },
     getHistoricData?: boolean
   ): Promise<DBGetRentalListing[]> {
+    logger.info("Staring to get the rental listings")
     const { sortBy, offset, limit, filterBy, sortDirection } = params
     const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
     const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC

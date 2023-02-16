@@ -1,5 +1,6 @@
 import { createConfigComponent } from "@well-known-components/env-config-provider"
 import { createTestServerComponent } from "@well-known-components/http-server"
+import { createTracerComponent } from "@well-known-components/tracer-component"
 import { createTestMetricsComponent } from "@well-known-components/metrics"
 import { createFetchComponent } from "../../src/ports/fetch"
 import { createSchemaValidatorComponent } from "../../src/ports/schema-validator"
@@ -16,8 +17,11 @@ let middleware: ReturnType<ReturnType<typeof createSchemaValidatorComponent>["wi
 let components: BaseComponents
 
 beforeEach(async () => {
+  const tracer = createTracerComponent()
+
   components = {
-    fetch: await createFetchComponent(),
+    fetch: await createFetchComponent({ tracer }),
+    tracer,
     server: createTestServerComponent(),
     rentals: createTestRentalsComponent(),
     logs: createTestConsoleLogComponent(),
