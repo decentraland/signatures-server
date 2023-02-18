@@ -414,6 +414,7 @@ export async function createRentalsComponent(
     },
     getHistoricData?: boolean
   ): Promise<DBGetRentalListing[]> {
+    logger.info("Staring to get the rental listings")
     const results = await database.query<DBGetRentalListing>(getRentalListingsQuery(params, getHistoricData))
     return results.rows
   }
