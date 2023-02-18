@@ -16,6 +16,7 @@ import { main } from "../src/service"
 import { metricDeclarations } from "../src/metrics"
 import { GlobalContext, TestComponents } from "../src/types"
 import { createRentalsComponent, IRentalsComponent } from "../src/ports/rentals"
+import { createTracerComponent } from "@well-known-components/tracer-component"
 
 let lastUsedPort = 19000 + parseInt(process.env.JEST_WORKER_ID || "1") * 1000
 function getFreePort() {
@@ -80,10 +81,12 @@ export async function initComponents(): Promise<TestComponents> {
   const updateMetadataJob = createTestJobComponent()
   const updateRentalsListingsJob = createTestJobComponent()
   const cancelRentalsListingsJob = createTestJobComponent()
+  const tracer = createTracerComponent()
 
   return {
     config,
     logs,
+    tracer,
     server,
     statusChecks,
     fetch: fetcher,
