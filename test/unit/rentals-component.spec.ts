@@ -608,8 +608,8 @@ describe("when getting rental listings", () => {
           })
         ).resolves.toEqual(dbGetRentalListings)
 
-        expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND (rentals.status = $1)"))
-        expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, 10, 0])
+        expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = ANY($1)"))
+        expect(dbQueryMock.mock.calls[0][0].values).toEqual([[RentalStatus.EXECUTED], 10, 0])
       })
     })
 
@@ -628,9 +628,9 @@ describe("when getting rental listings", () => {
         ).resolves.toEqual(dbGetRentalListings)
 
         expect(dbQueryMock.mock.calls[0][0].text).toEqual(
-          expect.stringContaining("AND (rentals.status = $1 OR rentals.status = $2)")
+          expect.stringContaining("AND rentals.status = ANY($1)")
         )
-        expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.EXECUTED, RentalStatus.CLAIMED, 10, 0])
+        expect(dbQueryMock.mock.calls[0][0].values).toEqual([[RentalStatus.EXECUTED, RentalStatus.CLAIMED], 10, 0])
       })
     })
   })
@@ -1038,6 +1038,146 @@ describe("when getting rental listings", () => {
       )
     })
   })
+
+  describe("and the minDistanceToPlaza filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the correct distance to a plaza", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            minDistanceToPlaza: '10',
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.distance_to_plaza >= ")]),
+          values: ['10', 10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and the maxDistanceToPlaza filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the correct distance to a plaza", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            maxDistanceToPlaza: '10',
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.distance_to_plaza <= ")]),
+          values: ['10', 10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and the minEstateSize filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the correct estate size", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            minEstateSize: '10',
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size >= ")]),
+          values: ['10', 10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and the maxEstateSize filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the correct estate size", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            maxEstateSize: '10',
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size <= ")]),
+          values: ['10', 10, 0],
+        })
+      )
+    }) 
+  })
+
+  describe("and the adjacentToRoad filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should have made the query to get the listings with the correct estate size", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            adjacentToRoad: true,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.adjacent_to_road = true")]),
+          values: [10, 0],
+        })
+      )
+    }) 
+  })
 })
 
 describe("when refreshing rental listings", () => {
@@ -1091,6 +1231,8 @@ describe("when refreshing rental listings", () => {
       searchText: "aSearchText",
       searchEstateSize: null,
       searchIsLand: true,
+      searchAdjacentToRoad: true,
+      searchDistanceToPlaza: 3,
       createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
       updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
     }
@@ -1174,6 +1316,30 @@ describe("when refreshing rental listings", () => {
       it("should not update the metadata in the database and return the rental", async () => {
         await expect(rentalsComponent.refreshRentalListing("an id")).resolves.toEqual(result)
         expect(dbQueryMock.mock.calls[1][0].text).not.toEqual(expect.stringContaining("UPDATE metadata SET"))
+      })
+
+      describe("and the forceRefreshMetadata is set to true", () => {
+        beforeEach(() => {
+          marketplaceSubgraphQueryMock.mockResolvedValueOnce({
+            nfts: [
+              {
+                ...nftFromIndexer,
+                createdAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+                updatedAt: (Math.round(rentalFromDb.updated_at.getTime() / 1000) - 10000).toString(),
+              },
+            ],
+          })
+          mockDefaultSubgraphNonces()
+          dbQueryMock.mockResolvedValueOnce({
+            rows: [result],
+            rowCount: 1,
+          })
+        })
+  
+        it("should update the metadata in the database and return the rental", async () => {
+          await expect(rentalsComponent.refreshRentalListing("an id", true)).resolves.toEqual(result)
+          expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE metadata SET"))
+        })
       })
     })
 
@@ -1717,6 +1883,8 @@ describe("when updating the metadata", () => {
         createdAt: "100000",
         updatedAt: "200000",
         searchIsLand: true,
+        searchAdjacentToRoad: true,
+        searchDistanceToPlaza: 3
       }
       dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
@@ -2225,6 +2393,8 @@ describe("when updating the rental listings", () => {
           createdAt: "100000",
           updatedAt: "200000",
           searchIsLand: true,
+          searchAdjacentToRoad: true,
+          searchDistanceToPlaza: 3
         }
         newRentalId = "aNewRentalId"
         rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })

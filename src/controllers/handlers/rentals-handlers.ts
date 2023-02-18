@@ -62,6 +62,11 @@ export async function getRentalsListingsHandler(
       target: url.searchParams.get("target") ?? ethers.constants.AddressZero,
       minPricePerDay: url.searchParams.get("minPricePerDay") ?? undefined,
       maxPricePerDay: url.searchParams.get("maxPricePerDay") ?? undefined,
+      minDistanceToPlaza: url.searchParams.get("minDistanceToPlaza") ?? undefined,
+      maxDistanceToPlaza: url.searchParams.get("maxDistanceToPlaza") ?? undefined,
+      minEstateSize: url.searchParams.get("minEstateSize") ?? undefined,
+      maxEstateSize: url.searchParams.get("maxEstateSize") ?? undefined,
+      adjacentToRoad: url.searchParams.get("adjacentToRoad") === 'true' ?? undefined
     }
     const rentalListings = await rentals.getRentalsListings(
       {
@@ -222,15 +227,17 @@ export async function rentalsListingsCreationHandler(
 }
 
 export async function refreshRentalListingHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "components">
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "url" | "components">
 ) {
   const {
+    url,
     components: { rentals },
     params: { id },
   } = context
 
+  const forceMetadataRefresh = url.searchParams.get("forceMetadataRefresh") === 'true'
   try {
-    const updatedRental = await rentals.refreshRentalListing(id)
+    const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
     return {
       status: StatusCode.OK,
       body: {
