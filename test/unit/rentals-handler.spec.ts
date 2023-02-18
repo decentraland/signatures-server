@@ -813,7 +813,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should propagate the error", () => {
-      return expect(refreshRentalListingHandler({ components, params })).rejects.toThrowError(errorMessage)
+      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL })).rejects.toThrowError(errorMessage)
     })
   })
 
@@ -823,7 +823,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the rental was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL  })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -846,7 +846,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL  })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -923,7 +923,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL  })).resolves.toEqual({
         status: StatusCode.OK,
         body: {
           ok: true,
