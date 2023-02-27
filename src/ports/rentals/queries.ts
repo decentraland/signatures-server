@@ -48,7 +48,7 @@ export function getRentalsFilters(
   return filterQuery
 }
 
-export function getRentalsMetadataFitlers(
+export function getRentalsMetadataFilters(
   filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
 ): SQLStatement {
   if (!filterBy) {
@@ -77,11 +77,11 @@ export function getRentalsMetadataFitlers(
     metadataQuery.append(SQL`AND metadata.distance_to_plaza <= ${filterBy.maxDistanceToPlaza}\n`)
   }
 
-  if (filterBy.adjacentToRoad) {
-    metadataQuery.append(SQL`AND metadata.adjacent_to_road = true\n`)
+  if (filterBy.adjacentToRoad !== undefined) {
+    metadataQuery.append(SQL`AND metadata.adjacent_to_road = ${!!filterBy.adjacentToRoad}\n`)
   }
 
-  if (filterBy.minEstateSize) {
+  if (filterBy.minEstateSize && Number.parseFloat(filterBy.minEstateSize) >= 0) {
     metadataQuery.append(SQL`AND metadata.estate_size >= ${filterBy.minEstateSize}\n`)
   }
 
@@ -178,7 +178,7 @@ export function getRentalListingsQuery(
 
   query.append(rentalsQuery)
   query.append(" WHERE metadata.id = rentals.metadata_id ")
-  query.append(getRentalsMetadataFitlers(filterBy))
+  query.append(getRentalsMetadataFilters(filterBy))
   query.append(getRentalsOrderBy(sortBy, sortDirection))
   query.append(SQL`LIMIT ${limit} OFFSET ${offset}`)
 

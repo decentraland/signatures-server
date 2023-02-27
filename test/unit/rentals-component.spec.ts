@@ -1101,25 +1101,50 @@ describe("when getting rental listings", () => {
       dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
     })
 
-    it("should have made the query to get the listings with the correct estate size", async () => {
-      await expect(
-        rentalsComponent.getRentalsListings({
-          offset: 0,
-          limit: 10,
-          sortBy: null,
-          sortDirection: null,
-          filterBy: {
-            minEstateSize: '10',
-          },
-        })
-      ).resolves.toEqual(dbGetRentalListings)
+    describe("and minEstateSize is more or equal to 0", () => {
+      it("should have made the query to get the listings with the correct estate size", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              minEstateSize: '10',
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
+  
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size >= ")]),
+            values: ['10', 10, 0],
+          })
+        )
+      })
+    })
 
-      expect(dbQueryMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size >= ")]),
-          values: ['10', 10, 0],
-        })
-      )
+    describe("and minEstateSize is less than 0", () => {
+      it("should not set minEstateSize filter in listings query", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {
+              minEstateSize: '-1',
+            },
+          })
+        ).resolves.toEqual(dbGetRentalListings)
+  
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([expect.not.stringContaining("AND metadata.estate_size >= ")]),
+            values: [10, 0],
+          })
+        )
+      })
     })
   })
 
@@ -1157,7 +1182,7 @@ describe("when getting rental listings", () => {
       dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
     })
 
-    it("should have made the query to get the listings with the correct estate size", async () => {
+    it("should have made the query to get the listings with the adjacentToRoad as true", async () => {
       await expect(
         rentalsComponent.getRentalsListings({
           offset: 0,
@@ -1172,8 +1197,29 @@ describe("when getting rental listings", () => {
 
       expect(dbQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          strings: expect.arrayContaining([expect.stringContaining("AND metadata.adjacent_to_road = true")]),
-          values: [10, 0],
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.adjacent_to_road = ")]),
+          values: [true, 10, 0],
+        })
+      )
+    })
+
+    it("should have made the query to get the listings with the adjacentToRoad as false", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {
+            adjacentToRoad: false,
+          },
+        })
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("AND metadata.adjacent_to_road = ")]),
+          values: [false, 10, 0],
         })
       )
     }) 
