@@ -337,10 +337,19 @@ describe("when getting rental listings", () => {
     }
   })
 
-  describe("and the request was done with a sort by that doesn't match the ones available", () => {
-    const wrongValue = "SomeWrongValue"
+  describe.each([
+    { parameterName: "sortBy", parameterValue: "SomeWrongValue" },
+    { parameterName: "sortDirection", parameterValue: "SomeWrongValue" },
+    { parameterName: "category", parameterValue: "SomeWrongValue" },
+    { parameterName: "status", parameterValue: "SomeWrongValue" },
+    { parameterName: "adjacentToRoad", parameterValue: "notABoolean" },
+    { parameterName: "minDistanceToPlaza", parameterValue: "notAnInt" },
+    { parameterName: "maxDistanceToPlaza", parameterValue: "notAnInt" },
+    { parameterName: "minEstateSize", parameterValue: "notAnInt" },
+    { parameterName: "maxEstateSize", parameterValue: "notAnInt" },
+  ])("and the request was done with an invalid parameter type for filter $parameterName", ({ parameterName, parameterValue }) => {
     beforeEach(() => {
-      url = new URL(`http://localhost/v1/rental-listing?sortBy=${wrongValue}`)
+      url = new URL(`http://localhost/v1/rental-listing?${parameterName}=${parameterValue}`)
     })
 
     it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
@@ -348,58 +357,7 @@ describe("when getting rental listings", () => {
         status: StatusCode.BAD_REQUEST,
         body: {
           ok: false,
-          message: `The value of the sortBy parameter is invalid: ${wrongValue}`,
-        },
-      })
-    })
-  })
-
-  describe("and the request was done with a sort direction that doesn't match the ones available", () => {
-    const wrongValue = "SomeWrongValue"
-    beforeEach(() => {
-      url = new URL(`http://localhost/v1/rental-listing?sortDirection=${wrongValue}`)
-    })
-
-    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
-      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
-        status: StatusCode.BAD_REQUEST,
-        body: {
-          ok: false,
-          message: `The value of the sortDirection parameter is invalid: ${wrongValue}`,
-        },
-      })
-    })
-  })
-
-  describe("and the request was done with a category filter that doesn't match the ones available", () => {
-    const wrongValue = "SomeWrongValue"
-    beforeEach(() => {
-      url = new URL(`http://localhost/v1/rental-listing?category=${wrongValue}`)
-    })
-
-    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
-      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
-        status: StatusCode.BAD_REQUEST,
-        body: {
-          ok: false,
-          message: `The value of the category parameter is invalid: ${wrongValue}`,
-        },
-      })
-    })
-  })
-
-  describe("and the request was done with a status filter that doesn't match the ones available", () => {
-    const wrongValue = "SomeWrongValue"
-    beforeEach(() => {
-      url = new URL(`http://localhost/v1/rental-listing?status=${wrongValue}`)
-    })
-
-    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
-      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
-        status: StatusCode.BAD_REQUEST,
-        body: {
-          ok: false,
-          message: `The value of the status parameter is invalid: ${wrongValue}`,
+          message: `The value of the ${parameterName} parameter is invalid: ${parameterValue}`,
         },
       })
     })
@@ -923,7 +881,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL  })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL })).resolves.toEqual({
         status: StatusCode.OK,
         body: {
           ok: true,

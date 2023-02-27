@@ -10,6 +10,8 @@ import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { ethers } from "ethers"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import {
+  getBooleanParameter,
+  getNumberParameter,
   getPaginationParams,
   getTypedArrayStringQueryParameter,
   getTypedStringQueryParameter,
@@ -62,11 +64,11 @@ export async function getRentalsListingsHandler(
       target: url.searchParams.get("target") ?? ethers.constants.AddressZero,
       minPricePerDay: url.searchParams.get("minPricePerDay") ?? undefined,
       maxPricePerDay: url.searchParams.get("maxPricePerDay") ?? undefined,
-      minDistanceToPlaza: url.searchParams.get("minDistanceToPlaza") ?? undefined,
-      maxDistanceToPlaza: url.searchParams.get("maxDistanceToPlaza") ?? undefined,
-      minEstateSize: url.searchParams.get("minEstateSize") ?? undefined,
-      maxEstateSize: url.searchParams.get("maxEstateSize") ?? undefined,
-      adjacentToRoad: url.searchParams.get("adjacentToRoad") === 'true' ?? undefined
+      minDistanceToPlaza: getNumberParameter("minDistanceToPlaza", url.searchParams.get("minDistanceToPlaza")),
+      maxDistanceToPlaza: getNumberParameter("maxDistanceToPlaza", url.searchParams.get("maxDistanceToPlaza")),
+      minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
+      maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
+      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad"))
     }
     const rentalListings = await rentals.getRentalsListings(
       {

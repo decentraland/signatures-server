@@ -31,3 +31,28 @@ export function getTypedArrayStringQueryParameter<T extends string>(
     .map((parameterValue) => getParameter(values, parameterName, parameterValue as T))
     .filter(Boolean) as T[]
 }
+
+export function getBooleanParameter(parameterName: string, parameterValue: string | null): boolean | undefined {
+  if (parameterValue === null) {
+    return undefined
+  }
+
+  if (parameterValue !== 'true' && parameterValue !== 'false') {
+    throw new InvalidParameterError(parameterName, parameterValue)
+  }
+
+  return parameterValue === 'true'
+}
+
+export function getNumberParameter(parameterName: string, parameterValue: string | null): number | undefined {
+  if (parameterValue === null) {
+    return undefined
+  }
+
+  const valueAsNumber = Number.parseInt(parameterValue)
+  if (Number.isNaN(valueAsNumber)) {
+    throw new InvalidParameterError(parameterName, parameterValue)
+  }
+
+  return valueAsNumber
+}

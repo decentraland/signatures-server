@@ -1053,7 +1053,7 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            minDistanceToPlaza: '10',
+            minDistanceToPlaza: 10,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
@@ -1061,7 +1061,7 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
           strings: expect.arrayContaining([expect.stringContaining("AND metadata.distance_to_plaza >= ")]),
-          values: ['10', 10, 0],
+          values: [10, 10, 0],
         })
       )
     })
@@ -1081,7 +1081,7 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            maxDistanceToPlaza: '10',
+            maxDistanceToPlaza: 10,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
@@ -1089,7 +1089,7 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
           strings: expect.arrayContaining([expect.stringContaining("AND metadata.distance_to_plaza <= ")]),
-          values: ['10', 10, 0],
+          values: [10, 10, 0],
         })
       )
     })
@@ -1110,7 +1110,7 @@ describe("when getting rental listings", () => {
             sortBy: null,
             sortDirection: null,
             filterBy: {
-              minEstateSize: '10',
+              minEstateSize: 10,
             },
           })
         ).resolves.toEqual(dbGetRentalListings)
@@ -1118,7 +1118,7 @@ describe("when getting rental listings", () => {
         expect(dbQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size >= ")]),
-            values: ['10', 10, 0],
+            values: [10, 10, 0],
           })
         )
       })
@@ -1133,7 +1133,7 @@ describe("when getting rental listings", () => {
             sortBy: null,
             sortDirection: null,
             filterBy: {
-              minEstateSize: '-1',
+              minEstateSize: -1,
             },
           })
         ).resolves.toEqual(dbGetRentalListings)
@@ -1162,7 +1162,7 @@ describe("when getting rental listings", () => {
           sortBy: null,
           sortDirection: null,
           filterBy: {
-            maxEstateSize: '10',
+            maxEstateSize: 10,
           },
         })
       ).resolves.toEqual(dbGetRentalListings)
@@ -1170,7 +1170,7 @@ describe("when getting rental listings", () => {
       expect(dbQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
           strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size <= ")]),
-          values: ['10', 10, 0],
+          values: [10, 10, 0],
         })
       )
     }) 
