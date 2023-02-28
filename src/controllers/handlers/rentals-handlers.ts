@@ -237,8 +237,8 @@ export async function refreshRentalListingHandler(
     params: { id },
   } = context
 
-  const forceMetadataRefresh = url.searchParams.get("forceMetadataRefresh") === 'true'
   try {
+    const forceMetadataRefresh = getBooleanParameter("forceMetadataRefresh", url.searchParams.get("forceMetadataRefresh"))
     const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
     return {
       status: StatusCode.OK,
@@ -269,6 +269,14 @@ export async function refreshRentalListingHandler(
             tokenId: error.tokenId,
             contractAddress: error.contractAddress,
           },
+        },
+      }
+    } else if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
         },
       }
     }

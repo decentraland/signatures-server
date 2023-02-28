@@ -78,7 +78,7 @@ export function getRentalsMetadataFilters(
   }
 
   if (filterBy.adjacentToRoad !== undefined) {
-    metadataQuery.append(SQL`AND metadata.adjacent_to_road = ${filterBy.adjacentToRoad === true}\n`)
+    metadataQuery.append(SQL`AND metadata.adjacent_to_road = ${filterBy.adjacentToRoad}\n`)
   }
 
   if (filterBy.minEstateSize && filterBy.minEstateSize >= 0) {

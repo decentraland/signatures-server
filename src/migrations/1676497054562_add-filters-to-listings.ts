@@ -5,8 +5,9 @@ export const shorthands: ColumnDefinitions | undefined = undefined;
 
 const NFT_FILTER_COLUMNS = {
   distance_to_plaza: {
-    type: "integer",
+    type: "smallint",
     notNull: false,
+    default: -1
   },
   adjacent_to_road: {
     type: "boolean",
@@ -14,7 +15,7 @@ const NFT_FILTER_COLUMNS = {
     notNull: true
   },
   estate_size: {
-    type: "integer",
+    type: "smallint",
     default: 0,
     notNull: true
   }
