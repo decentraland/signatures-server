@@ -157,8 +157,8 @@ export function getRentalListingsQuery(
   const { filterBy, sortBy, sortDirection, limit, offset } = params
 
   const rentalsQuery = SQL`(SELECT `
-  if (getHistoricData) {
-    rentalsQuery.append(SQL`DISTINCT ON (rentals.metadata_id)`)
+  if (!getHistoricData) {
+    rentalsQuery.append(SQL`DISTINCT ON (rentals.metadata_id) `)
   }
 
   rentalsQuery.append(SQL`rentals.*,
