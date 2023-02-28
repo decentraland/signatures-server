@@ -11,7 +11,7 @@ import {
 
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
-  refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
+  refreshRentalListing(rentalId: string, forceMetadataRefresh?: boolean): Promise<DBGetRentalListing>
   getRentalsListings(params: GetRentalListingParameters, getHistoricData?: boolean): Promise<DBGetRentalListing[]>
   cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
@@ -109,6 +109,10 @@ export type NFT = {
   searchIsLand: boolean
   /** The Estate size if the NFT is an Estate */
   searchEstateSize: number | null
+  /** Distance to the nearest plaza. Will only calculate those with less than 10 parcels away */
+  searchDistanceToPlaza: number
+  /** True if the parcel is next to a road */
+  searchAdjacentToRoad: boolean
 }
 
 export type IndexerRental = {

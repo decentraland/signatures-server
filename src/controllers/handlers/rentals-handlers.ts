@@ -10,6 +10,8 @@ import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { ethers } from "ethers"
 import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import {
+  getBooleanParameter,
+  getNumberParameter,
   getPaginationParams,
   getTypedArrayStringQueryParameter,
   getTypedStringQueryParameter,
@@ -62,6 +64,11 @@ export async function getRentalsListingsHandler(
       target: url.searchParams.get("target") ?? ethers.constants.AddressZero,
       minPricePerDay: url.searchParams.get("minPricePerDay") ?? undefined,
       maxPricePerDay: url.searchParams.get("maxPricePerDay") ?? undefined,
+      minDistanceToPlaza: getNumberParameter("minDistanceToPlaza", url.searchParams.get("minDistanceToPlaza")),
+      maxDistanceToPlaza: getNumberParameter("maxDistanceToPlaza", url.searchParams.get("maxDistanceToPlaza")),
+      minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
+      maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
+      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad"))
     }
     const rentalListings = await rentals.getRentalsListings(
       {
@@ -222,15 +229,17 @@ export async function rentalsListingsCreationHandler(
 }
 
 export async function refreshRentalListingHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "components">
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "url" | "components">
 ) {
   const {
+    url,
     components: { rentals },
     params: { id },
   } = context
 
   try {
-    const updatedRental = await rentals.refreshRentalListing(id)
+    const forceMetadataRefresh = getBooleanParameter("forceMetadataRefresh", url.searchParams.get("forceMetadataRefresh"))
+    const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
     return {
       status: StatusCode.OK,
       body: {
@@ -260,6 +269,14 @@ export async function refreshRentalListingHandler(
             tokenId: error.tokenId,
             contractAddress: error.contractAddress,
           },
+        },
+      }
+    } else if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
         },
       }
     }

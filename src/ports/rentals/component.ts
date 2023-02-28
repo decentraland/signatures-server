@@ -48,6 +48,7 @@ import {
 } from "./types"
 import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
+import { getRentalListingsQuery } from "./queries"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
@@ -71,7 +72,13 @@ export async function createRentalsComponent(
   }
 
   async function getNFTsFromIndexer(options?: {
-    filterBy?: Partial<Omit<NFT, "owner"> & { updatedAt_gt: string; id_gt: string; searchEstateSize: number }>
+    filterBy?: Partial<
+      Omit<NFT, "owner"> & {
+        updatedAt_gt: string
+        id_gt: string
+        searchEstateSize: number
+      }
+    >
     first?: number
     orderBy?: keyof Omit<NFT, "owner">
     orderDirection?: "desc" | "asc"
@@ -99,7 +106,9 @@ export async function createRentalsComponent(
           searchIsLand,
           createdAt,
           updatedAt,
-          searchEstateSize
+          searchEstateSize,
+          searchDistanceToPlaza,
+          searchAdjacentToRoad
         }
       }`,
       variables
@@ -320,11 +329,25 @@ export async function createRentalsComponent(
     try {
       await client.query(SQL`BEGIN`)
       const createdMetadata = await client.query<DBMetadata>(
-        SQL`INSERT INTO metadata (id, category, search_text, updated_at, created_at) VALUES (${nft.id}, ${
-          nft.category
-        }, ${nft.searchText}, ${new Date(fromSecondsToMilliseconds(Number(nft.updatedAt)))}, ${new Date(
-          fromSecondsToMilliseconds(Number(nft.createdAt))
-        )}) ON CONFLICT (id) DO UPDATE SET search_text = ${nft.searchText} RETURNING *`
+        SQL`INSERT INTO metadata (
+          id,
+          category,
+          search_text,
+          distance_to_plaza,
+          adjacent_to_road,
+          estate_size,
+          updated_at,
+          created_at
+        ) VALUES (
+          ${nft.id},
+          ${nft.category},
+          ${nft.searchText},
+          ${nft.searchDistanceToPlaza},
+          ${nft.searchAdjacentToRoad},
+          ${nft.searchEstateSize},
+          ${new Date(fromSecondsToMilliseconds(Number(nft.updatedAt)))},
+          ${new Date(fromSecondsToMilliseconds(Number(nft.createdAt)))}
+        ) ON CONFLICT (id) DO UPDATE SET search_text = ${nft.searchText} RETURNING *`
       )
       logger.debug(buildLogMessageForRental("Inserted metadata"))
 
@@ -392,109 +415,11 @@ export async function createRentalsComponent(
     getHistoricData?: boolean
   ): Promise<DBGetRentalListing[]> {
     logger.info("Staring to get the rental listings")
-    const { sortBy, offset, limit, filterBy, sortDirection } = params
-    const sortByParam = sortBy ?? RentalsListingsSortBy.RENTAL_LISTING_DATE
-    const sortDirectionParam = sortDirection ?? RentalsListingSortDirection.ASC
-
-    const filterByCategory = filterBy?.category ? SQL`AND metadata.category = ${filterBy.category}\n` : ""
-    let filterByStatus = SQL``
-    if (filterBy?.status && filterBy.status.length > 0) {
-      filterByStatus = SQL`AND (`
-      filterBy.status.forEach((status, index, array) => {
-        filterByStatus.append(SQL`rentals.status = ${status}`)
-        if (index < array.length - 1) {
-          filterByStatus.append(` OR `)
-        }
-      })
-      filterByStatus.append(`)\n`)
-    }
-    const filterByLessor = filterBy?.lessor ? SQL`AND rentals_listings.lessor = ${filterBy.lessor}\n` : ""
-    const filterByTarget = filterBy?.target ? SQL`AND rentals.target = ${filterBy.target}\n` : ""
-    const filterByUpdatedAfter = filterBy?.updatedAfter
-      ? SQL`AND rentals.updated_at > ${new Date(filterBy.updatedAfter)}\n`
-      : ""
-    const filterByTenant = filterBy?.tenant ? SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n` : ""
-    const filterBySearchText = filterBy?.text
-      ? SQL`AND metadata.search_text ILIKE '%' || ${filterBy.text} || '%'\n`
-      : ""
-    const filterByTokenId = filterBy?.tokenId ? SQL`AND rentals.token_id = ${filterBy.tokenId}\n` : ""
-    const filterByContractAddress =
-      filterBy?.contractAddresses && filterBy.contractAddresses.length > 0
-        ? SQL`AND rentals.contract_address = ANY(${filterBy.contractAddresses})\n`
-        : ""
-    const filterByNftIds =
-      filterBy?.nftIds && filterBy.nftIds.length > 0 ? SQL`AND rentals.metadata_id = ANY(${filterBy.nftIds})\n` : ""
-    const filterByNetwork = filterBy?.network ? SQL`AND rentals.network = ${filterBy.network}\n` : ""
-
-    const filterByPrice = SQL``
-    if (filterBy?.minPricePerDay || filterBy?.maxPricePerDay) {
-      filterByPrice.append(`HAVING `)
-      if (filterBy?.minPricePerDay) {
-        filterByPrice.append(SQL`max(periods.price_per_day) >= ${filterBy.minPricePerDay}`)
-        if (filterBy?.maxPricePerDay) {
-          filterByPrice.append(` AND `)
-        }
-      }
-      if (filterBy?.maxPricePerDay) {
-        filterByPrice.append(SQL`min(periods.price_per_day) <= ${filterBy.maxPricePerDay}`)
-      }
-      filterByPrice.append(`\n`)
-    }
-
-    let sortByQuery: SQLStatement | string = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
-    switch (sortByParam) {
-      case RentalsListingsSortBy.LAND_CREATION_DATE:
-        sortByQuery = `ORDER BY metadata.created_at ${sortDirectionParam}\n`
-        break
-      case RentalsListingsSortBy.NAME:
-        sortByQuery = `ORDER BY metadata.search_text ${sortDirectionParam}\n`
-        break
-      case RentalsListingsSortBy.RENTAL_LISTING_DATE:
-        sortByQuery = `ORDER BY rentals.created_at ${sortDirectionParam}\n`
-        break
-      case RentalsListingsSortBy.MAX_RENTAL_PRICE:
-        sortByQuery = `ORDER BY rentals.max_price_per_day ${sortDirectionParam}\n`
-        break
-      case RentalsListingsSortBy.MIN_RENTAL_PRICE:
-        sortByQuery = `ORDER BY rentals.min_price_per_day ${sortDirectionParam}\n`
-        break
-    }
-
-    // The periods array items must be casted to string because the numeric arrays are considered as number by node-pg
-    let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at, COUNT(*) OVER() as rentals_listings_count FROM metadata,
-      (SELECT `
-    if (!getHistoricData) {
-      query.append("DISTINCT ON (rentals.metadata_id) ")
-    }
-    query.append(`rentals.*, rentals_listings.tenant, rentals_listings.lessor,
-      array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods,
-      min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
-      FROM rentals, rentals_listings, periods WHERE  
-      rentals.id = rentals_listings.id AND
-      periods.rental_id = rentals.id\n`)
-    query.append(filterByStatus)
-    query.append(filterByTarget)
-    query.append(filterByUpdatedAfter)
-    query.append(filterByTokenId)
-    query.append(filterByContractAddress)
-    query.append(filterByNetwork)
-    query.append(filterByLessor)
-    query.append(filterByTenant)
-    query.append(filterByNftIds)
-    query.append(SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id\n`)
-    query.append(filterByPrice)
-    query.append(SQL`ORDER BY rentals.metadata_id, rentals.created_at desc) as rentals\n`)
-    query.append("WHERE metadata.id = rentals.metadata_id\n")
-    query.append(filterByCategory)
-    query.append(filterBySearchText)
-    query.append(sortByQuery)
-    query.append(SQL`LIMIT ${limit} OFFSET ${offset}`)
-
-    const results = await database.query<DBGetRentalListing>(query)
+    const results = await database.query<DBGetRentalListing>(getRentalListingsQuery(params, getHistoricData))
     return results.rows
   }
 
-  async function refreshRentalListing(rentalId: string) {
+  async function refreshRentalListing(rentalId: string, forceMetadataRefresh: boolean = false) {
     logger.info(`[Refresh][Start][${rentalId}]`)
     const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(Date.now())))
     const rentalQueryResult = await database.query<{
@@ -549,12 +474,19 @@ export async function createRentalsComponent(
       indexerRentals.length > 0 ? fromSecondsToMilliseconds(Number(indexerRentals[0].updatedAt)) : 0
 
     const promisesOfUpdate: Promise<any>[] = []
+
     // Update metadata
-    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime()) {
+    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime() || forceMetadataRefresh) {
       logger.info(`[Refresh][Update metadata][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
-          SQL`UPDATE metadata SET search_text = ${indexerNFT.searchText}, updated_at = ${rentalData.updated_at} WHERE id = ${rentalData.metadata_id}`
+          SQL`UPDATE metadata SET
+            search_text = ${indexerNFT.searchText},
+            updated_at = ${new Date(indexerNFTLastUpdate)},
+            distance_to_plaza = ${indexerNFT.searchDistanceToPlaza},
+            adjacent_to_road = ${indexerNFT.searchAdjacentToRoad},
+            estate_size = ${indexerNFT.searchEstateSize}
+            WHERE id = ${rentalData.metadata_id}`
         )
       )
 
@@ -658,9 +590,14 @@ export async function createRentalsComponent(
         const promiseOfUpdates = updatedNFTs.map((nft) =>
           limit(async () => {
             const { rowCount } = await client.query(
-              SQL`UPDATE metadata SET category = ${nft.category}, search_text = ${
-                nft.searchText
-              }, updated_at = ${new Date(fromMillisecondsToSeconds(Number(nft.updatedAt)))} WHERE id = ${nft.id}`
+              SQL`UPDATE metadata SET
+                category = ${nft.category},
+                search_text = ${nft.searchText},
+                distance_to_plaza = ${nft.searchDistanceToPlaza},
+                adjacent_to_road = ${nft.searchAdjacentToRoad},
+                estate_size = ${nft.searchEstateSize},
+                updated_at = ${new Date(fromMillisecondsToSeconds(Number(nft.updatedAt)))}
+                WHERE id = ${nft.id}`
             )
             logger.debug(`[Metadata update][Single update:${nft.id}][Start]`)
             // If the metadata to be updated doesn't exist don't continue with the update
