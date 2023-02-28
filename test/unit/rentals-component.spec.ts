@@ -1224,6 +1224,58 @@ describe("when getting rental listings", () => {
       )
     }) 
   })
+
+  describe("and getHistoricData flag is on", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should only retrieve one rental for each nft (metadata_id)", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {},
+        }, true)
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.not.stringContaining("DISTINCT ON (rentals.metadata_id)")]),
+          values: [10, 0],
+        })
+      )
+    })
+  })
+
+  describe("and getHistoricData flag is off", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    it("should only retrieve one rental for each nft (metadata_id)", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: {},
+        }, false)
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([expect.stringContaining("DISTINCT ON (rentals.metadata_id)")]),
+          values: [10, 0],
+        })
+      )
+    })
+  })
 })
 
 describe("when refreshing rental listings", () => {
