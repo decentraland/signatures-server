@@ -48,7 +48,7 @@ import {
 } from "./types"
 import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
-import { getRentalListingsQuery } from "./queries/getRentalsListings"
+import { getRentalListingsQuery } from "./queries"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
