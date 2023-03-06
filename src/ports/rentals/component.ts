@@ -1,4 +1,4 @@
-import SQL, { SQLStatement } from "sql-template-strings"
+import SQL from "sql-template-strings"
 import {
   ChainName,
   getChainId,
@@ -48,7 +48,7 @@ import {
 } from "./types"
 import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
-import { getRentalListingsQuery } from "./queries"
+import { getRentalListingsQuery } from "./queries/getRentalsListings"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">

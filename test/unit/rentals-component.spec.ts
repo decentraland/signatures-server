@@ -1276,6 +1276,35 @@ describe("when getting rental listings", () => {
       )
     })
   })
+
+  describe("and the rentalDays filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+  
+    it("should join rental days select", async () => {
+      await expect(
+        rentalsComponent.getRentalsListings({
+          offset: 0,
+          limit: 10,
+          sortBy: null,
+          sortDirection: null,
+          filterBy: { rentalDays: [1, 7] },
+        }, false)
+      ).resolves.toEqual(dbGetRentalListings)
+
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          strings: expect.arrayContaining([
+            expect.stringContaining("SELECT DISTINCT rental_id FROM periods WHERE (min_days <= "),
+            expect.stringContaining("AND max_days >= "),
+          ]),
+          values: [1, 1, 7, 7, 10, 0],
+        })
+      )
+    })
+  })
 })
 
 describe("when refreshing rental listings", () => {

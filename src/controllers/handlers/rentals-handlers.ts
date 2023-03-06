@@ -68,7 +68,8 @@ export async function getRentalsListingsHandler(
       maxDistanceToPlaza: getNumberParameter("maxDistanceToPlaza", url.searchParams.get("maxDistanceToPlaza")),
       minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
       maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
-      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad"))
+      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad")),
+      rentalDays: url.searchParams.getAll("rentalDays").map((value) => getNumberParameter("rentalDays", value)).filter(Boolean) as number[]
     }
     const rentalListings = await rentals.getRentalsListings(
       {
