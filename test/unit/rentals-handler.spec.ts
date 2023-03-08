@@ -348,21 +348,68 @@ describe("when getting rental listings", () => {
     { parameterName: "maxDistanceToPlaza", parameterValue: "notAnInt" },
     { parameterName: "minEstateSize", parameterValue: "notAnInt" },
     { parameterName: "maxEstateSize", parameterValue: "notAnInt" },
-  ])("and the request was done with an invalid parameter type for filter $parameterName", ({ parameterName, parameterValue }) => {
-    beforeEach(() => {
-      url = new URL(`http://localhost/v1/rental-listing?${parameterName}=${parameterValue}`)
-    })
-
-    it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
-      return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
-        status: StatusCode.BAD_REQUEST,
-        body: {
-          ok: false,
-          message: `The value of the ${parameterName} parameter is invalid: ${parameterValue}`,
-        },
+    { parameterName: "rentalDays", parameterValue: [1, "notAnInt"], invalidValue: "notAnInt" },
+  ])(
+    "and the request was done with an invalid parameter type for filter $parameterName",
+    ({ parameterName, parameterValue, invalidValue }) => {
+      beforeEach(() => {
+        let queryParams = new URLSearchParams()
+        if (Array.isArray(parameterValue)) {
+          parameterValue.forEach((value) => {
+            queryParams.append(parameterName, value.toString())
+          })
+        } else {
+          queryParams.append(parameterName, parameterValue)
+        }
+        url = new URL(`http://localhost/v1/rental-listing?${queryParams.toString()}`)
       })
-    })
-  })
+
+      it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+        return expect(getRentalsListingsHandler({ components, url })).resolves.toEqual({
+          status: StatusCode.BAD_REQUEST,
+          body: {
+            ok: false,
+            message: `The value of the ${parameterName} parameter is invalid: ${Array.isArray(parameterValue) ? invalidValue : parameterValue}`,
+          },
+        })
+      })
+    }
+  )
+
+  describe.each([
+    { parameterName: "category", parameterValue: "parcel" },
+    { parameterName: "status", parameterValue: ["open"] },
+    { parameterName: "adjacentToRoad", parameterValue: true },
+    { parameterName: "minDistanceToPlaza", parameterValue: 1 },
+    { parameterName: "maxDistanceToPlaza", parameterValue: 2 },
+    { parameterName: "minEstateSize", parameterValue: 1 },
+    { parameterName: "maxEstateSize", parameterValue: 2 },
+    { parameterName: "rentalDays", parameterValue: [1, 2] },
+  ])(
+    "and the request was done with a valid parameter type for filter $parameterName",
+    ({ parameterName, parameterValue }) => {
+      beforeEach(() => {
+        getRentalsListingsMock.mockResolvedValueOnce([])
+        let queryParams = new URLSearchParams()
+        if (Array.isArray(parameterValue)) {
+          parameterValue.forEach((value) => {
+            queryParams.append(parameterName, value.toString())
+          })
+        } else {
+          queryParams.append(parameterName, parameterValue.toString())
+        }
+        url = new URL(`http://localhost/v1/rental-listing?${queryParams.toString()}`)
+      })
+
+      it("should call getRentalsListings function with correct filters", async () => {
+        await getRentalsListingsHandler({ components, url })
+        expect(getRentalsListingsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ filterBy: expect.objectContaining({ [parameterName]: parameterValue }) }),
+          expect.anything()
+        )
+      })
+    }
+  )
 
   describe("and the process to get the listings fails with an unknown error", () => {
     const errorMessage = "Something wrong happened"
@@ -768,7 +815,7 @@ describe("when refreshing a rental listing", () => {
 
   describe("and forceMetadataRefresh is not a valid type", () => {
     beforeEach(() => {
-      url = new URL("http://localhost/v1/rental-listing?forceMetadataRefresh=test");
+      url = new URL("http://localhost/v1/rental-listing?forceMetadataRefresh=test")
     })
 
     test("should return BAD REQUEST with correct error message", () => {
@@ -900,7 +947,9 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL })).resolves.toEqual({
+      return expect(
+        refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL })
+      ).resolves.toEqual({
         status: StatusCode.OK,
         body: {
           ok: true,

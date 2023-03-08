@@ -1276,6 +1276,65 @@ describe("when getting rental listings", () => {
       )
     })
   })
+
+  describe("and the rentalDays filter is set", () => {
+    beforeEach(() => {
+      dbGetRentalListings = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListings })
+    })
+
+    describe("when there is only one day", () => {
+      it("should join rental days select", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: { rentalDays: [1] },
+          }, false)
+        ).resolves.toEqual(dbGetRentalListings)
+  
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([
+              expect.stringContaining("SELECT DISTINCT rental_id FROM periods WHERE (min_days <= "),
+              expect.stringContaining("AND max_days >= "),
+              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id")
+            ]),
+            values: [1, 1, 10, 0],
+          })
+        )
+      })
+    })
+  
+    describe("when there is more than one day", () => {
+      it("should join rental days select", async () => {
+        await expect(
+          rentalsComponent.getRentalsListings({
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: { rentalDays: [1, 7] },
+          }, false)
+        ).resolves.toEqual(dbGetRentalListings)
+  
+        expect(dbQueryMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            strings: expect.arrayContaining([
+              expect.stringContaining("SELECT DISTINCT rental_id FROM periods WHERE (min_days <= "),
+              expect.stringContaining("AND max_days >= "),
+              expect.stringContaining("OR (min_days <= "),
+              expect.stringContaining("AND max_days >= "),
+              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id")
+            ]),
+            values: [1, 1, 7, 7, 10, 0],
+          })
+        )
+      })
+    })
+  })
 })
 
 describe("when refreshing rental listings", () => {

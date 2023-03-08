@@ -1,14 +1,34 @@
 import SQL, { SQLStatement } from "sql-template-strings"
 import { RentalsListingsFilterBy, RentalsListingSortDirection, RentalsListingsSortBy, RentalStatus } from "@dcl/schemas"
 
+function getRentalDaysQuery(rentalDays: RentalsListingsFilterBy['rentalDays']) {
+  const rentalDaysQuery = SQL``
+
+  if (rentalDays && rentalDays.length) {
+    rentalDaysQuery.append(SQL`, (SELECT DISTINCT rental_id FROM periods WHERE `)
+    rentalDays.forEach((rentalDay, index) => {
+      rentalDaysQuery.append(SQL`(min_days <= ${rentalDay} AND max_days >= ${rentalDay})`)
+      if (index < rentalDays.length -1) {
+        rentalDaysQuery.append(` OR `)
+      }
+    })
+    rentalDaysQuery.append(') as rental_days_periods \n')
+  }
+
+  return rentalDaysQuery
+}
+
+
 export function getRentalsFilters(
   filterBy: (RentalsListingsFilterBy & { status?: RentalStatus[] }) | null
 ): SQLStatement {
-  if (!filterBy) {
-    return SQL``
-  }
+  const filterQuery = SQL`WHERE rentals.id = rentals_listings.id AND periods.rental_id = rentals.id \n`
 
-  const filterQuery = SQL``
+  if (!filterBy) return filterQuery
+
+  if (filterBy.rentalDays && filterBy.rentalDays.length) {
+    filterQuery.append(`AND rental_days_periods.rental_id = rentals.id\n`)
+  }
 
   if (filterBy.status && filterBy.status.length > 0) {
     filterQuery.append(SQL`AND rentals.status = ANY(${filterBy.status})\n`)
@@ -167,8 +187,9 @@ export function getRentalListingsQuery(
     array_agg(ARRAY[periods.min_days::text, periods.max_days::text, periods.price_per_day::text] ORDER BY periods.min_days) as periods,
     min(periods.price_per_day) as min_price_per_day,
     max(periods.price_per_day) as max_price_per_day
-  FROM rentals, rentals_listings, periods
-  WHERE rentals.id = rentals_listings.id AND periods.rental_id = rentals.id\n`)
+  FROM rentals, rentals_listings, periods `)
+  
+  rentalsQuery.append(getRentalDaysQuery(filterBy?.rentalDays))
   rentalsQuery.append(getRentalsFilters(filterBy))
   rentalsQuery.append(SQL`GROUP BY rentals.id, rentals_listings.id, periods.rental_id\n`)
   rentalsQuery.append(getRentalsGroupByFilters(filterBy))
