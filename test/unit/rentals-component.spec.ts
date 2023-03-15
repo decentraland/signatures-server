@@ -2769,7 +2769,7 @@ describe("when cancelling the rental listings", () => {
     logs = createTestConsoleLogComponent()
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
-    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: startDate }] })
     jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
   })
 
