@@ -45,10 +45,11 @@ import {
   IndexerIndexesHistoryUpdate,
   IndexerIndexesHistoryUpdateQuery,
   IndexUpdateEventType,
+  GetRentalListingsPricesFilters,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
-import { getRentalListingsQuery } from "./queries"
+import { getRentalListingsQuery, getRentalListingsPricesQuery } from "./queries"
 
 export async function createRentalsComponent(
   components: Pick<AppComponents, "database" | "logs" | "marketplaceSubgraph" | "rentalsSubgraph" | "config">
@@ -938,6 +939,11 @@ export async function createRentalsComponent(
     }
   }
 
+  async function getRentalListingsPrices(filters: GetRentalListingsPricesFilters): Promise<number[]> {
+    const results = await database.query<number>(getRentalListingsPricesQuery(filters))
+    return results.rows
+  }
+
   return {
     createRentalListing,
     refreshRentalListing,
@@ -945,5 +951,6 @@ export async function createRentalsComponent(
     updateRentalsListings,
     cancelRentalsListings,
     updateMetadata,
+    getRentalListingsPrices,
   }
 }

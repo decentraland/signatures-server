@@ -7,6 +7,7 @@ import {
   refreshRentalListingHandler,
   rentalsListingsCreationHandler,
   getRentalsListingsHandler,
+  getRentalListingsPricesHandler
 } from "./handlers/rentals-handlers"
 
 // We return the entire router because it will be easier to test than a whole server
@@ -28,6 +29,7 @@ export async function setupRouter(
   )
   router.get("/v1/rentals-listings", getRentalsListingsHandler)
   router.patch("/v1/rentals-listings/:id", refreshRentalListingHandler)
+  router.get("/v1/rental-listings/prices", getRentalListingsPricesHandler)
 
   return router
 }

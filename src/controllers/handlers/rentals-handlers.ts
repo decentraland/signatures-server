@@ -8,7 +8,7 @@ import {
 } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { ethers } from "ethers"
-import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
+import { fromDBGetRentalsListingsPricesToRentalListingsPrices, fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
 import {
   getBooleanParameter,
   getNumberParameter,
@@ -284,4 +284,48 @@ export async function refreshRentalListingHandler(
 
     throw error
   }
+}
+
+export async function getRentalListingsPricesHandler(
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/prices">, "url" | "components">
+) {
+  const {
+    url,
+    components: { rentals },
+  } = context
+
+  try {
+    const filters = {
+      adjacentToRoad: getBooleanParameter('adjacentToRoad', url.searchParams.get('adjacentToRoad')),
+      minDistanceToPlaza: getNumberParameter('minDistanceToPlaza', url.searchParams.get('minDistanceToPlaza')),
+      maxDistanceToPlaza: getNumberParameter('maxDistanceToPlaza', url.searchParams.get('maxDistanceToPlaza')),
+      minEstateSize: getNumberParameter('minEstateSize', url.searchParams.get('minEstateSize')),
+      maxEstateSize: getNumberParameter('maxEstateSize', url.searchParams.get('maxEstateSize')),
+    }
+
+    const rentalListingsPrices = await rentals.getRentalListingsPrices(filters)
+    return {
+      status: StatusCode.OK,
+      body: {
+        ok: true,
+        data: {
+          results: fromDBGetRentalsListingsPricesToRentalListingsPrices(rentalListingsPrices)
+        },
+      },
+    }
+
+  } catch (error) {
+    if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+        },
+      }
+    }
+
+    throw error
+  }
+  
 }
