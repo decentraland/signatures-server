@@ -2808,8 +2808,6 @@ describe("when cancelling the rental listings", () => {
     })
 
     it("should update the time the last update was performed", () => {
-      console.log(startDate)
-      console.log(new Date(Math.floor(startDate.getTime() / 1000) * 1000))
       expect(dbClientQueryMock).toHaveBeenCalledWith(
         expect.objectContaining({
           strings: expect.arrayContaining([expect.stringContaining("UPDATE updates SET updated_at")]),
