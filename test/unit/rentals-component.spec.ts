@@ -33,6 +33,7 @@ import {
   IndexUpdateEventType,
   InvalidEstate,
   RentalAlreadyExpired,
+  DBGetRentalListingsPrice,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -627,9 +628,7 @@ describe("when getting rental listings", () => {
           })
         ).resolves.toEqual(dbGetRentalListings)
 
-        expect(dbQueryMock.mock.calls[0][0].text).toEqual(
-          expect.stringContaining("AND rentals.status = ANY($1)")
-        )
+        expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining("AND rentals.status = ANY($1)"))
         expect(dbQueryMock.mock.calls[0][0].values).toEqual([[RentalStatus.EXECUTED, RentalStatus.CLAIMED], 10, 0])
       })
     })
@@ -1114,7 +1113,7 @@ describe("when getting rental listings", () => {
             },
           })
         ).resolves.toEqual(dbGetRentalListings)
-  
+
         expect(dbQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([expect.stringContaining("AND metadata.estate_size >= ")]),
@@ -1137,7 +1136,7 @@ describe("when getting rental listings", () => {
             },
           })
         ).resolves.toEqual(dbGetRentalListings)
-  
+
         expect(dbQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([expect.not.stringContaining("AND metadata.estate_size >= ")]),
@@ -1173,7 +1172,7 @@ describe("when getting rental listings", () => {
           values: [10, 10, 0],
         })
       )
-    }) 
+    })
   })
 
   describe("and the adjacentToRoad filter is set", () => {
@@ -1222,7 +1221,7 @@ describe("when getting rental listings", () => {
           values: [false, 10, 0],
         })
       )
-    }) 
+    })
   })
 
   describe("and getHistoricData flag is on", () => {
@@ -1233,13 +1232,16 @@ describe("when getting rental listings", () => {
 
     it("should only retrieve one rental for each nft (metadata_id)", async () => {
       await expect(
-        rentalsComponent.getRentalsListings({
-          offset: 0,
-          limit: 10,
-          sortBy: null,
-          sortDirection: null,
-          filterBy: {},
-        }, true)
+        rentalsComponent.getRentalsListings(
+          {
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {},
+          },
+          true
+        )
       ).resolves.toEqual(dbGetRentalListings)
 
       expect(dbQueryMock).toHaveBeenCalledWith(
@@ -1259,13 +1261,16 @@ describe("when getting rental listings", () => {
 
     it("should only retrieve one rental for each nft (metadata_id)", async () => {
       await expect(
-        rentalsComponent.getRentalsListings({
-          offset: 0,
-          limit: 10,
-          sortBy: null,
-          sortDirection: null,
-          filterBy: {},
-        }, false)
+        rentalsComponent.getRentalsListings(
+          {
+            offset: 0,
+            limit: 10,
+            sortBy: null,
+            sortDirection: null,
+            filterBy: {},
+          },
+          false
+        )
       ).resolves.toEqual(dbGetRentalListings)
 
       expect(dbQueryMock).toHaveBeenCalledWith(
@@ -1286,40 +1291,46 @@ describe("when getting rental listings", () => {
     describe("when there is only one day", () => {
       it("should join rental days select", async () => {
         await expect(
-          rentalsComponent.getRentalsListings({
-            offset: 0,
-            limit: 10,
-            sortBy: null,
-            sortDirection: null,
-            filterBy: { rentalDays: [1] },
-          }, false)
+          rentalsComponent.getRentalsListings(
+            {
+              offset: 0,
+              limit: 10,
+              sortBy: null,
+              sortDirection: null,
+              filterBy: { rentalDays: [1] },
+            },
+            false
+          )
         ).resolves.toEqual(dbGetRentalListings)
-  
+
         expect(dbQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([
               expect.stringContaining("SELECT DISTINCT rental_id FROM periods WHERE (min_days <= "),
               expect.stringContaining("AND max_days >= "),
-              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id")
+              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id"),
             ]),
             values: [1, 1, 10, 0],
           })
         )
       })
     })
-  
+
     describe("when there is more than one day", () => {
       it("should join rental days select", async () => {
         await expect(
-          rentalsComponent.getRentalsListings({
-            offset: 0,
-            limit: 10,
-            sortBy: null,
-            sortDirection: null,
-            filterBy: { rentalDays: [1, 7] },
-          }, false)
+          rentalsComponent.getRentalsListings(
+            {
+              offset: 0,
+              limit: 10,
+              sortBy: null,
+              sortDirection: null,
+              filterBy: { rentalDays: [1, 7] },
+            },
+            false
+          )
         ).resolves.toEqual(dbGetRentalListings)
-  
+
         expect(dbQueryMock).toHaveBeenCalledWith(
           expect.objectContaining({
             strings: expect.arrayContaining([
@@ -1327,7 +1338,7 @@ describe("when getting rental listings", () => {
               expect.stringContaining("AND max_days >= "),
               expect.stringContaining("OR (min_days <= "),
               expect.stringContaining("AND max_days >= "),
-              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id")
+              expect.stringContaining("AND rental_days_periods.rental_id = rentals.id"),
             ]),
             values: [1, 1, 7, 7, 10, 0],
           })
@@ -1492,7 +1503,7 @@ describe("when refreshing rental listings", () => {
             rowCount: 1,
           })
         })
-  
+
         it("should update the metadata in the database and return the rental", async () => {
           await expect(rentalsComponent.refreshRentalListing("an id", true)).resolves.toEqual(result)
           expect(dbQueryMock.mock.calls[1][0].text).toEqual(expect.stringContaining("UPDATE metadata SET"))
@@ -2041,7 +2052,7 @@ describe("when updating the metadata", () => {
         updatedAt: "200000",
         searchIsLand: true,
         searchAdjacentToRoad: true,
-        searchDistanceToPlaza: 3
+        searchDistanceToPlaza: 3,
       }
       dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
       marketplaceSubgraphQueryMock.mockResolvedValueOnce({
@@ -2551,7 +2562,7 @@ describe("when updating the rental listings", () => {
           updatedAt: "200000",
           searchIsLand: true,
           searchAdjacentToRoad: true,
-          searchDistanceToPlaza: 3
+          searchDistanceToPlaza: 3,
         }
         newRentalId = "aNewRentalId"
         rentalsSubgraphQueryMock.mockResolvedValueOnce({ rentals: [rentalFromIndexer] })
@@ -2988,6 +2999,104 @@ describe("when cancelling the rental listings", () => {
           })
         })
       })
+    })
+  })
+})
+
+describe("when getting rental listings prices", () => {
+  let dbGetRentalListingsPrices: DBGetRentalListingsPrice[]
+
+  beforeEach(async () => {
+    dbQueryMock = jest.fn()
+    database = createTestDbComponent({ query: dbQueryMock })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+  })
+
+  describe("and the query throws an error", () => {
+    const errorMessage = "Something went wrong while querying the database"
+    beforeEach(() => {
+      dbQueryMock.mockRejectedValueOnce(new Error("Something went wrong while querying the database"))
+    })
+
+    it("should propagate the error", () => {
+      expect(rentalsComponent.getRentalListingsPrices({})).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and no filters are applied", () => {
+    beforeEach(() => {
+      dbGetRentalListingsPrices = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListingsPrices })
+    })
+
+    it("should get all rental prices with status opened", async () => {
+      await expect(rentalsComponent.getRentalListingsPrices({})).resolves.toEqual(dbGetRentalListingsPrices)
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
+        expect.stringContaining(
+          `SELECT p.price_per_day FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1`
+        )
+      )
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.OPEN])
+    })
+  })
+
+  describe.each([
+    {
+      filterName: "adjacentToRoad",
+      filterValue: true,
+      queryString: "AND m.adjacent_to_road = $2",
+      queryValues: [true],
+    },
+    {
+      filterName: "category",
+      filterValue: RentalsListingsFilterByCategory.PARCEL,
+      queryString: "AND m.category = $2",
+      queryValues: [RentalsListingsFilterByCategory.PARCEL],
+    },
+    {
+      filterName: "minDistanceToPlaza",
+      filterValue: 1,
+      queryString: "AND m.distance_to_plaza >= $2",
+      queryValues: [1],
+    },
+    {
+      filterName: "maxDistanceToPlaza",
+      filterValue: 1,
+      queryString: "AND m.distance_to_plaza <= $2",
+      queryValues: [1],
+    },
+    { filterName: "minEstateSize", filterValue: 1, queryString: "AND m.estate_size >= $2", queryValues: [1] },
+    { filterName: "maxEstateSize", filterValue: 1, queryString: "AND m.estate_size <= $2", queryValues: [1] },
+    {
+      filterName: "rentalDays",
+      filterValue: [1],
+      queryString: "AND ((p.min_days <= $2 AND p.max_days >= $3))",
+      queryValues: [1, 1],
+    },
+    {
+      filterName: "rentalDays",
+      filterValue: [1, 30],
+      queryString: "AND ((p.min_days <= $2 AND p.max_days >= $3) OR (p.min_days <= $4 AND p.max_days >= $5))",
+      queryValues: [1, 1, 30, 30],
+    },
+  ])("and filter $filterName is applied", ({ filterName, filterValue, queryString, queryValues }) => {
+    beforeEach(() => {
+      dbGetRentalListingsPrices = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListingsPrices })
+    })
+
+    it("should make the query with the correct $filterName value", () => {
+      expect(rentalsComponent.getRentalListingsPrices({ [filterName]: filterValue })).resolves.toEqual(
+        dbGetRentalListingsPrices
+      )
+      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining(queryString))
+      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.OPEN, ...queryValues])
     })
   })
 })

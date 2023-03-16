@@ -8,7 +8,11 @@ import {
 } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { ethers } from "ethers"
-import { fromDBGetRentalsListingsPricesToRentalListingsPrices, fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
+import {
+  fromDBGetRentalsListingsPricesToRentalListingsPrices,
+  fromDBGetRentalsListingsToRentalListings,
+  fromDBInsertedRentalListingToRental,
+} from "../../adapters/rentals"
 import {
   getBooleanParameter,
   getNumberParameter,
@@ -69,7 +73,10 @@ export async function getRentalsListingsHandler(
       minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
       maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
       adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad")),
-      rentalDays: url.searchParams.getAll("rentalDays").map((value) => getNumberParameter("rentalDays", value)).filter(Boolean) as number[]
+      rentalDays: url.searchParams
+        .getAll("rentalDays")
+        .map((value) => getNumberParameter("rentalDays", value))
+        .filter(Boolean) as number[],
     }
     const rentalListings = await rentals.getRentalsListings(
       {
@@ -239,7 +246,10 @@ export async function refreshRentalListingHandler(
   } = context
 
   try {
-    const forceMetadataRefresh = getBooleanParameter("forceMetadataRefresh", url.searchParams.get("forceMetadataRefresh"))
+    const forceMetadataRefresh = getBooleanParameter(
+      "forceMetadataRefresh",
+      url.searchParams.get("forceMetadataRefresh")
+    )
     const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
     return {
       status: StatusCode.OK,
@@ -296,11 +306,18 @@ export async function getRentalListingsPricesHandler(
 
   try {
     const filters = {
-      adjacentToRoad: getBooleanParameter('adjacentToRoad', url.searchParams.get('adjacentToRoad')),
-      minDistanceToPlaza: getNumberParameter('minDistanceToPlaza', url.searchParams.get('minDistanceToPlaza')),
-      maxDistanceToPlaza: getNumberParameter('maxDistanceToPlaza', url.searchParams.get('maxDistanceToPlaza')),
-      minEstateSize: getNumberParameter('minEstateSize', url.searchParams.get('minEstateSize')),
-      maxEstateSize: getNumberParameter('maxEstateSize', url.searchParams.get('maxEstateSize')),
+      category:
+        getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
+        undefined,
+      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad")),
+      minDistanceToPlaza: getNumberParameter("minDistanceToPlaza", url.searchParams.get("minDistanceToPlaza")),
+      maxDistanceToPlaza: getNumberParameter("maxDistanceToPlaza", url.searchParams.get("maxDistanceToPlaza")),
+      minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
+      maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
+      rentalDays: url.searchParams
+        .getAll("rentalDays")
+        .map((value) => getNumberParameter("rentalDays", value))
+        .filter(Boolean) as number[],
     }
 
     const rentalListingsPrices = await rentals.getRentalListingsPrices(filters)
@@ -308,12 +325,9 @@ export async function getRentalListingsPricesHandler(
       status: StatusCode.OK,
       body: {
         ok: true,
-        data: {
-          results: fromDBGetRentalsListingsPricesToRentalListingsPrices(rentalListingsPrices)
-        },
+        data: fromDBGetRentalsListingsPricesToRentalListingsPrices(rentalListingsPrices),
       },
     }
-
   } catch (error) {
     if (error instanceof InvalidParameterError) {
       return {
@@ -327,5 +341,4 @@ export async function getRentalListingsPricesHandler(
 
     throw error
   }
-  
 }

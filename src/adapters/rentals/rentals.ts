@@ -1,6 +1,11 @@
 import { RentalListing, RentalListingCreation, RentalListingPeriod } from "@dcl/schemas"
 import { ContractRentalListing } from "../../logic/rentals/types"
-import { DBInsertedRentalListing, DBGetRentalListing, DBInsertedRentalListingPeriods, DBGetRentalListingsPrices } from "../../ports/rentals"
+import {
+  DBInsertedRentalListing,
+  DBGetRentalListing,
+  DBInsertedRentalListingPeriods,
+  DBGetRentalListingsPrice,
+} from "../../ports/rentals"
 import { fromMillisecondsToSeconds } from "./time"
 
 export function fromDBInsertedRentalListingToRental(DBRental: DBInsertedRentalListing): RentalListing {
@@ -96,7 +101,11 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
   }))
 }
 
-export function fromDBGetRentalsListingsPricesToRentalListingsPrices(DBRentalPrices: number[]): Record<string, number> {
-  console.log(DBRentalPrices)
-  return {}
+export function fromDBGetRentalsListingsPricesToRentalListingsPrices(
+  DBRentalPrices: DBGetRentalListingsPrice[]
+): Record<string, number> {
+  return DBRentalPrices.reduce<Record<string, number>>((prices, { price_per_day }) => {
+    prices[price_per_day] = prices[price_per_day] ? prices[price_per_day] + 1 : 1
+    return prices
+  }, {})
 }

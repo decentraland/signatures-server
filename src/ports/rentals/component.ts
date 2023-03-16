@@ -46,6 +46,7 @@ import {
   IndexerIndexesHistoryUpdateQuery,
   IndexUpdateEventType,
   GetRentalListingsPricesFilters,
+  DBGetRentalListingsPrice,
 } from "./types"
 import { buildQueryParameters } from "./graph"
 import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
@@ -939,8 +940,9 @@ export async function createRentalsComponent(
     }
   }
 
-  async function getRentalListingsPrices(filters: GetRentalListingsPricesFilters): Promise<number[]> {
-    const results = await database.query<number>(getRentalListingsPricesQuery(filters))
+  async function getRentalListingsPrices(filters: GetRentalListingsPricesFilters): Promise<DBGetRentalListingsPrice[]> {
+    const results = await database.query<DBGetRentalListingsPrice>(getRentalListingsPricesQuery(filters))
+    console.log({ results })
     return results.rows
   }
 
