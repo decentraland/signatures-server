@@ -10,13 +10,13 @@ import { createSubgraphComponent, ISubgraphComponent } from "@well-known-compone
 import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
 import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
 import { createServerComponent, createStatusCheckComponent, IFetchComponent } from "@well-known-components/http-server"
+import { createTracerComponent } from "@well-known-components/tracer-component"
 import { createMetricsComponent } from "@well-known-components/metrics"
 import { createSchemaValidatorComponent } from "../src/ports/schema-validator"
 import { main } from "../src/service"
 import { metricDeclarations } from "../src/metrics"
 import { GlobalContext, TestComponents } from "../src/types"
 import { createRentalsComponent, IRentalsComponent } from "../src/ports/rentals"
-import { createTracerComponent } from "@well-known-components/tracer-component"
 
 let lastUsedPort = 19000 + parseInt(process.env.JEST_WORKER_ID || "1") * 1000
 function getFreePort() {

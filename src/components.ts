@@ -5,6 +5,7 @@ import { createLogComponent } from "@well-known-components/logger"
 import { createSubgraphComponent } from "@well-known-components/thegraph-component"
 import { createPgComponent } from "@well-known-components/pg-component"
 import { createTracerComponent } from "@well-known-components/tracer-component"
+import { instrumentHttpServerWithRequestLogger } from "@well-known-components/http-requests-logger-component"
 import { createHttpTracerComponent } from "@well-known-components/http-tracer-component"
 import { createMetricsComponent } from "@well-known-components/metrics"
 import { AppComponents, GlobalContext } from "./types"
@@ -31,6 +32,7 @@ export async function initComponents(): Promise<AppComponents> {
   const logs = await createLogComponent({ tracer })
   const server = await createServerComponent<GlobalContext>({ config, logs }, { cors })
   createHttpTracerComponent({ server, tracer })
+  instrumentHttpServerWithRequestLogger({ server, logger: logs })
   const statusChecks = await createStatusCheckComponent({ server, config })
 
   const fetch = await createFetchComponent({ tracer })
