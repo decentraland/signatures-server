@@ -942,7 +942,6 @@ export async function createRentalsComponent(
 
   async function getRentalListingsPrices(filters: GetRentalListingsPricesFilters): Promise<DBGetRentalListingsPrice[]> {
     const results = await database.query<DBGetRentalListingsPrice>(getRentalListingsPricesQuery(filters))
-    console.log({ results })
     return results.rows
   }
 
