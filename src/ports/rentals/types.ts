@@ -16,7 +16,7 @@ export type IRentalsComponent = {
   cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
-  getRentalListingsPrices(filters: GetRentalListingsPricesFilters): Promise<DBGetRentalListingsPrice[]>
+  getRentalListingsPrices(filters?: GetRentalListingsPricesFilters): Promise<DBGetRentalListingsPrice[]>
 }
 
 export type GetRentalListingParameters = {

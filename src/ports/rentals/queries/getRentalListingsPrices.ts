@@ -2,7 +2,7 @@ import { RentalStatus } from "@dcl/schemas"
 import SQL, { SQLStatement } from "sql-template-strings"
 import { GetRentalListingsPricesFilters } from "../types"
 
-export function getRentalListingsPricesQuery(filters: GetRentalListingsPricesFilters): SQLStatement {
+export function getRentalListingsPricesQuery(filters: GetRentalListingsPricesFilters = {}): SQLStatement {
   const { adjacentToRoad, minDistanceToPlaza, maxDistanceToPlaza, minEstateSize, maxEstateSize, rentalDays, category } =
     filters
 

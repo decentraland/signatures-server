@@ -2793,7 +2793,7 @@ describe("when cancelling the rental listings", () => {
   })
 
   afterEach(() => {
-    jest.useRealTimers();
+    jest.useRealTimers()
   })
 
   describe("and there are no updated nonces since the latest job", () => {
@@ -3037,7 +3037,7 @@ describe("when getting rental listings prices", () => {
     })
 
     it("should propagate the error", () => {
-      expect(rentalsComponent.getRentalListingsPrices({})).rejects.toThrowError(errorMessage)
+      expect(rentalsComponent.getRentalListingsPrices()).rejects.toThrowError(errorMessage)
     })
   })
 
@@ -3048,13 +3048,15 @@ describe("when getting rental listings prices", () => {
     })
 
     it("should get all rental prices with status opened", async () => {
-      await expect(rentalsComponent.getRentalListingsPrices({})).resolves.toEqual(dbGetRentalListingsPrices)
-      expect(dbQueryMock.mock.calls[0][0].text).toEqual(
-        expect.stringContaining(
-          `SELECT q.price_per_day, COUNT(*) FROM (SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1 ) as q GROUP BY q.price_per_day`
-        )
+      await expect(rentalsComponent.getRentalListingsPrices()).resolves.toEqual(dbGetRentalListingsPrices)
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining(
+            `SELECT q.price_per_day, COUNT(*) FROM (SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1 ) as q GROUP BY q.price_per_day`
+          ),
+          values: [RentalStatus.OPEN],
+        })
       )
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.OPEN])
     })
   })
 
@@ -3107,8 +3109,12 @@ describe("when getting rental listings prices", () => {
       expect(rentalsComponent.getRentalListingsPrices({ [filterName]: filterValue })).resolves.toEqual(
         dbGetRentalListingsPrices
       )
-      expect(dbQueryMock.mock.calls[0][0].text).toEqual(expect.stringContaining(queryString))
-      expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.OPEN, ...queryValues])
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining(queryString),
+          values: [RentalStatus.OPEN, ...queryValues],
+        })
+      )
     })
   })
 })
