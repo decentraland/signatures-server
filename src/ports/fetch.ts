@@ -1,5 +1,5 @@
 import { IFetchComponent } from "@well-known-components/http-server"
-import { ITracerComponent } from "@well-known-components/tracer-component"
+import { ITracerComponent } from "@well-known-components/interfaces"
 import * as nodeFetch from "node-fetch"
 
 export async function createFetchComponent(components: { tracer: ITracerComponent }): Promise<IFetchComponent> {

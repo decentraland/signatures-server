@@ -2014,9 +2014,13 @@ describe("when updating the metadata", () => {
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
-    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: startDate }] })
     dbClientQueryMock.mockResolvedValueOnce(undefined)
-    jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+    jest.useFakeTimers().setSystemTime(startDate)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   describe("and there are no updated NFTs", () => {
@@ -2359,9 +2363,13 @@ describe("when updating the rental listings", () => {
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     lessor = "0x705C1a693cB6a63578451D52E182a02Bc8cB2dEB"
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
-    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: startDate }] })
     dbClientQueryMock.mockResolvedValueOnce(undefined)
-    jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+    jest.useFakeTimers().setSystemTime(startDate)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   describe("and there are no updated rentals", () => {
@@ -2780,8 +2788,12 @@ describe("when cancelling the rental listings", () => {
     logs = createTestConsoleLogComponent()
     config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
     rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
-    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: new Date() }] })
-    jest.spyOn(Date, "now").mockReturnValueOnce(startDate.getTime())
+    dbQueryMock.mockResolvedValueOnce({ rows: [{ updated_at: startDate }] })
+    jest.useFakeTimers().setSystemTime(startDate)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers();
   })
 
   describe("and there are no updated nonces since the latest job", () => {

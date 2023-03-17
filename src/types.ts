@@ -5,10 +5,10 @@ import type {
   IHttpServerComponent,
   IBaseComponent,
   IMetricsComponent,
+  ITracerComponent,
 } from "@well-known-components/interfaces"
 import { IPgComponent } from "@well-known-components/pg-component"
 import { ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { ITracerComponent } from "@well-known-components/tracer-component"
 import { ISchemaValidatorComponent } from "./ports/schema-validator"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
