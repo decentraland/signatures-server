@@ -3051,7 +3051,7 @@ describe("when getting rental listings prices", () => {
       await expect(rentalsComponent.getRentalListingsPrices({})).resolves.toEqual(dbGetRentalListingsPrices)
       expect(dbQueryMock.mock.calls[0][0].text).toEqual(
         expect.stringContaining(
-          `SELECT p.price_per_day FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1`
+          `SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1`
         )
       )
       expect(dbQueryMock.mock.calls[0][0].values).toEqual([RentalStatus.OPEN])
