@@ -6,7 +6,7 @@ export function getRentalListingsPricesQuery(filters: GetRentalListingsPricesFil
   const { adjacentToRoad, minDistanceToPlaza, maxDistanceToPlaza, minEstateSize, maxEstateSize, rentalDays, category } =
     filters
 
-  const query = SQL`SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = ${RentalStatus.OPEN} `
+  const query = SQL`SELECT q.price_per_day, COUNT(*) FROM (SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = ${RentalStatus.OPEN} `
 
   if (category) {
     query.append(SQL`AND m.category = ${category} `)
@@ -43,5 +43,7 @@ export function getRentalListingsPricesQuery(filters: GetRentalListingsPricesFil
     query.append(SQL`) `)
   }
 
+
+  query.append(`) as q GROUP BY q.price_per_day`)
   return query
 }

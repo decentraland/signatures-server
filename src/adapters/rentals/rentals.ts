@@ -104,8 +104,8 @@ export function fromDBGetRentalsListingsToRentalListings(DBRentals: DBGetRentalL
 export function fromDBGetRentalsListingsPricesToRentalListingsPrices(
   DBRentalPrices: DBGetRentalListingsPrice[]
 ): Record<string, number> {
-  return DBRentalPrices.reduce<Record<string, number>>((prices, { price_per_day }) => {
-    prices[price_per_day] = prices[price_per_day] ? prices[price_per_day] + 1 : 1
+  return DBRentalPrices.reduce<Record<string, number>>((prices, { price_per_day, count }) => {
+    prices[price_per_day] = Number.parseInt(count)
     return prices
   }, {})
 }

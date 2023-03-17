@@ -32,7 +32,7 @@ export type GetRentalListingsPricesFilters = Pick<
   "adjacentToRoad" | "minDistanceToPlaza" | "maxDistanceToPlaza" | "minEstateSize" | "maxEstateSize" | "rentalDays" | "category"
 >
 
-export type DBGetRentalListingsPrice = { price_per_day: string }
+export type DBGetRentalListingsPrice = { price_per_day: string, count: string }
 
 export enum UpdateType {
   METADATA = "metadata",

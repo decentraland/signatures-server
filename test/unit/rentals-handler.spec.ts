@@ -1045,12 +1045,11 @@ describe("When getting rental listings prices", () => {
     }
   )
 
-  describe("and the process to get the listing is successful", () => {
+  describe("and the process to get the listing prices is successful", () => {
     beforeEach(() => {
       getRentalListingsPricesMock.mockResolvedValueOnce([
-        { price_per_day: "1" },
-        { price_per_day: "1" },
-        { price_per_day: "2" },
+        { price_per_day: "1", count: 2 },
+        { price_per_day: "2", count: 1 },
       ])
 
       url = new URL("http://localhost/v1/rental-listing/prices")
