@@ -8,7 +8,11 @@ import {
 } from "@dcl/schemas"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { ethers } from "ethers"
-import { fromDBGetRentalsListingsToRentalListings, fromDBInsertedRentalListingToRental } from "../../adapters/rentals"
+import {
+  fromDBGetRentalsListingsPricesToRentalListingsPrices,
+  fromDBGetRentalsListingsToRentalListings,
+  fromDBInsertedRentalListingToRental,
+} from "../../adapters/rentals"
 import {
   getBooleanParameter,
   getNumberParameter,
@@ -69,7 +73,10 @@ export async function getRentalsListingsHandler(
       minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
       maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
       adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad")),
-      rentalDays: url.searchParams.getAll("rentalDays").map((value) => getNumberParameter("rentalDays", value)).filter(Boolean) as number[]
+      rentalDays: url.searchParams
+        .getAll("rentalDays")
+        .map((value) => getNumberParameter("rentalDays", value))
+        .filter(Boolean) as number[],
     }
     const rentalListings = await rentals.getRentalsListings(
       {
@@ -239,7 +246,10 @@ export async function refreshRentalListingHandler(
   } = context
 
   try {
-    const forceMetadataRefresh = getBooleanParameter("forceMetadataRefresh", url.searchParams.get("forceMetadataRefresh"))
+    const forceMetadataRefresh = getBooleanParameter(
+      "forceMetadataRefresh",
+      url.searchParams.get("forceMetadataRefresh")
+    )
     const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
     return {
       status: StatusCode.OK,
@@ -273,6 +283,53 @@ export async function refreshRentalListingHandler(
         },
       }
     } else if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+        },
+      }
+    }
+
+    throw error
+  }
+}
+
+export async function getRentalListingsPricesHandler(
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/prices">, "url" | "components">
+) {
+  const {
+    url,
+    components: { rentals },
+  } = context
+
+  try {
+    const filters = {
+      category:
+        getTypedStringQueryParameter(Object.values(RentalsListingsFilterByCategory), url.searchParams, "category") ??
+        undefined,
+      adjacentToRoad: getBooleanParameter("adjacentToRoad", url.searchParams.get("adjacentToRoad")),
+      minDistanceToPlaza: getNumberParameter("minDistanceToPlaza", url.searchParams.get("minDistanceToPlaza")),
+      maxDistanceToPlaza: getNumberParameter("maxDistanceToPlaza", url.searchParams.get("maxDistanceToPlaza")),
+      minEstateSize: getNumberParameter("minEstateSize", url.searchParams.get("minEstateSize")),
+      maxEstateSize: getNumberParameter("maxEstateSize", url.searchParams.get("maxEstateSize")),
+      rentalDays: url.searchParams
+        .getAll("rentalDays")
+        .map((value) => getNumberParameter("rentalDays", value))
+        .filter(Boolean) as number[],
+    }
+
+    const rentalListingsPrices = await rentals.getRentalListingsPrices(filters)
+    return {
+      status: StatusCode.OK,
+      body: {
+        ok: true,
+        data: fromDBGetRentalsListingsPricesToRentalListingsPrices(rentalListingsPrices),
+      },
+    }
+  } catch (error) {
+    if (error instanceof InvalidParameterError) {
       return {
         status: StatusCode.BAD_REQUEST,
         body: {

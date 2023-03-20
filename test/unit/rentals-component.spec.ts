@@ -33,6 +33,7 @@ import {
   IndexUpdateEventType,
   InvalidEstate,
   RentalAlreadyExpired,
+  DBGetRentalListingsPrice,
 } from "../../src/ports/rentals"
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
@@ -2792,7 +2793,7 @@ describe("when cancelling the rental listings", () => {
   })
 
   afterEach(() => {
-    jest.useRealTimers();
+    jest.useRealTimers()
   })
 
   describe("and there are no updated nonces since the latest job", () => {
@@ -3010,6 +3011,110 @@ describe("when cancelling the rental listings", () => {
           })
         })
       })
+    })
+  })
+})
+
+describe("when getting rental listings prices", () => {
+  let dbGetRentalListingsPrices: DBGetRentalListingsPrice[]
+
+  beforeEach(async () => {
+    dbQueryMock = jest.fn()
+    database = createTestDbComponent({ query: dbQueryMock })
+    marketplaceSubgraphQueryMock = jest.fn()
+    marketplaceSubgraph = createTestSubgraphComponent({ query: marketplaceSubgraphQueryMock })
+    rentalsSubgraphQueryMock = jest.fn()
+    rentalsSubgraph = createTestSubgraphComponent({ query: rentalsSubgraphQueryMock })
+    logs = createTestConsoleLogComponent()
+    config = createConfigComponent({ CHAIN_NAME: "Goerli", MAX_CONCURRENT_RENTAL_UPDATES: "5" })
+    rentalsComponent = await createRentalsComponent({ database, marketplaceSubgraph, rentalsSubgraph, logs, config })
+  })
+
+  describe("and the query throws an error", () => {
+    const errorMessage = "Something went wrong while querying the database"
+    beforeEach(() => {
+      dbQueryMock.mockRejectedValueOnce(new Error("Something went wrong while querying the database"))
+    })
+
+    it("should propagate the error", () => {
+      expect(rentalsComponent.getRentalListingsPrices()).rejects.toThrowError(errorMessage)
+    })
+  })
+
+  describe("and no filters are applied", () => {
+    beforeEach(() => {
+      dbGetRentalListingsPrices = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListingsPrices })
+    })
+
+    it("should get all rental prices with status opened", async () => {
+      await expect(rentalsComponent.getRentalListingsPrices()).resolves.toEqual(dbGetRentalListingsPrices)
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining(
+            `SELECT q.price_per_day, COUNT(*) FROM (SELECT DISTINCT p.price_per_day, r.id FROM periods p, metadata m, rentals r WHERE p.rental_id = r.id AND m.id = r.metadata_id AND r.status = $1 ) as q GROUP BY q.price_per_day`
+          ),
+          values: [RentalStatus.OPEN],
+        })
+      )
+    })
+  })
+
+  describe.each([
+    {
+      filterName: "adjacentToRoad",
+      filterValue: true,
+      queryString: "AND m.adjacent_to_road = $2",
+      queryValues: [true],
+    },
+    {
+      filterName: "category",
+      filterValue: RentalsListingsFilterByCategory.PARCEL,
+      queryString: "AND m.category = $2",
+      queryValues: [RentalsListingsFilterByCategory.PARCEL],
+    },
+    {
+      filterName: "minDistanceToPlaza",
+      filterValue: 1,
+      queryString: "AND m.distance_to_plaza >= $2",
+      queryValues: [1],
+    },
+    {
+      filterName: "maxDistanceToPlaza",
+      filterValue: 1,
+      queryString: "AND m.distance_to_plaza <= $2",
+      queryValues: [1],
+    },
+    { filterName: "minEstateSize", filterValue: 1, queryString: "AND m.estate_size >= $2", queryValues: [1] },
+    { filterName: "maxEstateSize", filterValue: 1, queryString: "AND m.estate_size <= $2", queryValues: [1] },
+    {
+      filterName: "rentalDays",
+      filterValue: [1],
+      queryString: "AND ((p.min_days <= $2 AND p.max_days >= $3))",
+      queryValues: [1, 1],
+    },
+    {
+      filterName: "rentalDays",
+      filterValue: [1, 30],
+      queryString: "AND ((p.min_days <= $2 AND p.max_days >= $3) OR (p.min_days <= $4 AND p.max_days >= $5))",
+      queryValues: [1, 1, 30, 30],
+    },
+  ])("and filter $filterName is applied", ({ filterName, filterValue, queryString, queryValues }) => {
+    beforeEach(() => {
+      dbGetRentalListingsPrices = []
+      dbQueryMock.mockResolvedValueOnce({ rows: dbGetRentalListingsPrices })
+    })
+
+    it("should make the query with the correct $filterName value", () => {
+      expect(rentalsComponent.getRentalListingsPrices({ [filterName]: filterValue })).resolves.toEqual(
+        dbGetRentalListingsPrices
+      )
+      expect(dbQueryMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: expect.stringContaining(queryString),
+          values: [RentalStatus.OPEN, ...queryValues],
+        })
+      )
     })
   })
 })

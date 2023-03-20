@@ -16,6 +16,7 @@ export type IRentalsComponent = {
   cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>
   updateMetadata(): Promise<void>
+  getRentalListingsPrices(filters?: GetRentalListingsPricesFilters): Promise<DBGetRentalListingsPrice[]>
 }
 
 export type GetRentalListingParameters = {
@@ -25,6 +26,13 @@ export type GetRentalListingParameters = {
   limit: number
   filterBy: RentalsListingsFilterBy | null
 }
+
+export type GetRentalListingsPricesFilters = Pick<
+  RentalsListingsFilterBy,
+  "adjacentToRoad" | "minDistanceToPlaza" | "maxDistanceToPlaza" | "minEstateSize" | "maxEstateSize" | "rentalDays" | "category"
+>
+
+export type DBGetRentalListingsPrice = { price_per_day: string, count: string }
 
 export enum UpdateType {
   METADATA = "metadata",

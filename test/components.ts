@@ -143,12 +143,14 @@ export function createTestRentalsComponent(
     updateMetadata = jest.fn(),
     updateRentalsListings = jest.fn(),
     cancelRentalsListings = jest.fn(),
+    getRentalListingsPrices = jest.fn(),
   } = {
     createRentalListing: jest.fn(),
     getRentalsListings: jest.fn(),
     refreshRentalListing: jest.fn(),
     updateMetadata: jest.fn(),
     cancelRentalsListings: jest.fn(),
+    getRentalListingsPrices: jest.fn(),
   }
 ): IRentalsComponent {
   return {
@@ -158,6 +160,7 @@ export function createTestRentalsComponent(
     updateMetadata,
     updateRentalsListings,
     cancelRentalsListings,
+    getRentalListingsPrices
   }
 }
 

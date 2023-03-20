@@ -3,6 +3,7 @@ import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
 import { fromDBInsertedRentalListingToRental } from "../../src/adapters/rentals"
 import {
+  getRentalListingsPricesHandler,
   getRentalsListingsHandler,
   refreshRentalListingHandler,
   rentalsListingsCreationHandler,
@@ -369,7 +370,9 @@ describe("when getting rental listings", () => {
           status: StatusCode.BAD_REQUEST,
           body: {
             ok: false,
-            message: `The value of the ${parameterName} parameter is invalid: ${Array.isArray(parameterValue) ? invalidValue : parameterValue}`,
+            message: `The value of the ${parameterName} parameter is invalid: ${
+              Array.isArray(parameterValue) ? invalidValue : parameterValue
+            }`,
           },
         })
       })
@@ -954,6 +957,112 @@ describe("when refreshing a rental listing", () => {
         body: {
           ok: true,
           data: rentalListing,
+        },
+      })
+    })
+  })
+})
+
+describe("When getting rental listings prices", () => {
+  let url: URL
+  let components: Pick<AppComponents, "rentals">
+  let getRentalListingsPricesMock: jest.Mock
+
+  beforeEach(() => {
+    getRentalListingsPricesMock = jest.fn()
+    components = {
+      rentals: createTestRentalsComponent({ getRentalListingsPrices: getRentalListingsPricesMock }),
+    }
+  })
+
+  describe.each([
+    { parameterName: "category", parameterValue: "SomeWrongValue" },
+    { parameterName: "adjacentToRoad", parameterValue: "notABoolean" },
+    { parameterName: "minDistanceToPlaza", parameterValue: "notAnInt" },
+    { parameterName: "maxDistanceToPlaza", parameterValue: "notAnInt" },
+    { parameterName: "minEstateSize", parameterValue: "notAnInt" },
+    { parameterName: "maxEstateSize", parameterValue: "notAnInt" },
+    { parameterName: "rentalDays", parameterValue: [1, "notAnInt"], invalidValue: "notAnInt" },
+  ])(
+    "and the request was done with an invalid parameter type for filter $parameterName",
+    ({ parameterName, parameterValue, invalidValue }) => {
+      beforeEach(() => {
+        let queryParams = new URLSearchParams()
+        if (Array.isArray(parameterValue)) {
+          parameterValue.forEach((value) => {
+            queryParams.append(parameterName, value.toString())
+          })
+        } else {
+          queryParams.append(parameterName, parameterValue)
+        }
+        url = new URL(`http://localhost/v1/rental-listing/prices?${queryParams.toString()}`)
+      })
+
+      it("should return a response with a bad request status code and a message saying that the parameter has an invalid value", () => {
+        return expect(getRentalListingsPricesHandler({ components, url })).resolves.toEqual({
+          status: StatusCode.BAD_REQUEST,
+          body: {
+            ok: false,
+            message: `The value of the ${parameterName} parameter is invalid: ${
+              Array.isArray(parameterValue) ? invalidValue : parameterValue
+            }`,
+          },
+        })
+      })
+    }
+  )
+
+  describe.each([
+    { parameterName: "category", parameterValue: "parcel" },
+    { parameterName: "adjacentToRoad", parameterValue: true },
+    { parameterName: "minDistanceToPlaza", parameterValue: 1 },
+    { parameterName: "maxDistanceToPlaza", parameterValue: 2 },
+    { parameterName: "minEstateSize", parameterValue: 1 },
+    { parameterName: "maxEstateSize", parameterValue: 2 },
+    { parameterName: "rentalDays", parameterValue: [1, 2] },
+  ])(
+    "and the request was done with a valid parameter type for filter $parameterName",
+    ({ parameterName, parameterValue }) => {
+      beforeEach(() => {
+        getRentalListingsPricesMock.mockResolvedValueOnce([])
+        let queryParams = new URLSearchParams()
+        if (Array.isArray(parameterValue)) {
+          parameterValue.forEach((value) => {
+            queryParams.append(parameterName, value.toString())
+          })
+        } else {
+          queryParams.append(parameterName, parameterValue.toString())
+        }
+        url = new URL(`http://localhost/v1/rental-listing/prices?${queryParams.toString()}`)
+      })
+
+      it("should call getRentalsListings function with correct filters", async () => {
+        await getRentalListingsPricesHandler({ components, url })
+        expect(getRentalListingsPricesMock).toHaveBeenCalledWith(
+          expect.objectContaining({ [parameterName]: parameterValue })
+        )
+      })
+    }
+  )
+
+  describe("and the process to get the listing prices is successful", () => {
+    beforeEach(() => {
+      getRentalListingsPricesMock.mockResolvedValueOnce([
+        { price_per_day: "1", count: 2 },
+        { price_per_day: "2", count: 1 },
+      ])
+
+      url = new URL("http://localhost/v1/rental-listing/prices")
+    })
+    it("should return a response with correct status and rental listings prices in the correct format", () => {
+      return expect(getRentalListingsPricesHandler({ components, url })).resolves.toEqual({
+        status: StatusCode.OK,
+        body: {
+          ok: true,
+          data: {
+            "1": 2,
+            "2": 1
+          }
         },
       })
     })
