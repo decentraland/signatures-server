@@ -73,7 +73,7 @@ export async function initComponents(): Promise<TestComponents> {
     rentalsSubgraph,
     config,
   })
-  const schemaValidator = await createSchemaValidatorComponent()
+  const schemaValidator = createSchemaValidatorComponent()
   const statusChecks = await createStatusCheckComponent({ server, config })
   // Mock the start function to avoid connecting to a local database
   jest.spyOn(database, "start").mockResolvedValue()
