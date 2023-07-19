@@ -52,9 +52,9 @@ export async function initComponents(): Promise<AppComponents> {
     }
   )
 
-  const schemaValidator = await createSchemaValidatorComponent()
+  const schemaValidator = createSchemaValidatorComponent()
   const rentals = await createRentalsComponent({ database, logs, marketplaceSubgraph, rentalsSubgraph, config })
-  const updateMetadataJob = await createJobComponent(
+  const updateMetadataJob = createJobComponent(
     { logs },
     () => tracer.span("Update metadata job", () => rentals.updateMetadata()),
     fiveMinutes,
@@ -62,7 +62,7 @@ export async function initComponents(): Promise<AppComponents> {
       startupDelay: thirtySeconds,
     }
   )
-  const updateRentalsListingsJob = await createJobComponent(
+  const updateRentalsListingsJob = createJobComponent(
     { logs },
     () => tracer.span("Update rentals listings job", () => rentals.updateRentalsListings()),
     fiveMinutes,
@@ -70,7 +70,7 @@ export async function initComponents(): Promise<AppComponents> {
       startupDelay: thirtySeconds,
     }
   )
-  const cancelRentalsListingsJob = await createJobComponent(
+  const cancelRentalsListingsJob = createJobComponent(
     { logs },
     () => tracer.span("Update rentals listings job", () => rentals.cancelRentalsListings()),
     fiveMinutes,
