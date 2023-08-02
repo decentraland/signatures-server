@@ -4,7 +4,7 @@ export type IJobComponent = {
 }
 
 export type JobOptions = {
-  /** Sets if the job will be ran repeatedly or once */
+  /** Sets if the job will be run repeatedly or once */
   repeat?: boolean
   /** Sets if the job will wait for a specific amount of time in ms before starting for the first time */
   startupDelay?: number
