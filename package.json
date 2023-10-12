@@ -33,7 +33,7 @@
     "ajv-formats": "^2.1.1",
     "decentraland-crypto-middleware": "^1.1.0",
     "decentraland-transactions": "^1.47.0",
-    "ethers": "^5.7.2",
+    "ethers": "^6.8.0",
     "p-limit": "^3.1.0",
     "sql-template-strings": "^2.2.2"
   }
