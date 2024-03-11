@@ -441,7 +441,7 @@ export async function createRentalsComponent(
     }>(
       SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, periods.id period_id, periods.max_days, periods.min_days 
       FROM rentals, periods, metadata, rentals_listings
-      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId} AND periods.rental_id = rentals.id`
+      WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId} AND periods.rental_id = rentals.id `
     )
 
     if (rentalQueryResult.rowCount === 0) {
