@@ -470,7 +470,7 @@ export async function createRentalsComponent(
       min(periods.price_per_day) as min_price_per_day, max(periods.price_per_day) as max_price_per_day
       FROM rentals, rentals_listings, periods WHERE  
       rentals.id = rentals_listings.id AND
-      periods.rental_id = rentals.id\n`)
+      periods.rental_id = rentals.id \n`)
     query.append(filterByStatus)
     query.append(filterByTarget)
     query.append(filterByUpdatedAfter)
