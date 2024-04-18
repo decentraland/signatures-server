@@ -24,7 +24,7 @@ export async function initComponents(): Promise<AppComponents> {
   const fiveMinutes = 5 * 60 * 1000
 
   const cors = {
-    origin: await config.requireString("CORS_ORIGIN"),
+    origin: (await config.requireString("CORS_ORIGIN")).split(";").map((origin) => new RegExp(origin)),
     methods: await config.requireString("CORS_METHODS"),
   }
 
