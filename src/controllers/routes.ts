@@ -1,6 +1,7 @@
 import { RentalListingCreation } from "@dcl/schemas"
 import { Router } from "@well-known-components/http-server"
 import * as authorizationMiddleware from "decentraland-crypto-middleware"
+import { withSignerValidation } from "../middlewares/withSignerValidation"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"
 import {
@@ -24,6 +25,7 @@ export async function setupRouter(
       optional: false,
       expiration: 5 * 60 * 1000, // 5 minutes
     }),
+    withSignerValidation,
     components.schemaValidator.withSchemaValidatorMiddleware(RentalListingCreation.schema),
     rentalsListingsCreationHandler
   )
