@@ -40,7 +40,7 @@ import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgrap
 
 jest.mock("../../src/logic/rentals")
 
-const mockedRentalsLogic = jest.mocked(rentalsLogic, true)
+const mockedRentalsLogic = jest.mocked(rentalsLogic, { shallow: true })
 
 let dbQueryMock: jest.Mock
 let dbClientQueryMock: jest.Mock
@@ -357,6 +357,7 @@ describe("when creating a rental listing", () => {
 
     beforeEach(() => {
       expiration = new Date()
+      created_at = new Date()
       rentalId = "rentalId"
       rentalsSubgraphQueryMock.mockResolvedValueOnce({
         rentals: [
