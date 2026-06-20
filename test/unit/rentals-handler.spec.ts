@@ -1,6 +1,6 @@
 import { ethers } from "ethers"
 import { ChainId, Network, NFTCategory, RentalListing, RentalStatus } from "@dcl/schemas"
-import * as authorizationMiddleware from "decentraland-crypto-middleware"
+import * as authorizationMiddleware from "@dcl/crypto-middleware"
 import { fromDBInsertedRentalListingToRental } from "../../src/adapters/rentals"
 import {
   getRentalListingsPricesHandler,

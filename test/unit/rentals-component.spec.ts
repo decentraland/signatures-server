@@ -1,8 +1,8 @@
 import SQL from "sql-template-strings"
 import { ethers } from "ethers"
 import { IConfigComponent, ILoggerComponent } from "@well-known-components/interfaces"
-import { IPgComponent } from "@well-known-components/pg-component"
-import { ISubgraphComponent } from "@well-known-components/thegraph-component"
+import { IPgComponent } from "@dcl/pg-component"
+import { ISubgraphComponent } from "@dcl/thegraph-component"
 import { createConfigComponent } from "@well-known-components/env-config-provider"
 import {
   ChainId,
