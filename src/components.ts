@@ -51,7 +51,10 @@ export async function initComponents(): Promise<AppComponents> {
   // The metrics component no longer wires the `/metrics` endpoint or the HTTP request
   // instrumentation by itself (that was previously done by passing `server` to
   // `createMetricsComponent`). With the core components split this is wired explicitly here.
-  await instrumentHttpServerWithPromClientRegistry({ server, config, metrics, registry: metrics.registry! })
+  if (!metrics.registry) {
+    throw new Error("The metrics component did not expose a prom-client registry")
+  }
+  await instrumentHttpServerWithPromClientRegistry({ server, config, metrics, registry: metrics.registry })
   const marketplaceSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, MARKETPLACE_SUBGRAPH_URL)
   const rentalsSubgraph = await createSubgraphComponent({ logs, config, fetch, metrics }, RENTALS_SUBGRAPH_URL)
   // The pg component resolves its connection from config (PG_COMPONENT_PSQL_CONNECTION_STRING or
