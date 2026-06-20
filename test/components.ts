@@ -6,13 +6,14 @@ import {
   createLocalFetchCompoment as createLocalFetchComponent,
 } from "@well-known-components/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
-import { createSubgraphComponent, ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { createPgComponent, IPgComponent } from "@well-known-components/pg-component"
+import { IFetchComponent } from "@dcl/core-commons"
+import { createSubgraphComponent, ISubgraphComponent } from "@dcl/thegraph-component"
+import { createPgComponent, IPgComponent } from "@dcl/pg-component"
 import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
-import { createServerComponent, createStatusCheckComponent, IFetchComponent } from "@well-known-components/http-server"
+import { createServerComponent, createStatusCheckComponent } from "@dcl/http-server"
 import { createTracerComponent } from "@well-known-components/tracer-component"
-import { createMetricsComponent } from "@well-known-components/metrics"
-import { createSchemaValidatorComponent } from "../src/ports/schema-validator"
+import { createMetricsComponent } from "@dcl/metrics"
+import { createSchemaValidatorComponent } from "@dcl/schema-validator-component"
 import { main } from "../src/service"
 import { metricDeclarations } from "../src/metrics"
 import { GlobalContext, TestComponents } from "../src/types"
@@ -47,14 +48,13 @@ export async function initComponents(): Promise<TestComponents> {
   const config = await createDotEnvConfigComponent({}, defaultConfig)
   const cors = {
     origin: await config.getString("CORS_ORIGIN"),
-    method: await config.getString("CORS_METHOD"),
+    methods: (await config.getString("CORS_METHODS"))?.split(",").map((method) => method.trim()),
   }
 
   const logs = createTestConsoleLogComponent()
-  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors, compression: {} })
+  const server = await createServerComponent<GlobalContext>({ config, logs }, { cors })
   const fetcher = await createTestFetchComponent()
   const metrics = await createMetricsComponent(metricDeclarations, {
-    server,
     config,
   })
   const marketplaceSubgraph = await createSubgraphComponent(
@@ -73,7 +73,7 @@ export async function initComponents(): Promise<TestComponents> {
     rentalsSubgraph,
     config,
   })
-  const schemaValidator = createSchemaValidatorComponent()
+  const schemaValidator = createSchemaValidatorComponent<GlobalContext>()
   const statusChecks = await createStatusCheckComponent({ server, config })
   // Mock the start function to avoid connecting to a local database
   jest.spyOn(database, "start").mockResolvedValue()
@@ -179,12 +179,22 @@ export function createTestJobComponent(
 }
 
 export function createTestDbComponent(
-  { query = jest.fn(), start = jest.fn(), streamQuery = jest.fn(), getPool = jest.fn(), stop = jest.fn() } = {
+  {
+    query = jest.fn(),
+    start = jest.fn(),
+    streamQuery = jest.fn(),
+    getPool = jest.fn(),
+    stop = jest.fn(),
+    withTransaction = jest.fn(),
+    withAsyncContextTransaction = jest.fn(),
+  } = {
     query: jest.fn(),
     start: jest.fn(),
     streamQuery: jest.fn(),
     getPool: jest.fn(),
     stop: jest.fn(),
+    withTransaction: jest.fn(),
+    withAsyncContextTransaction: jest.fn(),
   }
 ): IPgComponent {
   return {
@@ -193,5 +203,7 @@ export function createTestDbComponent(
     query,
     getPool,
     stop,
+    withTransaction,
+    withAsyncContextTransaction,
   }
 }

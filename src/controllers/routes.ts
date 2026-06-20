@@ -1,6 +1,6 @@
 import { RentalListingCreation } from "@dcl/schemas"
-import { Router } from "@well-known-components/http-server"
-import * as authorizationMiddleware from "decentraland-crypto-middleware"
+import { Router } from "@dcl/http-server"
+import * as authorizationMiddleware from "@dcl/crypto-middleware"
 import { withSignerValidation } from "../middlewares/withSignerValidation"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"

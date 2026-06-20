@@ -1,18 +1,17 @@
-import type { IFetchComponent } from "@well-known-components/http-server"
+import type { IFetchComponent, IHttpServerComponent } from "@dcl/core-commons"
 import type {
   IConfigComponent,
   ILoggerComponent,
-  IHttpServerComponent,
   IBaseComponent,
   IMetricsComponent,
   ITracerComponent,
 } from "@well-known-components/interfaces"
-import { IPgComponent } from "@well-known-components/pg-component"
-import { ISubgraphComponent } from "@well-known-components/thegraph-component"
-import { ISchemaValidatorComponent } from "./ports/schema-validator"
+import { IPgComponent } from "@dcl/pg-component"
+import { ISubgraphComponent } from "@dcl/thegraph-component"
+import { ISchemaValidatorComponent } from "@dcl/schema-validator-component"
+import { IJobComponent } from "@dcl/job-component"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
-import { IJobComponent } from "./ports/job/types"
 
 export type GlobalContext = {
   components: BaseComponents
@@ -28,7 +27,7 @@ export type BaseComponents = {
   database: IPgComponent
   marketplaceSubgraph: ISubgraphComponent
   rentalsSubgraph: ISubgraphComponent
-  schemaValidator: ISchemaValidatorComponent
+  schemaValidator: ISchemaValidatorComponent<GlobalContext>
   rentals: IRentalsComponent
   tracer: ITracerComponent
   updateMetadataJob: IJobComponent
@@ -68,5 +67,6 @@ export enum StatusCode {
   NOT_FOUND = 404,
   LOCKED = 423,
   CONFLICT = 409,
+  UNSUPPORTED_MEDIA_TYPE = 415,
   ERROR = 500,
 }

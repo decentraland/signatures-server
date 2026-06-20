@@ -1,10 +1,10 @@
 import { createConfigComponent } from "@well-known-components/env-config-provider"
-import { createTestServerComponent } from "@well-known-components/http-server"
+import { createTestServerComponent } from "@dcl/http-server"
 import { createTracerComponent } from "@well-known-components/tracer-component"
-import { createTestMetricsComponent } from "@well-known-components/metrics"
-import { createFetchComponent } from "../../src/ports/fetch"
-import { createSchemaValidatorComponent } from "../../src/ports/schema-validator"
-import { BaseComponents, StatusCode } from "../../src/types"
+import { createTestMetricsComponent } from "@dcl/metrics"
+import { createTracedFetcherComponent } from "@dcl/traced-fetch-component"
+import { createSchemaValidatorComponent, ISchemaValidatorComponent } from "@dcl/schema-validator-component"
+import { BaseComponents, GlobalContext, StatusCode } from "../../src/types"
 import {
   createTestRentalsComponent,
   createTestConsoleLogComponent,
@@ -13,14 +13,14 @@ import {
   createTestJobComponent,
 } from "../components"
 
-let middleware: ReturnType<ReturnType<typeof createSchemaValidatorComponent>["withSchemaValidatorMiddleware"]>
+let middleware: ReturnType<ISchemaValidatorComponent<GlobalContext>["withSchemaValidatorMiddleware"]>
 let components: BaseComponents
 
 beforeEach(async () => {
   const tracer = createTracerComponent()
 
   components = {
-    fetch: await createFetchComponent({ tracer }),
+    fetch: await createTracedFetcherComponent({ tracer }),
     tracer,
     server: createTestServerComponent(),
     rentals: createTestRentalsComponent(),
@@ -30,12 +30,12 @@ beforeEach(async () => {
     database: createTestDbComponent(),
     marketplaceSubgraph: createTestSubgraphComponent(),
     rentalsSubgraph: createTestSubgraphComponent(),
-    schemaValidator: createSchemaValidatorComponent(),
+    schemaValidator: createSchemaValidatorComponent<GlobalContext>(),
     updateMetadataJob: createTestJobComponent(),
     updateRentalsListingsJob: createTestJobComponent(),
     cancelRentalsListingsJob: createTestJobComponent(),
   }
-  middleware = createSchemaValidatorComponent().withSchemaValidatorMiddleware({
+  middleware = createSchemaValidatorComponent<GlobalContext>().withSchemaValidatorMiddleware({
     type: "object",
     properties: {
       aTestProp: {
@@ -47,7 +47,7 @@ beforeEach(async () => {
 })
 
 describe("when validating a request that doesn't have a JSON body", () => {
-  it("should return a bad request error signaling that it must contain a JSON body", () => {
+  it("should return an unsupported media type error signaling that it must contain a JSON body", () => {
     return expect(
       middleware(
         {
@@ -68,7 +68,7 @@ describe("when validating a request that doesn't have a JSON body", () => {
         jest.fn()
       )
     ).resolves.toEqual({
-      status: StatusCode.BAD_REQUEST,
+      status: StatusCode.UNSUPPORTED_MEDIA_TYPE,
       body: {
         ok: false,
         message: "Content-Type must be application/json",

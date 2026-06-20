@@ -6,7 +6,7 @@ import {
   RentalsListingsSortBy,
   RentalStatus,
 } from "@dcl/schemas"
-import * as authorizationMiddleware from "decentraland-crypto-middleware"
+import * as authorizationMiddleware from "@dcl/crypto-middleware"
 import { ethers } from "ethers"
 import {
   fromDBGetRentalsListingsPricesToRentalListingsPrices,
