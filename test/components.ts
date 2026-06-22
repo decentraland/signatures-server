@@ -1,10 +1,7 @@
 // This file is the "test-environment" analogous for src/components.ts
 // Here we define the test components to be used in the testing environment
 
-import {
-  createRunner,
-  createLocalFetchCompoment as createLocalFetchComponent,
-} from "@well-known-components/test-helpers"
+import { createRunner, createLocalFetchComponent } from "@dcl/test-helpers"
 import { ILoggerComponent } from "@well-known-components/interfaces"
 import { IFetchComponent } from "@dcl/core-commons"
 import { createSubgraphComponent, ISubgraphComponent } from "@dcl/thegraph-component"
@@ -59,11 +56,11 @@ export async function initComponents(): Promise<TestComponents> {
   })
   const marketplaceSubgraph = await createSubgraphComponent(
     { config, logs, fetch: fetcher, metrics },
-    await config.requireString("MARKETPLACE_SUBGRAPH_URL")
+    await config.requireString("MARKETPLACE_SUBGRAPH_URL"),
   )
   const rentalsSubgraph = await createSubgraphComponent(
     { config, logs, fetch: fetcher, metrics },
-    await config.requireString("RENTALS_SUBGRAPH_URL")
+    await config.requireString("RENTALS_SUBGRAPH_URL"),
   )
   const database = await createPgComponent({ logs, config, metrics })
   const rentals = await createRentalsComponent({
@@ -116,7 +113,7 @@ export function createTestConsoleLogComponent(
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-  }
+  },
 ): ILoggerComponent {
   return {
     getLogger: () => ({
@@ -151,7 +148,7 @@ export function createTestRentalsComponent(
     updateMetadata: jest.fn(),
     cancelRentalsListings: jest.fn(),
     getRentalListingsPrices: jest.fn(),
-  }
+  },
 ): IRentalsComponent {
   return {
     getRentalsListings,
@@ -160,7 +157,7 @@ export function createTestRentalsComponent(
     updateMetadata,
     updateRentalsListings,
     cancelRentalsListings,
-    getRentalListingsPrices
+    getRentalListingsPrices,
   }
 }
 
@@ -169,7 +166,7 @@ export function createTestJobComponent(
     start: jest.fn(),
     stop: jest.fn(),
     onFinish: jest.fn(),
-  }
+  },
 ) {
   return {
     start,
@@ -195,7 +192,7 @@ export function createTestDbComponent(
     stop: jest.fn(),
     withTransaction: jest.fn(),
     withAsyncContextTransaction: jest.fn(),
-  }
+  },
 ): IPgComponent {
   return {
     start,
