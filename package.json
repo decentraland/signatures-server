@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@dcl/core-commons": "^0.10.1",
-    "@dcl/crypto-middleware": "^4.0.0",
+    "@dcl/crypto-middleware": "^4.1.0",
     "@dcl/fetch-component": "^1.1.0",
     "@dcl/http-requests-logger-component": "^1.0.0",
     "@dcl/http-server": "^2.0.2",
