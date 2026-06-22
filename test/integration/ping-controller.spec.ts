@@ -19,7 +19,7 @@ test("integration sanity tests using a real server backend", function ({ compone
     expect(r.status).toEqual(200)
     expect(await r.text()).toEqual("/ping")
 
-    expect(metrics.increment.calledOnceWith("test_ping_counter", { pathname: "/ping" })).toEqual(true)
+    expect(metrics.increment).toHaveBeenCalledWith("test_ping_counter", { pathname: "/ping" })
   })
 
   it("random url responds 404", async () => {
@@ -34,7 +34,9 @@ test("integration sanity tests using a real server backend", function ({ compone
     const { localFetch } = components
     const { metrics } = stubComponents
 
-    metrics.increment.throwsException("some exception")
+    metrics.increment.mockImplementation(() => {
+      throw new Error("some exception")
+    })
 
     const r = await localFetch.fetch("/ping")
 

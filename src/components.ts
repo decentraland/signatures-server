@@ -9,7 +9,7 @@ import { createLogComponent } from "@well-known-components/logger"
 import { createSubgraphComponent } from "@dcl/thegraph-component"
 import { createPgComponent } from "@dcl/pg-component"
 import { createTracerComponent } from "@well-known-components/tracer-component"
-import { instrumentHttpServerWithRequestLogger } from "@well-known-components/http-requests-logger-component"
+import { instrumentHttpServerWithRequestLogger } from "@dcl/http-requests-logger-component"
 import { createHttpTracerComponent } from "@dcl/http-tracer-component"
 import { createMetricsComponent } from "@dcl/metrics"
 import { createTracedFetcherComponent } from "@dcl/traced-fetch-component"
@@ -36,14 +36,7 @@ export async function initComponents(): Promise<AppComponents> {
   const logs = await createLogComponent({ tracer })
   const server = await createServerComponent<GlobalContext>({ config, logs }, { cors })
   createHttpTracerComponent({ server, tracer })
-  // The HTTP requests logger still types its server against the node-fetch-flavoured
-  // @well-known-components interfaces. It only reads the request method/url and the response
-  // status at runtime, so it is structurally compatible with the native-fetch core http-server;
-  // the cast bridges the two type worlds.
-  instrumentHttpServerWithRequestLogger({
-    server: server as unknown as Parameters<typeof instrumentHttpServerWithRequestLogger>[0]["server"],
-    logger: logs,
-  })
+  instrumentHttpServerWithRequestLogger({ server, logger: logs })
   const statusChecks = await createStatusCheckComponent({ server, config })
 
   const fetch = await createTracedFetcherComponent({ tracer })
@@ -69,7 +62,7 @@ export async function initComponents(): Promise<AppComponents> {
         ignorePattern: ".*\\.map", // avoid sourcemaps
         direction: "up",
       },
-    }
+    },
   )
 
   const schemaValidator = createSchemaValidatorComponent<GlobalContext>()
@@ -80,7 +73,7 @@ export async function initComponents(): Promise<AppComponents> {
     fiveMinutes,
     {
       startupDelay: thirtySeconds,
-    }
+    },
   )
   const updateRentalsListingsJob = createJobComponent(
     { logs },
@@ -88,7 +81,7 @@ export async function initComponents(): Promise<AppComponents> {
     fiveMinutes,
     {
       startupDelay: thirtySeconds,
-    }
+    },
   )
   const cancelRentalsListingsJob = createJobComponent(
     { logs },
@@ -96,7 +89,7 @@ export async function initComponents(): Promise<AppComponents> {
     fiveMinutes,
     {
       startupDelay: thirtySeconds,
-    }
+    },
   )
 
   return {
