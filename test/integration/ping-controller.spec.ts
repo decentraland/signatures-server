@@ -28,6 +28,7 @@ test("integration sanity tests using a real server backend", function ({ compone
     const r = await localFetch.fetch("/ping" + Math.random())
 
     expect(r.status).toEqual(404)
+    await r.body?.cancel().catch(() => undefined)
   })
 
   it("next call to /ping should fail in 'metrics' component", async () => {
@@ -41,5 +42,6 @@ test("integration sanity tests using a real server backend", function ({ compone
     const r = await localFetch.fetch("/ping")
 
     expect(r.status).toEqual(500)
+    await r.body?.cancel().catch(() => undefined)
   })
 })
