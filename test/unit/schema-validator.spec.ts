@@ -1,6 +1,6 @@
 import { createConfigComponent } from "@well-known-components/env-config-provider"
 import { createTestServerComponent } from "@dcl/http-server"
-import { createTracerComponent } from "@well-known-components/tracer-component"
+import { createTracerComponent } from "@dcl/tracer-component"
 import { createTestMetricsComponent } from "@dcl/metrics"
 import { createTracedFetcherComponent } from "@dcl/traced-fetch-component"
 import { createSchemaValidatorComponent, ISchemaValidatorComponent } from "@dcl/schema-validator-component"
