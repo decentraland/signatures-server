@@ -8,7 +8,7 @@ import { createSubgraphComponent, ISubgraphComponent } from "@dcl/thegraph-compo
 import { createPgComponent, IPgComponent } from "@dcl/pg-component"
 import { createDotEnvConfigComponent } from "@well-known-components/env-config-provider"
 import { createServerComponent, createStatusCheckComponent } from "@dcl/http-server"
-import { createTracerComponent } from "@well-known-components/tracer-component"
+import { createTracerComponent } from "@dcl/tracer-component"
 import { createMetricsComponent } from "@dcl/metrics"
 import { createSchemaValidatorComponent } from "@dcl/schema-validator-component"
 import { main } from "../src/service"
