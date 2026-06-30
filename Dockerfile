@@ -40,4 +40,3 @@ COPY --from=builderenv /app /app
 ENTRYPOINT ["/sbin/tini", "--"]
 # Run the program under Tini
 CMD [ "/usr/local/bin/node", "--trace-warnings", "--abort-on-uncaught-exception", "--unhandled-rejections=strict", "dist/index.js" ]
-
