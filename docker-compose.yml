@@ -1,0 +1,19 @@
+services:
+  postgres:
+    container_name: 'signatures_db'
+    image: 'postgres:17'
+    restart: always
+    user: postgres
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass1234
+      - POSTGRES_DB=db
+    # Mapped to 5454 on the host to not collide with the databases of the other local services.
+    # The CI workflow exposes its own postgres on the default port and overrides the connection
+    # string through PG_COMPONENT_PSQL_CONNECTION_STRING, which takes precedence over .env.test.
+    ports:
+      - '5454:5432'
+volumes:
+  postgres_volume:

@@ -1,3 +1,15 @@
+/** A 65 bytes ECDSA signature: r (32) + s (32) + v (1), hex encoded. */
+const ECDSA_SIGNATURE_REGEX = /^0x[0-9a-fA-F]{130}$/
+
+/**
+ * Checks whether a string is a well formed 65 bytes hex encoded ECDSA signature.
+ * @param signature - The signature to check.
+ * @returns true if the signature has the expected shape.
+ */
+export function hasECDSASignatureAValidFormat(signature: string): boolean {
+  return ECDSA_SIGNATURE_REGEX.test(signature)
+}
+
 /**
  * Gets the last byte as a number from the a signature.
  * @param signature - A ECDSA signature.

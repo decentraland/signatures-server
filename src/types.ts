@@ -10,6 +10,7 @@ import { IPgComponent } from "@dcl/pg-component"
 import { ISubgraphComponent } from "@dcl/thegraph-component"
 import { ISchemaValidatorComponent } from "@dcl/schema-validator-component"
 import { IJobComponent } from "@dcl/job-component"
+import type { ILocalFetchComponent } from "@dcl/test-helpers"
 import { IRentalsComponent } from "./ports/rentals/types"
 import { metricDeclarations } from "./metrics"
 
@@ -42,8 +43,9 @@ export type AppComponents = BaseComponents & {
 
 // components used in tests
 export type TestComponents = AppComponents & {
-  // A fetch component that only hits the test server
-  localFetch: IFetchComponent
+  // A fetch component that only hits the test server. Typed as the test-helpers surface so specs can
+  // pass an `identity` to issue signed requests. The import is type-only, so it is erased on build.
+  localFetch: ILocalFetchComponent
 }
 
 // this type simplifies the typings of http handlers

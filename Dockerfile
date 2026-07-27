@@ -8,18 +8,16 @@ WORKDIR /app
 RUN apk update
 RUN apk add --no-cache py3-setuptools python3-dev build-base
 
-# install dependencies
-COPY package.json /app/package.json
-COPY package-lock.json /app/package-lock.json
-RUN npm ci
-
 # build the app
 COPY . /app
-RUN npm run build
-RUN npm run test
+RUN yarn install --frozen-lockfile
+RUN yarn build
+
+# The test suite is not run here on purpose: the integration tests need a postgres to run
+# against, which the image build has no access to. CI runs them with its own database service.
 
 # remove devDependencies, keep only used dependencies
-RUN npm ci --only=production --ignore-scripts
+RUN yarn install --prod --frozen-lockfile
 
 
 ########################## END OF BUILD STAGE ##########################

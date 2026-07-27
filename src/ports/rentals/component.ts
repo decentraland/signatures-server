@@ -17,16 +17,18 @@ import {
   fromMillisecondsToSeconds,
   fromSecondsToMilliseconds,
 } from "../../adapters/rentals"
-import { verifyRentalsListingSignature } from "../../logic/rentals"
+import { getRentalsContract, verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
 import {
   InvalidEstate,
+  InvalidRentalContractAddress,
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
   RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
+  UnsupportedChain,
 } from "./errors"
 import {
   IRentalsComponent,
@@ -49,7 +51,12 @@ import {
   DBGetRentalListingsPrice,
 } from "./types"
 import { buildQueryParameters } from "./graph"
-import { generateECDSASignatureWithInvalidV, generateECDSASignatureWithValidV, hasECDSASignatureAValidV } from "./utils"
+import {
+  generateECDSASignatureWithInvalidV,
+  generateECDSASignatureWithValidV,
+  hasECDSASignatureAValidFormat,
+  hasECDSASignatureAValidV,
+} from "./utils"
 import { getRentalListingsQuery, getRentalListingsPricesQuery } from "./queries"
 
 export async function createRentalsComponent(
@@ -88,8 +95,9 @@ export async function createRentalsComponent(
     const { queryVariables, querySignature } = buildQueryParameters<
       NFT & { updatedAt_gt: string; id_gt: string; searchEstateSize: number }
     >(options?.filterBy, options?.first, options?.orderBy, options?.orderDirection)
+    // Must match the filtering done by buildQueryParameters, or the query declares variables that are never sent
     const variables = options?.filterBy
-      ? Object.fromEntries(Object.entries(options.filterBy).filter(([_, value]) => value))
+      ? Object.fromEntries(Object.entries(options.filterBy).filter(([_, value]) => value !== undefined))
       : undefined
 
     const queryResult = await marketplaceSubgraph.query<{
@@ -212,7 +220,7 @@ export async function createRentalsComponent(
   }
 
   async function getIndexesUpdateHistoriesFromIndexer(options: {
-    filterBy?: Partial<IndexerIndexesHistoryUpdateQuery> & { date_gt: string }
+    filterBy?: Partial<IndexerIndexesHistoryUpdateQuery> & { date_gt: string; id_gt?: string }
     first: number
     orderBy?: keyof IndexerIndexesHistoryUpdate
     orderDirection?: "desc" | "asc"
@@ -255,6 +263,40 @@ export async function createRentalsComponent(
     return queryResult
   }
 
+  /**
+   * Checks if the lessor of a listing still controls the asset it is listing.
+   * The asset is under the lessor's control when they own it directly or when the Rentals contract holds it
+   * on their behalf, which is the case while a rent is running and after it ends until the asset is claimed back.
+   * @param nftOwnerAddress - The current owner of the asset according to the indexer.
+   * @param listing - The stored listing to check the control of.
+   * @returns true if the lessor can still rent the asset out.
+   */
+  async function isAssetControlledByLessor(
+    nftOwnerAddress: string,
+    listing: { lessor: string | null; rental_contract_address: string; contract_address: string; token_id: string }
+  ): Promise<boolean> {
+    if (!listing.lessor) {
+      return false
+    }
+
+    if (nftOwnerAddress === listing.lessor) {
+      return true
+    }
+
+    if (nftOwnerAddress !== listing.rental_contract_address) {
+      return false
+    }
+
+    const [indexerRental] = await getRentalsFromIndexer({
+      first: 1,
+      filterBy: { contractAddress: listing.contract_address, tokenId: listing.token_id },
+      orderBy: "startedAt",
+      orderDirection: "desc",
+    })
+
+    return indexerRental?.lessor === listing.lessor
+  }
+
   async function createRentalListing(
     rental: RentalListingCreation,
     lessorAddress: string
@@ -266,6 +308,21 @@ export async function createRentalsComponent(
 
     if (rental.expiration < Date.now()) {
       throw new RentalAlreadyExpired(rental.contractAddress, rental.tokenId, rental.expiration)
+    }
+
+    // The server indexes and serves a single chain, listings signed for any other one are not fillable through it
+    if (rental.chainId !== CHAIN_ID || rental.network !== NETWORK) {
+      throw new UnsupportedChain(rental.chainId, rental.network)
+    }
+
+    // The stored rental contract address drives the index based cancellations, so it can't be caller chosen
+    const expectedRentalContractAddress = getRentalsContract(rental.chainId).address
+    if (rental.rentalContractAddress.toLowerCase() !== expectedRentalContractAddress.toLowerCase()) {
+      throw new InvalidRentalContractAddress(rental.rentalContractAddress, expectedRentalContractAddress)
+    }
+
+    if (!hasECDSASignatureAValidFormat(rental.signature)) {
+      throw new InvalidSignature("The signature is not a 65 bytes hex encoded ECDSA signature")
     }
 
     // Verifying the signature
@@ -421,12 +478,13 @@ export async function createRentalsComponent(
     return results.rows
   }
 
-  async function refreshRentalListing(rentalId: string, forceMetadataRefresh: boolean = false) {
+  async function refreshRentalListing(rentalId: string) {
     logger.info(`[Refresh][Start][${rentalId}]`)
     const startTime = new Date(fromSecondsToMilliseconds(fromMillisecondsToSeconds(Date.now())))
     const rentalQueryResult = await database.query<{
       id: string
       contract_address: string
+      rental_contract_address: string
       token_id: string
       updated_at: Date
       metadata_updated_at: Date
@@ -439,7 +497,7 @@ export async function createRentalsComponent(
       max_days: number
       min_days: number
     }>(
-      SQL`SELECT rentals.id, rentals.contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, periods.id period_id, periods.max_days, periods.min_days 
+      SQL`SELECT rentals.id, rentals.contract_address, rentals.rental_contract_address, rentals.token_id, rentals.updated_at, rentals.signature, rentals.nonces, rentals.status, metadata.id as metadata_id, metadata.updated_at as metadata_updated_at, rentals_listings.lessor as lessor, periods.id period_id, periods.max_days, periods.min_days
       FROM rentals, periods, metadata, rentals_listings
       WHERE rentals.id = ${rentalId} AND metadata.id = rentals.metadata_id AND rentals_listings.id = ${rentalId} AND periods.rental_id = rentals.id `
     )
@@ -476,9 +534,10 @@ export async function createRentalsComponent(
       indexerRentals.length > 0 ? fromSecondsToMilliseconds(Number(indexerRentals[0].updatedAt)) : 0
 
     const promisesOfUpdate: Promise<any>[] = []
+    const hasANewerIndexerRental = indexerRentalLastUpdate > rentalData.updated_at.getTime()
 
     // Update metadata
-    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime() || forceMetadataRefresh) {
+    if (indexerNFTLastUpdate > rentalData.metadata_updated_at.getTime()) {
       logger.info(`[Refresh][Update metadata][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
@@ -492,18 +551,26 @@ export async function createRentalsComponent(
         )
       )
 
-      // If the nft has been transferred, but not to the rentals contract due to a rent starting or if the estate was dissolved,
-      // cancel the rental listing
-      if (
-        (rentalData.status === RentalStatus.OPEN && indexerNFT.owner.address !== rentalData.lessor) ||
-        (indexerNFT.category === NFTCategory.ESTATE && indexerNFT.searchEstateSize === 0)
-      ) {
-        database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
+      // The on chain rental below is the source of truth for an executed listing, don't race it with a cancellation
+      if (!hasANewerIndexerRental) {
+        const isDissolvedEstate = indexerNFT.category === NFTCategory.ESTATE && indexerNFT.searchEstateSize === 0
+        // An asset held by the Rentals contract on the lessor's behalf is still rentable by them, so it is not a transfer away
+        const shouldCancel =
+          isDissolvedEstate ||
+          (rentalData.status === RentalStatus.OPEN &&
+            !(await isAssetControlledByLessor(indexerNFT.owner.address, rentalData)))
+
+        if (shouldCancel) {
+          logger.info(`[Refresh][Cancel listing][${rentalId}]`)
+          promisesOfUpdate.push(
+            database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
+          )
+        }
       }
     }
 
     // Identify the latest blockchain rental
-    if (indexerRentalLastUpdate > rentalData.updated_at.getTime()) {
+    if (hasANewerIndexerRental) {
       logger.info(`[Refresh][Update rental][${rentalId}]`)
       promisesOfUpdate.push(
         database.query(
@@ -598,7 +665,7 @@ export async function createRentalsComponent(
                 distance_to_plaza = ${nft.searchDistanceToPlaza},
                 adjacent_to_road = ${nft.searchAdjacentToRoad},
                 estate_size = ${nft.searchEstateSize},
-                updated_at = ${new Date(fromMillisecondsToSeconds(Number(nft.updatedAt)))}
+                updated_at = ${new Date(fromSecondsToMilliseconds(Number(nft.updatedAt)))}
                 WHERE id = ${nft.id}`
             )
             logger.debug(`[Metadata update][Single update:${nft.id}][Start]`)
@@ -624,8 +691,6 @@ export async function createRentalsComponent(
               return
             }
 
-            const ownerIsContractAddress = nft.owner.address === idsOfOpenRentalsOfNFT[0].rental_contract_address
-            const ownerIsTheSame = nft.owner.address === idsOfOpenRentalsOfNFT[0].lessor
             const isEstateWithSizeZero = nft.category === NFTCategory.ESTATE && nft.searchEstateSize === 0
 
             if (isEstateWithSizeZero) {
@@ -639,26 +704,8 @@ export async function createRentalsComponent(
               return
             }
 
-            if (!ownerIsTheSame) {
-              logger.debug(`[Metadata update][Single update:${nft.id}][The owner is not the same]`)
-
-              if (ownerIsContractAddress) {
-                logger.debug(`[Metadata update][Single update:${nft.id}][The owner is the rentals contract]`)
-                const [rental] = await getRentalsFromIndexer({
-                  first: 1,
-                  filterBy: {
-                    contractAddress: idsOfOpenRentalsOfNFT[0].contract_address,
-                    tokenId: idsOfOpenRentalsOfNFT[0].token_id,
-                  },
-                  orderBy: "startedAt",
-                  orderDirection: "desc",
-                })
-
-                // If the owner is not the same one as the listing through the rental contract, cancel it
-                if (nft.owner.address === rental?.lessor) {
-                  return
-                }
-              }
+            if (!(await isAssetControlledByLessor(nft.owner.address, idsOfOpenRentalsOfNFT[0]))) {
+              logger.debug(`[Metadata update][Single update:${nft.id}][The lessor no longer controls the asset]`)
               await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
               )
@@ -724,13 +771,12 @@ export async function createRentalsComponent(
               }
             >(
               SQL`
-                SELECT rentals.id, lessor, status, started_at, periods.id period_id, periods.max_days, periods.min_days 
+                SELECT rentals.id, lessor, status, started_at, periods.id period_id, periods.max_days, periods.min_days
                 FROM rentals, rentals_listings, periods
-                WHERE rentals.id = rentals_listings.id AND rentals.signature = ${
-                  rental.signature
-                } OR rentals.signature = ${generateECDSASignatureWithInvalidV(
+                WHERE rentals.id = rentals_listings.id AND periods.rental_id = rentals.id
+                AND (rentals.signature = ${rental.signature} OR rentals.signature = ${generateECDSASignatureWithInvalidV(
                 rental.signature
-              )} AND periods.rental_id = rentals.id
+              )})
               `
             )
             logger.debug(
@@ -861,7 +907,8 @@ export async function createRentalsComponent(
       await client.query("BEGIN")
       while (true) {
         const { indexesUpdateHistories } = await getIndexesUpdateHistoriesFromIndexer({
-          filterBy: { date_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString() },
+          // Without id_gt the next iteration re-reads the same page and the loop never ends
+          filterBy: { date_gt: fromMillisecondsToSeconds(rows[0].updated_at.getTime()).toString(), id_gt: lastId },
           first: MAX_GRAPH_FIRST,
         })
         logger.info(`[Rentals Indexes update][Retrieved index updates][size:${indexesUpdateHistories.length}]`)
@@ -880,7 +927,7 @@ export async function createRentalsComponent(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
                     select id
                       from rentals r
-                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newIndex} AND r.rental_contract_address = "${contractAddress}"
+                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newIndex} AND r.rental_contract_address = ${contractAddress}
                 )`
               )
             } else if (indexUpdate.signerUpdate) {

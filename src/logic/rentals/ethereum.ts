@@ -6,16 +6,24 @@ import { hasECDSASignatureAValidV } from "../../ports/rentals/utils"
 import { ContractRentalListing, RentalListingSignatureData } from "./types"
 import { ContractNotFound } from "./errors"
 
+/**
+ * Gets the Rentals contract deployed for the given chain.
+ * @param chainId - The chain the contract was deployed to.
+ * @throws {ContractNotFound} if there's no Rentals contract for the given chain.
+ */
+export function getRentalsContract(chainId: ChainId): ContractData {
+  try {
+    return getContract(ContractName.Rentals, chainId)
+  } catch (error) {
+    throw new ContractNotFound(ContractName.Rentals, chainId)
+  }
+}
+
 async function buildRentalListingSignatureData(
   rentalListing: ContractRentalListing,
   chainId: ChainId
 ): Promise<RentalListingSignatureData> {
-  let rentalsContract: ContractData
-  try {
-    rentalsContract = getContract(ContractName.Rentals, chainId)
-  } catch (error) {
-    throw new ContractNotFound(ContractName.Rentals, chainId)
-  }
+  const rentalsContract = getRentalsContract(chainId)
 
   const domain = {
     name: rentalsContract.name,
@@ -52,12 +60,19 @@ export async function verifyRentalsListingSignature(
   chainId: number
 ): Promise<boolean> {
   const rentalListingSignatureData = await buildRentalListingSignatureData(rentalListing, chainId)
-  const signingAddress = ethers.utils.verifyTypedData(
-    rentalListingSignatureData.domain,
-    rentalListingSignatureData.types,
-    rentalListingSignatureData.values,
-    rentalListingSignatureData.signature
-  )
+
+  let signingAddress: string
+  try {
+    signingAddress = ethers.utils.verifyTypedData(
+      rentalListingSignatureData.domain,
+      rentalListingSignatureData.types,
+      rentalListingSignatureData.values,
+      rentalListingSignatureData.signature
+    )
+  } catch (error) {
+    // A signature ethers can't recover an address from is an invalid one, not a server error
+    return false
+  }
 
   const isVValid = hasECDSASignatureAValidV(rentalListing.signature)
   return signingAddress.toLowerCase() === rentalListingSignatureData.values.signer && isVValid

@@ -79,6 +79,24 @@ describe("when getting the pagination params", () => {
       })
     })
   })
+
+  describe("and the offset is set to a negative integer", () => {
+    it("should clamp the offset to zero, as Postgres rejects a negative OFFSET", () => {
+      expect(getPaginationParams(new URLSearchParams({ offset: "-500" }))).toEqual({
+        limit: 100,
+        offset: 0,
+      })
+    })
+  })
+
+  describe("and the offset is set to a valid value", () => {
+    it("should return the value as the offset", () => {
+      expect(getPaginationParams(new URLSearchParams({ offset: "20" }))).toEqual({
+        limit: 100,
+        offset: 20,
+      })
+    })
+  })
 })
 
 describe("when getting a single typed query parameter", () => {

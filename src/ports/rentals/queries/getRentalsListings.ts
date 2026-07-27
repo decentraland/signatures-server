@@ -4,7 +4,7 @@ import { RentalsListingsFilterBy, RentalsListingSortDirection, RentalsListingsSo
 function getRentalDaysQuery(rentalDays: RentalsListingsFilterBy['rentalDays']) {
   const rentalDaysQuery = SQL``
 
-  if (rentalDays && rentalDays.length) {
+  if (rentalDays?.length) {
     rentalDaysQuery.append(SQL`, (SELECT DISTINCT rental_id FROM periods WHERE `)
     rentalDays.forEach((rentalDay, index) => {
       rentalDaysQuery.append(SQL`(min_days <= ${rentalDay} AND max_days >= ${rentalDay})`)
@@ -26,7 +26,7 @@ export function getRentalsFilters(
 
   if (!filterBy) return filterQuery
 
-  if (filterBy.rentalDays && filterBy.rentalDays.length) {
+  if (filterBy.rentalDays?.length) {
     filterQuery.append(`AND rental_days_periods.rental_id = rentals.id\n`)
   }
 
@@ -62,7 +62,7 @@ export function getRentalsFilters(
     filterQuery.append(SQL`AND rentals_listings.tenant = ${filterBy.tenant}\n`)
   }
 
-  if (filterBy.nftIds && filterBy.nftIds.length) {
+  if (filterBy.nftIds?.length) {
     filterQuery.append(SQL`AND rentals.metadata_id = ANY(${filterBy.nftIds})\n`)
   }
   return filterQuery
@@ -117,7 +117,7 @@ export function getRentalsGroupByFilters(filterBy: (RentalsListingsFilterBy & { 
     return SQL``
   }
 
-  let groupByQuery = SQL``
+  const groupByQuery = SQL``
 
   if (filterBy.minPricePerDay) {
     groupByQuery.append(SQL` HAVING max(periods.price_per_day) >= ${filterBy.minPricePerDay}\n`)
@@ -195,7 +195,7 @@ export function getRentalListingsQuery(
   rentalsQuery.append(getRentalsGroupByFilters(filterBy))
   rentalsQuery.append(SQL`ORDER BY rentals.metadata_id, rentals.created_at desc) as rentals\n`)
 
-  let query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at, COUNT(*) OVER() as rentals_listings_count FROM metadata, `
+  const query = SQL`SELECT rentals.*, metadata.category, metadata.search_text, metadata.created_at as metadata_created_at, COUNT(*) OVER() as rentals_listings_count FROM metadata, `
 
   query.append(rentalsQuery)
   query.append(" WHERE metadata.id = rentals.metadata_id ")
