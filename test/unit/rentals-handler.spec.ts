@@ -806,7 +806,7 @@ describe("when refreshing a rental listing", () => {
 
   beforeEach(() => {
     refreshRentalListingMock = jest.fn()
-    rentalId = "aRentalId"
+    rentalId = "5884c820-2612-409c-bb9e-a01e8d3569e9"
     components = {
       rentals: createTestRentalsComponent({ refreshRentalListing: refreshRentalListingMock }),
     }

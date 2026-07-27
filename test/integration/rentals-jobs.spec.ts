@@ -594,6 +594,22 @@ test("when running the rental listing jobs", function ({ components, stubCompone
     })
   })
 
+  describe("and the index update history is requested from the indexer", () => {
+    let query: string
+
+    beforeEach(async () => {
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({ indexesUpdateHistories: [] })
+      await components.rentals.cancelRentalsListings()
+      query = stubComponents.rentalsSubgraph.query.mock.calls[0][0]
+    })
+
+    // The subgraph schema names this field singerUpdate. A stubbed subgraph answers with whatever the
+    // spec hands it, so the only way to pin the field the real query asks for is the query itself.
+    it("should alias the misspelled signer field so the job can read signerUpdate", () => {
+      expect(query.replace(/\s+/g, " ")).toEqual(expect.stringContaining("signerUpdate: singerUpdate {"))
+    })
+  })
+
   describe("and an open listing expired", () => {
     let expiredListing: SeededListing
 

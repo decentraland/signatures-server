@@ -65,6 +65,22 @@ test("when refreshing a rental listing through the API", function ({ components,
     })
   })
 
+  describe("and the given id is not a uuid", () => {
+    let response: Response
+
+    beforeEach(async () => {
+      response = await components.localFetch.fetch("/v1/rentals-listings/not-a-uuid", { method: "PATCH" })
+    })
+
+    it("should respond with a 400 instead of letting postgres reject the id", async () => {
+      expect(response.status).toBe(StatusCode.BAD_REQUEST)
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        message: "The value of the id parameter is invalid: not-a-uuid",
+      })
+    })
+  })
+
   describe("and the Rentals contract holds the asset on behalf of the lessor", () => {
     let response: Response
 
@@ -160,6 +176,36 @@ test("when refreshing a rental listing through the API", function ({ components,
 
     it("should cancel the listing in the database", async () => {
       await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.CANCELLED)
+    })
+  })
+
+  describe("and the rental contract address was stored with a checksummed casing", () => {
+    let response: Response
+
+    beforeEach(async () => {
+      await dbHelper.clear()
+      // The same address the other listings use, as a client could have sent it
+      listing = await dbHelper.seedListing({
+        lessor,
+        rentalContractAddress: "0x92159C78F0F4523B9C60382bb888F30F10A46B3B",
+        updatedAt: seededAt,
+      })
+      indexerNFT.id = listing.metadataId
+      indexerNFT.contractAddress = listing.contractAddress
+      indexerNFT.tokenId = listing.tokenId
+      indexerNFT.owner = { address: rentalContractAddress }
+      stubComponents.rentalsSubgraph.query
+        .mockResolvedValueOnce({ rentals: [] })
+        .mockResolvedValueOnce({ contract: [], signer: [], asset: [] })
+        .mockResolvedValueOnce({ rentals: [{ lessor }] })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({ nfts: [indexerNFT] })
+
+      response = await components.localFetch.fetch(`/v1/rentals-listings/${listing.id}`, { method: "PATCH" })
+      await response.body?.cancel().catch(() => undefined)
+    })
+
+    it("should still recognise the rentals contract and leave the listing open", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.OPEN)
     })
   })
 

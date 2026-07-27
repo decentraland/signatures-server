@@ -7,6 +7,18 @@ import { ContractRentalListing, RentalListingSignatureData } from "./types"
 import { ContractNotFound } from "./errors"
 
 /**
+ * Compares two ethereum addresses ignoring their casing. The addresses the server handles come from
+ * the authorization middleware, the request body, the indexers and the contract definitions, and
+ * each of those may use a checksummed or a lower cased representation of the same address.
+ * @param anAddress - One of the addresses to compare.
+ * @param anotherAddress - The address to compare it against.
+ * @returns true if both are the same address.
+ */
+export function areSameAddress(anAddress: string | null | undefined, anotherAddress: string | null | undefined) {
+  return Boolean(anAddress) && Boolean(anotherAddress) && anAddress?.toLowerCase() === anotherAddress?.toLowerCase()
+}
+
+/**
  * Gets the Rentals contract deployed for the given chain.
  * @param chainId - The chain the contract was deployed to.
  * @throws {ContractNotFound} if there's no Rentals contract for the given chain.

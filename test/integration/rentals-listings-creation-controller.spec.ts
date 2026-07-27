@@ -277,6 +277,54 @@ test("when creating a rental listing through the API", function ({ components, s
     })
   })
 
+  describe("and the rental contract address is sent with a checksummed casing", () => {
+    let response: Response
+    let body: { ok: boolean; data: { id: string } }
+
+    beforeEach(async () => {
+      listing = await buildSignedRentalListingCreation(identity, ChainId.ETHEREUM_GOERLI, {
+        rentalContractAddress: getRentalsContract(ChainId.ETHEREUM_GOERLI).address.toUpperCase().replace("0X", "0x"),
+      })
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({ rentals: [] })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({
+        nfts: [
+          {
+            id: "aMetadataId",
+            category: NFTCategory.PARCEL,
+            contractAddress: listing.contractAddress,
+            tokenId: listing.tokenId,
+            owner: { address: lessor },
+            searchText: "0,0",
+            searchIsLand: true,
+            searchEstateSize: 0,
+            searchDistanceToPlaza: 3,
+            searchAdjacentToRoad: true,
+            createdAt: "100000",
+            updatedAt: "200000",
+          },
+        ],
+      })
+
+      response = await components.localFetch.fetch(PATH, {
+        method: "POST",
+        identity,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(listing),
+      })
+      body = await response.json()
+    })
+
+    it("should accept it", () => {
+      expect(response.status).toBe(StatusCode.CREATED)
+    })
+
+    it("should store the address of the contract, so the casing never breaks the ownership checks", async () => {
+      await expect(dbHelper.getListingRentalContractAddress(body.data.id)).resolves.toBe(
+        getRentalsContract(ChainId.ETHEREUM_GOERLI).address
+      )
+    })
+  })
+
   describe("and a listing already exists for the same asset", () => {
     let response: Response
 

@@ -17,7 +17,7 @@ import {
   fromMillisecondsToSeconds,
   fromSecondsToMilliseconds,
 } from "../../adapters/rentals"
-import { getRentalsContract, verifyRentalsListingSignature } from "../../logic/rentals"
+import { areSameAddress, getRentalsContract, verifyRentalsListingSignature } from "../../logic/rentals"
 import { AppComponents } from "../../types"
 import {
   InvalidEstate,
@@ -241,7 +241,10 @@ export async function createRentalsComponent(
           contractAddress
           newIndex
         }
-        singerUpdate {
+        # The subgraph schema misspells this field, it is aliased so the rest of the code can read
+        # signerUpdate. Without the alias the response never has the key the update job looks for
+        # and signer index bumps silently stop cancelling listings.
+        signerUpdate: singerUpdate {
           id
           newIndex
           signer
@@ -279,11 +282,11 @@ export async function createRentalsComponent(
       return false
     }
 
-    if (nftOwnerAddress === listing.lessor) {
+    if (areSameAddress(nftOwnerAddress, listing.lessor)) {
       return true
     }
 
-    if (nftOwnerAddress !== listing.rental_contract_address) {
+    if (!areSameAddress(nftOwnerAddress, listing.rental_contract_address)) {
       return false
     }
 
@@ -294,7 +297,7 @@ export async function createRentalsComponent(
       orderDirection: "desc",
     })
 
-    return indexerRental?.lessor === listing.lessor
+    return areSameAddress(indexerRental?.lessor, listing.lessor)
   }
 
   async function createRentalListing(
@@ -315,9 +318,11 @@ export async function createRentalsComponent(
       throw new UnsupportedChain(rental.chainId, rental.network)
     }
 
-    // The stored rental contract address drives the index based cancellations, so it can't be caller chosen
+    // The stored rental contract address drives the index based cancellations, so it can't be caller
+    // chosen. The address of the contract is stored instead of the one that was sent, so the stored
+    // value always has the same casing no matter how the caller wrote it.
     const expectedRentalContractAddress = getRentalsContract(rental.chainId).address
-    if (rental.rentalContractAddress.toLowerCase() !== expectedRentalContractAddress.toLowerCase()) {
+    if (!areSameAddress(rental.rentalContractAddress, expectedRentalContractAddress)) {
       throw new InvalidRentalContractAddress(rental.rentalContractAddress, expectedRentalContractAddress)
     }
 
@@ -367,11 +372,11 @@ export async function createRentalsComponent(
     logger.info(buildLogMessageForRental("NFT found"))
 
     // The NFT must be owned by the lessor or by the rental contract through the lessor
-    const lessorOwnsTheLand = nft.owner.address === lessorAddress
+    const lessorOwnsTheLand = areSameAddress(nft.owner.address, lessorAddress)
     const lessorOwnsTheLandThroughTheRentalContract =
       indexerRentals[0] &&
-      nft.owner.address === indexerRentals[0].rentalContractAddress &&
-      indexerRentals[0].lessor === lessorAddress
+      areSameAddress(nft.owner.address, indexerRentals[0].rentalContractAddress) &&
+      areSameAddress(indexerRentals[0].lessor, lessorAddress)
 
     if (!lessorOwnsTheLand && !lessorOwnsTheLandThroughTheRentalContract) {
       throw new UnauthorizedToRent(nft.owner.address, lessorAddress)
@@ -415,9 +420,9 @@ export async function createRentalsComponent(
           nft.id
         }, ${rental.network}, ${rental.chainId}, ${new Date(rental.expiration)}, ${rental.signature}, ${
           rental.nonces
-        }, ${rental.tokenId}, ${rental.contractAddress}, ${rental.rentalContractAddress}, ${RentalStatus.OPEN}, ${
-          rental.target
-        }) RETURNING *`
+        }, ${rental.tokenId}, ${rental.contractAddress}, ${expectedRentalContractAddress}, ${
+          RentalStatus.OPEN
+        }, ${rental.target}) RETURNING *`
       )
       logger.debug(buildLogMessageForRental("Inserted rental"))
 

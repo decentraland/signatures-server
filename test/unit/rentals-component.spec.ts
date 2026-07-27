@@ -32,7 +32,13 @@ import {
 import { fromMillisecondsToSeconds } from "../../src/adapters/rentals"
 import { createTestConsoleLogComponent, createTestDbComponent, createTestSubgraphComponent } from "../components"
 
-jest.mock("../../src/logic/rentals")
+// Only the two functions that reach outside are stubbed. Auto mocking the whole module would also
+// replace its pure helpers, silently turning every address comparison into undefined.
+jest.mock("../../src/logic/rentals", () => ({
+  ...jest.requireActual("../../src/logic/rentals"),
+  verifyRentalsListingSignature: jest.fn(),
+  getRentalsContract: jest.fn(),
+}))
 
 const mockedRentalsLogic = jest.mocked(rentalsLogic, { shallow: true })
 

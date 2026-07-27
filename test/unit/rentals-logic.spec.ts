@@ -2,7 +2,7 @@ import { ChainId } from "@dcl/schemas"
 import { ContractData, ContractName, getContract } from "decentraland-transactions"
 import { ethers } from "ethers"
 import { TypedDataDomain, TypedDataField } from "@ethersproject/abstract-signer"
-import { ContractRentalListing, verifyRentalsListingSignature } from "../../src/logic/rentals"
+import { areSameAddress, ContractRentalListing, verifyRentalsListingSignature } from "../../src/logic/rentals"
 import { ContractNotFound } from "../../src/logic/rentals/errors"
 
 describe("when verifying the rentals listings signature", () => {
@@ -124,6 +124,44 @@ describe("when verifying the rentals listings signature", () => {
 
     it("should return false", () => {
       return expect(verifyRentalsListingSignature(contractRentalListing, chainId)).resolves.toBe(false)
+    })
+  })
+})
+
+describe("when comparing two addresses", () => {
+  let anAddress: string
+
+  beforeEach(() => {
+    anAddress = "0x92159c78f0f4523b9c60382bb888f30f10a46b3b"
+  })
+
+  describe("and both are the same address with the same casing", () => {
+    it("should return true", () => {
+      expect(areSameAddress(anAddress, anAddress)).toBe(true)
+    })
+  })
+
+  describe("and both are the same address with a different casing", () => {
+    it("should return true", () => {
+      expect(areSameAddress(anAddress, "0x92159C78F0F4523B9C60382BB888F30F10A46B3B")).toBe(true)
+    })
+  })
+
+  describe("and they are different addresses", () => {
+    it("should return false", () => {
+      expect(areSameAddress(anAddress, "0x1111111111111111111111111111111111111111")).toBe(false)
+    })
+  })
+
+  describe("and one of them is not set", () => {
+    it("should return false", () => {
+      expect(areSameAddress(anAddress, null)).toBe(false)
+    })
+  })
+
+  describe("and both are not set", () => {
+    it("should return false, as two unknown addresses are not known to match", () => {
+      expect(areSameAddress(undefined, null)).toBe(false)
     })
   })
 })

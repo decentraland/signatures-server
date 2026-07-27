@@ -56,3 +56,21 @@ export function getNumberParameter(parameterName: string, parameterValue: string
 
   return valueAsNumber
 }
+
+/** A canonical, hyphenated UUID as postgres accepts it for a uuid column. */
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
+/**
+ * Validates that a route parameter holds a uuid.
+ * @param parameterName - The name of the parameter, used to build the error.
+ * @param parameterValue - The value to validate.
+ * @throws {InvalidParameterError} if the value is not a uuid.
+ * @returns the validated uuid.
+ */
+export function getUUIDParameter(parameterName: string, parameterValue: string): string {
+  if (!UUID_REGEX.test(parameterValue)) {
+    throw new InvalidParameterError(parameterName, parameterValue)
+  }
+
+  return parameterValue
+}

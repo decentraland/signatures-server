@@ -19,6 +19,7 @@ import {
   getPaginationParams,
   getTypedArrayStringQueryParameter,
   getTypedStringQueryParameter,
+  getUUIDParameter,
   InvalidParameterError,
 } from "../../logic/http"
 import { ContractNotFound } from "../../logic/rentals/errors"
@@ -271,7 +272,8 @@ export async function refreshRentalListingHandler(
   } = context
 
   try {
-    const updatedRental = await rentals.refreshRentalListing(id)
+    // The id reaches a uuid column, an invalid one would make postgres fail the whole request
+    const updatedRental = await rentals.refreshRentalListing(getUUIDParameter("id", id))
     return {
       status: StatusCode.OK,
       body: {
@@ -301,6 +303,14 @@ export async function refreshRentalListingHandler(
             tokenId: error.tokenId,
             contractAddress: error.contractAddress,
           },
+        },
+      }
+    } else if (error instanceof InvalidParameterError) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
         },
       }
     }
