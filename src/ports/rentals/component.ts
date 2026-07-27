@@ -612,16 +612,19 @@ export async function createRentalsComponent(
     const hasAssetIndexUpdate = Number(indexerIndexesUpdate.asset[0]?.newIndex) > Number(rentalData.nonces[2])
     const hasUpdatedIndex = hasContractIndexUpdate || hasSignerIndexUpdate || hasAssetIndexUpdate
 
-    if (hasUpdatedIndex && rentalData.status === RentalStatus.OPEN) {
+    // Skipped when the indexer already reported a newer rental: that listing was executed, and both
+    // updates would otherwise be queued together and the last one to land would decide the status
+    if (!hasANewerIndexerRental && hasUpdatedIndex && rentalData.status === RentalStatus.OPEN) {
       if (
         hasContractIndexUpdate ||
         hasSignerIndexUpdate ||
         (hasAssetIndexUpdate && indexerIndexesUpdate.asset[0].type === IndexUpdateEventType.CANCEL)
       ) {
-        logger.info(`[Refresh][Update rental][${rentalId}]`)
+        logger.info(`[Refresh][Cancel listing][${rentalId}]`)
         promisesOfUpdate.push(
           database.query(
-            SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`
+            SQL`UPDATE rentals SET updated_at = ${startTime}, status = ${RentalStatus.CANCELLED}
+              WHERE id = ${rentalData.id} AND status = ${RentalStatus.OPEN}`
           )
         )
       }

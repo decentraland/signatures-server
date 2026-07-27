@@ -238,6 +238,52 @@ test("when refreshing a rental listing through the API", function ({ components,
     })
   })
 
+  describe("and the indexer reports both a newer on chain rental and a bumped index", () => {
+    let response: Response
+    let startedAt: number
+
+    beforeEach(async () => {
+      // Clearly newer than the stored updated_at, so the refresh takes the executed branch
+      startedAt = fromMillisecondsToSeconds(seededAt.getTime()) + 3600
+      // The nft is not newer than the stored metadata, to keep the metadata branch out of the way
+      indexerNFT.createdAt = fromMillisecondsToSeconds(seededAt.getTime()).toString()
+      indexerNFT.updatedAt = fromMillisecondsToSeconds(seededAt.getTime()).toString()
+      stubComponents.rentalsSubgraph.query
+        // The rental was executed on chain after the listing was last updated
+        .mockResolvedValueOnce({
+          rentals: [
+            {
+              id: "aRentalId",
+              contractAddress: listing.contractAddress,
+              rentalContractAddress,
+              tokenId: listing.tokenId,
+              lessor,
+              tenant: "0x3333333333333333333333333333333333333333",
+              operator: lessor,
+              rentalDays: "30",
+              startedAt: startedAt.toString(),
+              endsAt: (startedAt + 100000).toString(),
+              updatedAt: startedAt.toString(),
+              pricePerDay: "10000",
+              sender: lessor,
+              signature: listing.signature,
+              ownerHasClaimedAsset: false,
+            },
+          ],
+        })
+        // and the signer bumped their index too
+        .mockResolvedValueOnce({ contract: [], signer: [{ newIndex: "1" }], asset: [] })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({ nfts: [indexerNFT] })
+
+      response = await components.localFetch.fetch(`/v1/rentals-listings/${listing.id}`, { method: "PATCH" })
+      await response.body?.cancel().catch(() => undefined)
+    })
+
+    it("should keep the executed status, as the on chain rental is the source of truth", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.EXECUTED)
+    })
+  })
+
   describe("and the caller asks to force a metadata refresh", () => {
     let response: Response
 
