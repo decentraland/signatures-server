@@ -610,6 +610,180 @@ test("when running the rental listing jobs", function ({ components, stubCompone
     })
   })
 
+  describe("and an index bump reaches listings that should not or should be matched", () => {
+    let openListing: SeededListing
+    let executedListing: SeededListing
+    let claimedListing: SeededListing
+    let seededAt: Date
+
+    /** Answers the indexer with a single contract index bump to the given index. */
+    function mockContractBump(newIndex: string) {
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({
+        indexesUpdateHistories: [
+          {
+            id: "1",
+            date: "1",
+            type: IndexerIndexUpdateType.CONTRACT,
+            contractUpdate: { id: "1", contractAddress: rentalContractAddress, newIndex },
+          },
+        ],
+      })
+    }
+
+    beforeEach(async () => {
+      seededAt = new Date("2020-01-01T00:00:00.000Z")
+      openListing = await dbHelper.seedListing({
+        lessor,
+        rentalContractAddress,
+        nonces: ["0", "0", "0"],
+        updatedAt: seededAt,
+      })
+      executedListing = await dbHelper.seedListing({
+        lessor,
+        rentalContractAddress,
+        status: RentalStatus.EXECUTED,
+        nonces: ["0", "0", "0"],
+        updatedAt: seededAt,
+      })
+      claimedListing = await dbHelper.seedListing({
+        lessor,
+        rentalContractAddress,
+        status: RentalStatus.CLAIMED,
+        nonces: ["0", "0", "0"],
+        updatedAt: seededAt,
+      })
+      mockContractBump("1")
+      await components.rentals.cancelRentalsListings()
+    })
+
+    it("should cancel the open listing", async () => {
+      await expect(dbHelper.getListingStatus(openListing.id)).resolves.toBe(RentalStatus.CANCELLED)
+    })
+
+    it("should not rewrite the executed listing, which is rental history", async () => {
+      await expect(dbHelper.getListingStatus(executedListing.id)).resolves.toBe(RentalStatus.EXECUTED)
+    })
+
+    it("should not rewrite the claimed listing", async () => {
+      await expect(dbHelper.getListingStatus(claimedListing.id)).resolves.toBe(RentalStatus.CLAIMED)
+    })
+
+    it("should advance the updated at of the cancelled listing, so updatedAfter consumers see it", async () => {
+      const updatedAt = await dbHelper.getListingUpdatedAt(openListing.id)
+      expect(updatedAt?.getTime()).toBeGreaterThan(seededAt.getTime())
+    })
+  })
+
+  describe("and the stored nonce has fewer digits than the new index", () => {
+    let listing: SeededListing
+
+    beforeEach(async () => {
+      listing = await dbHelper.seedListing({ lessor, rentalContractAddress, nonces: ["9", "0", "0"] })
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({
+        indexesUpdateHistories: [
+          {
+            id: "1",
+            date: "1",
+            type: IndexerIndexUpdateType.CONTRACT,
+            contractUpdate: { id: "1", contractAddress: rentalContractAddress, newIndex: "10" },
+          },
+        ],
+      })
+
+      await components.rentals.cancelRentalsListings()
+    })
+
+    it("should compare the nonces as numbers and cancel the listing", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.CANCELLED)
+    })
+  })
+
+  describe("and the listing was stored with a checksummed casing", () => {
+    let listing: SeededListing
+
+    beforeEach(async () => {
+      listing = await dbHelper.seedListing({
+        lessor: lessor.toUpperCase().replace("0X", "0x"),
+        rentalContractAddress: rentalContractAddress.toUpperCase().replace("0X", "0x"),
+        nonces: ["0", "0", "0"],
+      })
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({
+        indexesUpdateHistories: [
+          {
+            id: "1",
+            date: "1",
+            type: IndexerIndexUpdateType.SIGNER,
+            signerUpdate: { id: "1", signer: lessor, newIndex: "1" },
+          },
+        ],
+      })
+
+      await components.rentals.cancelRentalsListings()
+    })
+
+    it("should still match the signer and cancel the listing", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.CANCELLED)
+    })
+  })
+
+  describe("and a cancellation happens through the metadata job", () => {
+    let listing: SeededListing
+    let seededAt: Date
+
+    beforeEach(async () => {
+      seededAt = new Date("2020-01-01T00:00:00.000Z")
+      await dbHelper.setLastUpdate("metadata", new Date(0))
+      listing = await dbHelper.seedListing({ lessor, rentalContractAddress, updatedAt: seededAt })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({
+        nfts: [
+          {
+            id: listing.metadataId,
+            category: NFTCategory.PARCEL,
+            contractAddress: listing.contractAddress,
+            tokenId: listing.tokenId,
+            owner: { address: "0x9999999999999999999999999999999999999999" },
+            searchText: "10,20",
+            searchIsLand: true,
+            searchEstateSize: 0,
+            searchDistanceToPlaza: 1,
+            searchAdjacentToRoad: true,
+            createdAt: "1000000",
+            updatedAt: Math.floor(Date.now() / 1000).toString(),
+          },
+        ],
+      })
+
+      await components.rentals.updateMetadata()
+    })
+
+    it("should advance the updated at, so updatedAfter consumers see the cancellation", async () => {
+      const updatedAt = await dbHelper.getListingUpdatedAt(listing.id)
+      expect(updatedAt?.getTime()).toBeGreaterThan(seededAt.getTime())
+    })
+  })
+
+  describe("and an expired listing is closed by the rentals job", () => {
+    let expiredListing: SeededListing
+    let seededAt: Date
+
+    beforeEach(async () => {
+      seededAt = new Date("2020-01-01T00:00:00.000Z")
+      expiredListing = await dbHelper.seedListing({
+        lessor,
+        expiration: new Date(Date.now() - 60 * 1000),
+        updatedAt: seededAt,
+      })
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({ rentals: [] })
+
+      await components.rentals.updateRentalsListings()
+    })
+
+    it("should advance the updated at of the expired listing", async () => {
+      const updatedAt = await dbHelper.getListingUpdatedAt(expiredListing.id)
+      expect(updatedAt?.getTime()).toBeGreaterThan(seededAt.getTime())
+    })
+  })
+
   describe("and an open listing expired", () => {
     let expiredListing: SeededListing
 

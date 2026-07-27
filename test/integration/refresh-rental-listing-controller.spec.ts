@@ -209,6 +209,35 @@ test("when refreshing a rental listing through the API", function ({ components,
     })
   })
 
+  describe("and the listing was already executed", () => {
+    let response: Response
+
+    beforeEach(async () => {
+      await dbHelper.clear()
+      listing = await dbHelper.seedListing({
+        lessor,
+        rentalContractAddress,
+        status: RentalStatus.EXECUTED,
+        updatedAt: seededAt,
+      })
+      indexerNFT.id = listing.metadataId
+      indexerNFT.contractAddress = listing.contractAddress
+      indexerNFT.tokenId = listing.tokenId
+      indexerNFT.owner = { address: "0x9999999999999999999999999999999999999999" }
+      stubComponents.rentalsSubgraph.query
+        .mockResolvedValueOnce({ rentals: [] })
+        .mockResolvedValueOnce({ contract: [], signer: [], asset: [] })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({ nfts: [indexerNFT] })
+
+      response = await components.localFetch.fetch(`/v1/rentals-listings/${listing.id}`, { method: "PATCH" })
+      await response.body?.cancel().catch(() => undefined)
+    })
+
+    it("should not rewrite it to cancelled, as an executed listing is rental history", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.EXECUTED)
+    })
+  })
+
   describe("and the caller asks to force a metadata refresh", () => {
     let response: Response
 

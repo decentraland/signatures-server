@@ -101,6 +101,14 @@ export function createDbHelper(database: IPgComponent) {
       return rows[0]?.status
     },
 
+    /** Reads the moment a listing was last updated. */
+    async getListingUpdatedAt(id: string): Promise<Date | undefined> {
+      const { rows } = await database.query<{ updated_at: Date }>(
+        SQL`SELECT updated_at FROM rentals WHERE id = ${id}`
+      )
+      return rows[0]?.updated_at
+    },
+
     /** Reads the nonces a listing was stored with. */
     async getListingNonces(id: string): Promise<string[] | undefined> {
       const { rows } = await database.query<{ nonces: string[] }>(SQL`SELECT nonces FROM rentals WHERE id = ${id}`)

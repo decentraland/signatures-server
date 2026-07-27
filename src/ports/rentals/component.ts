@@ -557,18 +557,20 @@ export async function createRentalsComponent(
       )
 
       // The on chain rental below is the source of truth for an executed listing, don't race it with a cancellation
-      if (!hasANewerIndexerRental) {
+      // Only an open listing can be cancelled, an executed or claimed one is rental history
+      if (!hasANewerIndexerRental && rentalData.status === RentalStatus.OPEN) {
         const isDissolvedEstate = indexerNFT.category === NFTCategory.ESTATE && indexerNFT.searchEstateSize === 0
         // An asset held by the Rentals contract on the lessor's behalf is still rentable by them, so it is not a transfer away
         const shouldCancel =
-          isDissolvedEstate ||
-          (rentalData.status === RentalStatus.OPEN &&
-            !(await isAssetControlledByLessor(indexerNFT.owner.address, rentalData)))
+          isDissolvedEstate || !(await isAssetControlledByLessor(indexerNFT.owner.address, rentalData))
 
         if (shouldCancel) {
           logger.info(`[Refresh][Cancel listing][${rentalId}]`)
           promisesOfUpdate.push(
-            database.query(SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${rentalData.id}`)
+            database.query(
+              SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                WHERE id = ${rentalData.id} AND status = ${RentalStatus.OPEN}`
+            )
           )
         }
       }
@@ -704,7 +706,8 @@ export async function createRentalsComponent(
                 `[Metadata update][Single update:${nft.id}][Cancelling listing due to being a dissolved estate]`
               )
               await client.query(
-                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                  WHERE id = ${idsOfOpenRentalsOfNFT[0].id} AND status = ${RentalStatus.OPEN}`
               )
               return
             }
@@ -712,7 +715,8 @@ export async function createRentalsComponent(
             if (!(await isAssetControlledByLessor(nft.owner.address, idsOfOpenRentalsOfNFT[0]))) {
               logger.debug(`[Metadata update][Single update:${nft.id}][The lessor no longer controls the asset]`)
               await client.query(
-                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE id = ${idsOfOpenRentalsOfNFT[0].id}`
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                  WHERE id = ${idsOfOpenRentalsOfNFT[0].id} AND status = ${RentalStatus.OPEN}`
               )
             }
           })
@@ -881,7 +885,8 @@ export async function createRentalsComponent(
       }
       // Close all opened listings that expired
       await client.query(
-        SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE status = ${RentalStatus.OPEN} AND expiration < now()`
+        SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+          WHERE status = ${RentalStatus.OPEN} AND expiration < now()`
       )
       await client.query(SQL`UPDATE updates SET updated_at = ${startTime} WHERE type = ${UpdateType.RENTALS}`)
       await client.query("COMMIT")
@@ -929,21 +934,26 @@ export async function createRentalsComponent(
                 `[Rentals Indexes update][Contract index update][contractAddress:${contractAddress}][newIndex:${newIndex}]`
               )
               return await client.query(
-                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                  WHERE rentals.status = ${RentalStatus.OPEN} AND rentals.id = ANY (
                     select id
                       from rentals r
-                      cross join unnest(nonces) with ordinality as u(nonce, idx) where idx = 1 AND u.nonce < ${newIndex} AND r.rental_contract_address = ${contractAddress}
+                      cross join unnest(nonces) with ordinality as u(nonce, idx)
+                      where idx = 1 AND u.nonce::numeric < ${newIndex}::numeric
+                        AND lower(r.rental_contract_address) = lower(${contractAddress})
                 )`
               )
             } else if (indexUpdate.signerUpdate) {
               const { newIndex, signer } = indexUpdate.signerUpdate
               logger.info(`[Rentals Indexes update][Singer index update][signer:${signer}][newIndex:${newIndex}]`)
               return await client.query(
-                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                  WHERE rentals.status = ${RentalStatus.OPEN} AND rentals.id = ANY (
                   select r.id
                     from rentals r, rentals_listings rl
                     cross join unnest(nonces) with ordinality as u(nonce, idx)
-                    where r.id = rl.id AND idx = 2 AND u.nonce < ${newIndex} AND rl.lessor = ${signer}
+                    where r.id = rl.id AND idx = 2 AND u.nonce::numeric < ${newIndex}::numeric
+                      AND lower(rl.lessor) = lower(${signer})
                 )`
               )
             } else if (indexUpdate.assetUpdate && indexUpdate.assetUpdate.type === IndexUpdateEventType.CANCEL) {
@@ -952,11 +962,14 @@ export async function createRentalsComponent(
                 `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][newIndex:${newIndex}]`
               )
               return await client.query(
-                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED} WHERE rentals.id = ANY (
+                SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
+                  WHERE rentals.status = ${RentalStatus.OPEN} AND rentals.id = ANY (
                   select r.id
                     from rentals r
                     cross join unnest(nonces) with ordinality as u(nonce, idx)
-                    WHERE idx = 3 AND u.nonce < ${newIndex} AND r.contract_address = ${contractAddress} AND r.token_id = ${tokenId}
+                    WHERE idx = 3 AND u.nonce::numeric < ${newIndex}::numeric
+                      AND lower(r.contract_address) = lower(${contractAddress})
+                      AND r.token_id = ${tokenId}
                 )`
               )
             } else {
