@@ -11,9 +11,10 @@ export const getPaginationParams = (params: URLSearchParams): { limit: number; o
 
   const paginationLimit =
     limit && !isNaN(parsedLimit) && parsedLimit <= MAX_LIMIT && parsedLimit > 0 ? parsedLimit : MAX_LIMIT
+  // Postgres rejects a negative OFFSET, so clamp it instead of letting it reach the query
   const paginationOffset = isNaN(parsedOffset)
     ? (page && !isNaN(parsedPage) && parsedPage >= 0 ? parsedPage : DEFAULT_PAGE) * paginationLimit
-    : parsedOffset
+    : Math.max(parsedOffset, 0)
 
   return {
     limit: paginationLimit,

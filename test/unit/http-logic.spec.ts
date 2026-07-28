@@ -4,6 +4,7 @@ import {
   getPaginationParams,
   getTypedArrayStringQueryParameter,
   getTypedStringQueryParameter,
+  getUUIDParameter,
   InvalidParameterError,
 } from "../../src/logic/http"
 
@@ -76,6 +77,24 @@ describe("when getting the pagination params", () => {
       expect(getPaginationParams(new URLSearchParams({ page: "1" }))).toEqual({
         limit: 100,
         offset: 100,
+      })
+    })
+  })
+
+  describe("and the offset is set to a negative integer", () => {
+    it("should clamp the offset to zero, as Postgres rejects a negative OFFSET", () => {
+      expect(getPaginationParams(new URLSearchParams({ offset: "-500" }))).toEqual({
+        limit: 100,
+        offset: 0,
+      })
+    })
+  })
+
+  describe("and the offset is set to a valid value", () => {
+    it("should return the value as the offset", () => {
+      expect(getPaginationParams(new URLSearchParams({ offset: "20" }))).toEqual({
+        limit: 100,
+        offset: 20,
       })
     })
   })
@@ -159,6 +178,28 @@ describe("when getting an arrayed typed query parameter", () => {
       expect(
         getTypedArrayStringQueryParameter(Object.values(RentalsListingsFilterByCategory), params, "category")
       ).toEqual([RentalsListingsFilterByCategory.PARCEL, RentalsListingsFilterByCategory.ESTATE])
+    })
+  })
+})
+
+describe("when getting a uuid route parameter", () => {
+  describe("and the value is a uuid", () => {
+    it("should return it", () => {
+      expect(getUUIDParameter("id", "5884c820-2612-409c-bb9e-a01e8d3569e9")).toBe("5884c820-2612-409c-bb9e-a01e8d3569e9")
+    })
+  })
+
+  describe("and the value is not a uuid", () => {
+    it("should throw an invalid parameter error", () => {
+      expect(() => getUUIDParameter("id", "not-a-uuid")).toThrowError(
+        new InvalidParameterError("id", "not-a-uuid")
+      )
+    })
+  })
+
+  describe("and the value is a uuid without its hyphens", () => {
+    it("should throw an invalid parameter error, as postgres would not accept it either", () => {
+      expect(() => getUUIDParameter("id", "5884c8202612409cbb9ea01e8d3569e9")).toThrowError(InvalidParameterError)
     })
   })
 })

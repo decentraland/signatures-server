@@ -32,7 +32,7 @@ export function getRentalListingsPricesQuery(filters: GetRentalListingsPricesFil
     query.append(SQL`AND m.distance_to_plaza <= ${maxDistanceToPlaza} `)
   }
 
-  if (rentalDays && rentalDays.length) {
+  if (rentalDays?.length) {
     query.append(SQL`AND (`)
     rentalDays.forEach((rentalDay, index) => {
       query.append(SQL`(p.min_days <= ${rentalDay} AND p.max_days >= ${rentalDay})`)

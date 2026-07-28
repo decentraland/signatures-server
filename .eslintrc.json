@@ -1,0 +1,27 @@
+{
+  "extends": "@dcl/eslint-config/core-services",
+  "parserOptions": {
+    "project": ["tsconfig.json", "test/tsconfig.json"]
+  },
+  "ignorePatterns": ["dist/", "coverage/", "*.js", "*.d.ts", "*.json", "!.eslintrc.json"],
+  "rules": {
+    "no-constant-condition": ["error", { "checkLoops": false }],
+    "import/no-named-as-default": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/consistent-type-definitions": "off",
+    "@typescript-eslint/consistent-type-imports": "off",
+    "@typescript-eslint/array-type": "off",
+    "import/order": "off",
+    "sort-imports": "off",
+    "prettier/prettier": "off"
+  },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off"
+      }
+    }
+  ]
+}

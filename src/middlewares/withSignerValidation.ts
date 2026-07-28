@@ -5,8 +5,7 @@ export async function withSignerValidation(
   next: () => Promise<IHttpServerComponent.IResponse>
 ): Promise<IHttpServerComponent.IResponse> {
   if (
-    ctx.verification &&
-    ctx.verification.authMetadata &&
+    ctx.verification?.authMetadata &&
     typeof ctx.verification.authMetadata === 'object' &&
     ctx.verification.authMetadata.signer === 'decentraland-kernel-scene'
   ) {

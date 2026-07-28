@@ -11,7 +11,7 @@ import {
 
 export type IRentalsComponent = {
   createRentalListing(rental: RentalListingCreation, lessorAddress: string): Promise<DBInsertedRentalListing>
-  refreshRentalListing(rentalId: string, forceMetadataRefresh?: boolean): Promise<DBGetRentalListing>
+  refreshRentalListing(rentalId: string): Promise<DBGetRentalListing>
   getRentalsListings(params: GetRentalListingParameters, getHistoricData?: boolean): Promise<DBGetRentalListing[]>
   cancelRentalsListings(): Promise<void>
   updateRentalsListings(): Promise<void>

@@ -34,6 +34,18 @@ export class InvalidSignature extends Error {
   }
 }
 
+export class InvalidRentalContractAddress extends Error {
+  constructor(public rentalContractAddress: string, public expectedRentalContractAddress: string) {
+    super("The rental contract address does not match the Rentals contract of the given chain")
+  }
+}
+
+export class UnsupportedChain extends Error {
+  constructor(public chainId: number, public network: string) {
+    super("The chain id and network of the listing are not the ones supported by the server")
+  }
+}
+
 export class InvalidEstate extends Error {
   constructor(public contractAddress: string, public tokenId: string) {
     super("Estates with size 0 can't be listed for rent")

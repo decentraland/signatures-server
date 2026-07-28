@@ -22,7 +22,6 @@ import {
 import { ContractNotFound } from "../../src/logic/rentals/errors"
 import { AppComponents, HandlerContextWithPath, StatusCode } from "../../src/types"
 import { createTestRentalsComponent } from "../components"
-import { InvalidParameterError } from "../../src/logic/http"
 
 describe("when creating a new rental listing", () => {
   let components: Pick<AppComponents, "rentals">
@@ -354,7 +353,7 @@ describe("when getting rental listings", () => {
     "and the request was done with an invalid parameter type for filter $parameterName",
     ({ parameterName, parameterValue, invalidValue }) => {
       beforeEach(() => {
-        let queryParams = new URLSearchParams()
+        const queryParams = new URLSearchParams()
         if (Array.isArray(parameterValue)) {
           parameterValue.forEach((value) => {
             queryParams.append(parameterName, value.toString())
@@ -393,7 +392,7 @@ describe("when getting rental listings", () => {
     ({ parameterName, parameterValue }) => {
       beforeEach(() => {
         getRentalsListingsMock.mockResolvedValueOnce([])
-        let queryParams = new URLSearchParams()
+        const queryParams = new URLSearchParams()
         if (Array.isArray(parameterValue)) {
           parameterValue.forEach((value) => {
             queryParams.append(parameterName, value.toString())
@@ -802,34 +801,16 @@ describe("when getting rental listings", () => {
 describe("when refreshing a rental listing", () => {
   let params: { id: string }
   let rentalId: string
-  let url: URL
   let components: Pick<AppComponents, "rentals">
   let refreshRentalListingMock: jest.Mock
 
   beforeEach(() => {
     refreshRentalListingMock = jest.fn()
-    rentalId = "aRentalId"
-    url = new URL("http://localhost/v1/rental-listing")
+    rentalId = "5884c820-2612-409c-bb9e-a01e8d3569e9"
     components = {
       rentals: createTestRentalsComponent({ refreshRentalListing: refreshRentalListingMock }),
     }
     params = { id: rentalId }
-  })
-
-  describe("and forceMetadataRefresh is not a valid type", () => {
-    beforeEach(() => {
-      url = new URL("http://localhost/v1/rental-listing?forceMetadataRefresh=test")
-    })
-
-    test("should return BAD REQUEST with correct error message", () => {
-      expect(refreshRentalListingHandler({ components, params, url })).resolves.toEqual({
-        status: StatusCode.BAD_REQUEST,
-        body: {
-          ok: false,
-          message: "The value of the forceMetadataRefresh parameter is invalid: test",
-        },
-      })
-    })
   })
 
   describe("and the process to refresh the listing fails with an unknown error", () => {
@@ -840,7 +821,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should propagate the error", () => {
-      return expect(refreshRentalListingHandler({ components, params, url })).rejects.toThrowError(errorMessage)
+      return expect(refreshRentalListingHandler({ components, params })).rejects.toThrowError(errorMessage)
     })
   })
 
@@ -850,7 +831,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the rental was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params, url })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -873,7 +854,7 @@ describe("when refreshing a rental listing", () => {
     })
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
-      return expect(refreshRentalListingHandler({ components, params, url })).resolves.toEqual({
+      return expect(refreshRentalListingHandler({ components, params })).resolves.toEqual({
         status: StatusCode.NOT_FOUND,
         body: {
           ok: false,
@@ -951,7 +932,7 @@ describe("when refreshing a rental listing", () => {
 
     it("should return a response with a not found status code and a message saying that the nft was not found", () => {
       return expect(
-        refreshRentalListingHandler({ components, params, url: { searchParams: new URLSearchParams() } as URL })
+        refreshRentalListingHandler({ components, params })
       ).resolves.toEqual({
         status: StatusCode.OK,
         body: {
@@ -987,7 +968,7 @@ describe("When getting rental listings prices", () => {
     "and the request was done with an invalid parameter type for filter $parameterName",
     ({ parameterName, parameterValue, invalidValue }) => {
       beforeEach(() => {
-        let queryParams = new URLSearchParams()
+        const queryParams = new URLSearchParams()
         if (Array.isArray(parameterValue)) {
           parameterValue.forEach((value) => {
             queryParams.append(parameterName, value.toString())
@@ -1025,7 +1006,7 @@ describe("When getting rental listings prices", () => {
     ({ parameterName, parameterValue }) => {
       beforeEach(() => {
         getRentalListingsPricesMock.mockResolvedValueOnce([])
-        let queryParams = new URLSearchParams()
+        const queryParams = new URLSearchParams()
         if (Array.isArray(parameterValue)) {
           parameterValue.forEach((value) => {
             queryParams.append(parameterName, value.toString())

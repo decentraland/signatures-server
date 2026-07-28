@@ -19,17 +19,20 @@ import {
   getPaginationParams,
   getTypedArrayStringQueryParameter,
   getTypedStringQueryParameter,
+  getUUIDParameter,
   InvalidParameterError,
 } from "../../logic/http"
 import { ContractNotFound } from "../../logic/rentals/errors"
 import {
   InvalidEstate,
+  InvalidRentalContractAddress,
   InvalidSignature,
   NFTNotFound,
   RentalAlreadyExists,
   RentalAlreadyExpired,
   RentalNotFound,
   UnauthorizedToRent,
+  UnsupportedChain,
 } from "../../ports/rentals"
 import { HandlerContextWithPath, StatusCode } from "../../types"
 
@@ -205,6 +208,30 @@ export async function rentalsListingsCreationHandler(
           message: error.message,
         },
       }
+    } else if (error instanceof InvalidRentalContractAddress) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            rentalContractAddress: error.rentalContractAddress,
+            expectedRentalContractAddress: error.expectedRentalContractAddress,
+          },
+        },
+      }
+    } else if (error instanceof UnsupportedChain) {
+      return {
+        status: StatusCode.BAD_REQUEST,
+        body: {
+          ok: false,
+          message: error.message,
+          data: {
+            chainId: error.chainId,
+            network: error.network,
+          },
+        },
+      }
     } else if (error instanceof ContractNotFound) {
       return {
         status: StatusCode.BAD_REQUEST,
@@ -237,20 +264,16 @@ export async function rentalsListingsCreationHandler(
 }
 
 export async function refreshRentalListingHandler(
-  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "url" | "components">
+  context: Pick<HandlerContextWithPath<"rentals", "/rentals-listing/:id">, "params" | "components">
 ) {
   const {
-    url,
     components: { rentals },
     params: { id },
   } = context
 
   try {
-    const forceMetadataRefresh = getBooleanParameter(
-      "forceMetadataRefresh",
-      url.searchParams.get("forceMetadataRefresh")
-    )
-    const updatedRental = await rentals.refreshRentalListing(id, forceMetadataRefresh)
+    // The id reaches a uuid column, an invalid one would make postgres fail the whole request
+    const updatedRental = await rentals.refreshRentalListing(getUUIDParameter("id", id))
     return {
       status: StatusCode.OK,
       body: {

@@ -5,13 +5,17 @@
     "start": "node --trace-warnings --abort-on-uncaught-exception --unhandled-rejections=strict dist/index.js",
     "start-dev": "ts-node src/index.ts",
     "migrate": "node-pg-migrate --database-url-var PG_COMPONENT_PSQL_CONNECTION_STRING --envPath .env -j ts --tsconfig tsconfig.json -m ./src/migrations",
-    "test": "jest --forceExit --detectOpenHandles --coverage --verbose"
+    "test": "jest --forceExit --detectOpenHandles --coverage --verbose",
+    "lint:check": "eslint 'src/**/*.ts' 'test/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix"
   },
   "devDependencies": {
+    "@dcl/eslint-config": "^2.2.1",
     "@dcl/test-helpers": "^0.2.0",
     "@types/jest": "^29",
     "@types/node": "^20.11.0",
     "@types/pg": "^8.20.0",
+    "eslint-plugin-import": "^2.31.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.1",

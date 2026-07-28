@@ -29,7 +29,12 @@ export async function setupRouter(
     components.schemaValidator.withSchemaValidatorMiddleware(RentalListingCreation.schema),
     rentalsListingsCreationHandler
   )
+  // The read endpoints below are intentionally unauthenticated: rental listings are public data consumed by
+  // the marketplace, the atlas and the nft servers without a user identity.
   router.get("/v1/rentals-listings", getRentalsListingsHandler)
+  // Intentionally unauthenticated: it only re-syncs a listing against the indexers, which the periodic jobs
+  // do anyway, and the marketplace polls it while waiting for a transaction to be mined. It must never apply
+  // a state change that the caller could not obtain by waiting for those jobs.
   router.patch("/v1/rentals-listings/:id", refreshRentalListingHandler)
   router.get("/v1/rental-listings/prices", getRentalListingsPricesHandler)
 
