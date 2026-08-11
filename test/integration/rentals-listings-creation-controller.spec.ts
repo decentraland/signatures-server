@@ -1,5 +1,6 @@
 import { ChainId, NFTCategory, RentalListingCreation, RentalStatus } from "@dcl/schemas"
-import { getIdentity, Identity } from "@dcl/test-helpers"
+import { AUTH_METADATA_HEADER } from "@dcl/crypto-middleware"
+import { getIdentity, getSignedAuthHeaders, Identity } from "@dcl/test-helpers"
 import { ethers } from "ethers"
 import { getRentalsContract } from "../../src/logic/rentals"
 import { StatusCode } from "../../src/types"
@@ -69,6 +70,37 @@ test("when creating a rental listing through the API", function ({ components, s
     it("should respond with a 400 rejecting the signer", async () => {
       expect(response.status).toBe(StatusCode.BAD_REQUEST)
       await expect(response.text()).resolves.toBe("Invalid signer")
+    })
+  })
+
+  describe("and the scene signer is signed but a mixed-case spelling is delivered", () => {
+    let response: Response
+
+    beforeEach(async () => {
+      const headers = getSignedAuthHeaders("POST", PATH, { signer: "decentraland-kernel-scene" }, identity)
+      // The signed payload is lowercased, so re-casing the delivered metadata keeps the signature
+      // genuinely valid while reading differently to withSignerValidation's strict comparison. This
+      // is the attack: without the guard the scene request passes as a directly user-signed one.
+      headers[AUTH_METADATA_HEADER] = JSON.stringify({ signer: "Decentraland-Kernel-Scene" })
+
+      response = await components.localFetch.fetch(PATH, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(listing),
+      })
+    })
+
+    it("should respond with a 400 rejecting the metadata before the signer check runs", async () => {
+      expect(response.status).toBe(StatusCode.BAD_REQUEST)
+      // The raw metadata is echoed back truncated at 64 characters, so match the prefix.
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        message: expect.stringMatching(/^Invalid chain metadata: /),
+      })
+    })
+
+    it("should not reach the rentals component", () => {
+      expect(stubComponents.rentalsSubgraph.query).not.toHaveBeenCalled()
     })
   })
 
