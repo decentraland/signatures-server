@@ -69,7 +69,11 @@ test("when creating a rental listing through the API", function ({ components, s
 
     it("should respond with a 400 rejecting the signer", async () => {
       expect(response.status).toBe(StatusCode.BAD_REQUEST)
-      await expect(response.text()).resolves.toBe("Invalid signer")
+      // The metadata is echoed back truncated at 64 characters, so match the prefix.
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        message: expect.stringMatching(/^Invalid metadata content: /),
+      })
     })
   })
 
@@ -78,9 +82,9 @@ test("when creating a rental listing through the API", function ({ components, s
 
     beforeEach(async () => {
       const headers = getSignedAuthHeaders("POST", PATH, { signer: "decentraland-kernel-scene" }, identity)
-      // The signed payload is lowercased, so re-casing the delivered metadata keeps the signature
-      // genuinely valid while reading differently to withSignerValidation's strict comparison. This
-      // is the attack: without the guard the scene request passes as a directly user-signed one.
+      // Re-casing the delivered metadata is the attack: before 6.0.0 the whole signed payload was
+      // lowercased, so the rewritten bytes kept a genuinely valid signature while reading as a
+      // different signer. rejectIfSigner refuses the non-canonical value instead of comparing it.
       headers[AUTH_METADATA_HEADER] = JSON.stringify({ signer: "Decentraland-Kernel-Scene" })
 
       response = await components.localFetch.fetch(PATH, {
@@ -90,12 +94,12 @@ test("when creating a rental listing through the API", function ({ components, s
       })
     })
 
-    it("should respond with a 400 rejecting the metadata before the signer check runs", async () => {
+    it("should respond with a 400 rejecting the metadata before the signature is verified", async () => {
       expect(response.status).toBe(StatusCode.BAD_REQUEST)
-      // The raw metadata is echoed back truncated at 64 characters, so match the prefix.
+      // The metadata is echoed back truncated at 64 characters, so match the prefix.
       await expect(response.json()).resolves.toEqual({
         ok: false,
-        message: expect.stringMatching(/^Invalid chain metadata: /),
+        message: expect.stringMatching(/^Invalid metadata content: /),
       })
     })
 
