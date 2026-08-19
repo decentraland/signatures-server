@@ -1,7 +1,6 @@
 import { RentalListingCreation } from "@dcl/schemas"
 import { Router } from "@dcl/http-server"
 import * as authorizationMiddleware from "@dcl/crypto-middleware"
-import { withSignerValidation } from "../middlewares/withSignerValidation"
 import { GlobalContext } from "../types"
 import { pingHandler } from "./handlers/ping-handler"
 import {
@@ -24,8 +23,11 @@ export async function setupRouter(
     authorizationMiddleware.wellKnownComponents({
       optional: false,
       expiration: 5 * 60 * 1000, // 5 minutes
+      // Listings are created by the wallet owner, never by a scene acting on their behalf. The
+      // predicate refuses a non-canonical signer rather than folding it, so a re-spelled value
+      // cannot read as absent and slip past the gate, and it runs before signature verification.
+      metadataValidator: authorizationMiddleware.rejectIfSigner("decentraland-kernel-scene"),
     }),
-    withSignerValidation,
     components.schemaValidator.withSchemaValidatorMiddleware(RentalListingCreation.schema),
     rentalsListingsCreationHandler
   )
