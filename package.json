@@ -10,6 +10,7 @@
     "lint:fix": "eslint 'src/**/*.ts' 'test/**/*.ts' --fix"
   },
   "devDependencies": {
+    "@dcl/crypto": "3.7.0",
     "@dcl/eslint-config": "^2.2.1",
     "@dcl/test-helpers": "^0.2.0",
     "@types/jest": "^29",
@@ -27,7 +28,7 @@
   },
   "dependencies": {
     "@dcl/core-commons": "^0.10.1",
-    "@dcl/crypto-middleware": "^6.1.0",
+    "@dcl/crypto-middleware": "^6.3.0",
     "@dcl/fetch-component": "^1.1.1",
     "@dcl/http-requests-logger-component": "^1.0.0",
     "@dcl/http-server": "^2.1.0",
