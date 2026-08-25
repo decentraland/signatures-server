@@ -1,5 +1,6 @@
 import { ChainId, NFTCategory, RentalListingCreation, RentalStatus } from "@dcl/schemas"
-import { AUTH_METADATA_HEADER } from "@dcl/crypto-middleware"
+import { Authenticator } from "@dcl/crypto"
+import { AUTH_CHAIN_HEADER_PREFIX, AUTH_METADATA_HEADER, AUTH_TIMESTAMP_HEADER } from "@dcl/crypto-middleware"
 import { getIdentity, getSignedAuthHeaders, Identity } from "@dcl/test-helpers"
 import { ethers } from "ethers"
 import { getRentalsContract } from "../../src/logic/rentals"
@@ -10,6 +11,47 @@ import { resetToUnexpected } from "../utils/mocks"
 import { buildSignedRentalListingCreation } from "../utils/rentals"
 
 const PATH = "/v1/rentals-listings"
+
+/**
+ * Signs the payload `@dcl/crypto-middleware` 6.x actually verifies: method, path and timestamp
+ * lowercased, metadata joined verbatim.
+ *
+ * `getSignedAuthHeaders` from @dcl/test-helpers folds the whole joined string instead, which is the
+ * pre-6.0.0 shape. Metadata signed with it can only ever match the legacy fallback, so it cannot
+ * show anything about the strict path.
+ *
+ * The payload is spelled out here rather than taken from the library's exported `createPayload`, so
+ * that the helper builds the same request against any 6.x version. Pinning an older release to
+ * check that this test actually catches the bypass has to fail on the service's verdict, not on a
+ * helper that could not run.
+ */
+function getStrictlySignedAuthHeaders(
+  method: string,
+  path: string,
+  metadata: Record<string, string>,
+  identity: Identity
+): Record<string, string> {
+  const timestamp = Date.now().toString()
+  const metadataJSON = JSON.stringify(metadata)
+  const payload = [method.toLowerCase(), path.toLowerCase(), timestamp, metadataJSON].join(":")
+  const authChain = Authenticator.signPayload(
+    {
+      ephemeralIdentity: identity.ephemeralIdentity,
+      expiration: new Date(),
+      authChain: identity.authChain.authChain,
+    },
+    payload
+  )
+
+  const headers: Record<string, string> = {}
+  authChain.forEach((link, index) => {
+    headers[`${AUTH_CHAIN_HEADER_PREFIX}${index}`] = JSON.stringify(link)
+  })
+  headers[AUTH_TIMESTAMP_HEADER] = timestamp
+  headers[AUTH_METADATA_HEADER] = metadataJSON
+
+  return headers
+}
 
 test("when creating a rental listing through the API", function ({ components, stubComponents }) {
   let dbHelper: DbHelper
@@ -105,6 +147,70 @@ test("when creating a rental listing through the API", function ({ components, s
 
     it("should not reach the rentals component", () => {
       expect(stubComponents.rentalsSubgraph.query).not.toHaveBeenCalled()
+    })
+  })
+
+  /**
+   * 6.3.0 added a folded-variant guard to `canonicalField`, the predicate `rejectIfSigner` is built
+   * on. Before it the predicate read the exact `signer` key only, so metadata delivering
+   * `{"Signer": "decentraland-kernel-scene"}` presented no `signer` at all and the gate read the
+   * field as *absent* — answering "allowed" for a request that visibly names the very signer it
+   * exists to refuse, and letting a scene create a rental listing on the wallet owner's behalf.
+   *
+   * Unlike the mixed-case *value* case above, this needs no header rewriting. The current 6.x
+   * payload covers the metadata bytes verbatim, so re-spelling the key changes what the client
+   * signs and the request below is genuinely signed that way — something a scene-driven client can
+   * simply do. This service passes no `canonicalMetadataKeys`, so the legacy fallback never engages
+   * and the strict path is the only one in play.
+   */
+  describe("and the kernel-scene signer is delivered under a folded spelling of the signer key", () => {
+    let response: Response
+
+    beforeEach(async () => {
+      // Stubbed as if the listing were perfectly valid, so the gate is the only thing that can
+      // refuse this request. That is what makes the counterfactual unambiguous: on 6.2.0 this same
+      // request is answered with a 201 and a stored listing.
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({ rentals: [] })
+      stubComponents.marketplaceSubgraph.query.mockResolvedValueOnce({
+        nfts: [
+          {
+            id: "aMetadataId",
+            category: NFTCategory.PARCEL,
+            contractAddress: listing.contractAddress,
+            tokenId: listing.tokenId,
+            owner: { address: lessor },
+            searchText: "0,0",
+            searchIsLand: true,
+            searchEstateSize: 0,
+            searchDistanceToPlaza: 3,
+            searchAdjacentToRoad: true,
+            createdAt: "100000",
+            updatedAt: "200000",
+          },
+        ],
+      })
+
+      response = await components.localFetch.fetch(PATH, {
+        method: "POST",
+        headers: {
+          ...getStrictlySignedAuthHeaders("POST", PATH, { Signer: "decentraland-kernel-scene" }, identity),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(listing),
+      })
+    })
+
+    it("should respond with a 400 instead of reading the signer as absent and letting it past the scene gate", async () => {
+      expect(response.status).toBe(StatusCode.BAD_REQUEST)
+      // The metadata is echoed back truncated at 64 characters, so match the prefix.
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        message: expect.stringMatching(/^Invalid metadata content: /),
+      })
+    })
+
+    it("should not reach the rentals component", () => {
+      expect(stubComponents.marketplaceSubgraph.query).not.toHaveBeenCalled()
     })
   })
 
