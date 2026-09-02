@@ -255,6 +255,7 @@ export async function createRentalsComponent(
           newIndex
           contractAddress
           tokenId
+          signer
         }
       }
     }`
@@ -960,19 +961,20 @@ export async function createRentalsComponent(
                 )`
               )
             } else if (indexUpdate.assetUpdate && indexUpdate.assetUpdate.type === IndexUpdateEventType.CANCEL) {
-              const { newIndex, contractAddress, tokenId } = indexUpdate.assetUpdate
+              const { newIndex, contractAddress, tokenId, signer } = indexUpdate.assetUpdate
               logger.info(
-                `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][newIndex:${newIndex}]`
+                `[Rentals Indexes update][Asset index update][contractAddress:${contractAddress}][tokenId:${tokenId}][signer:${signer}][newIndex:${newIndex}]`
               )
               return await client.query(
                 SQL`UPDATE rentals SET status = ${RentalStatus.CANCELLED}, updated_at = ${startTime}
                   WHERE rentals.status = ${RentalStatus.OPEN} AND rentals.id = ANY (
                   select r.id
-                    from rentals r
+                    from rentals r, rentals_listings rl
                     cross join unnest(nonces) with ordinality as u(nonce, idx)
-                    WHERE idx = 3 AND u.nonce::numeric < ${newIndex}::numeric
+                    WHERE r.id = rl.id AND idx = 3 AND u.nonce::numeric < ${newIndex}::numeric
                       AND lower(r.contract_address) = lower(${contractAddress})
                       AND r.token_id = ${tokenId}
+                      AND lower(rl.lessor) = lower(${signer})
                 )`
               )
             } else {

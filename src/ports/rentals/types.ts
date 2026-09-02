@@ -221,6 +221,7 @@ export type IndexerIndexAssetUpdate = {
   tokenId: string
   /** The tokenId id associated to the index update */
   type: IndexUpdateEventType
+  signer: string
 }
 
 export enum IndexUpdateEventType {
