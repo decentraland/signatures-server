@@ -123,6 +123,7 @@ test("when running the rental listing jobs", function ({ components, stubCompone
               type: IndexUpdateEventType.CANCEL,
               contractAddress: listing.contractAddress,
               tokenId: "100",
+              signer: lessor,
               newIndex: "1",
             },
           },
@@ -138,6 +139,37 @@ test("when running the rental listing jobs", function ({ components, stubCompone
 
     it("should leave the listings of other assets open", async () => {
       await expect(dbHelper.getListingStatus(listingOfAnotherAsset.id)).resolves.toBe(RentalStatus.OPEN)
+    })
+  })
+
+  describe("and another signer bumped their own index for the asset", () => {
+    let listing: SeededListing
+
+    beforeEach(async () => {
+      listing = await dbHelper.seedListing({ lessor, tokenId: "100", nonces: ["0", "0", "0"] })
+      stubComponents.rentalsSubgraph.query.mockResolvedValueOnce({
+        indexesUpdateHistories: [
+          {
+            id: "1",
+            date: "1",
+            type: IndexerIndexUpdateType.ASSET,
+            assetUpdate: {
+              id: "1",
+              type: IndexUpdateEventType.CANCEL,
+              contractAddress: listing.contractAddress,
+              tokenId: "100",
+              signer: "0x4444444444444444444444444444444444444444",
+              newIndex: "1",
+            },
+          },
+        ],
+      })
+
+      await components.rentals.cancelRentalsListings()
+    })
+
+    it("should leave the listing of the lessor open", async () => {
+      await expect(dbHelper.getListingStatus(listing.id)).resolves.toBe(RentalStatus.OPEN)
     })
   })
 
@@ -157,6 +189,7 @@ test("when running the rental listing jobs", function ({ components, stubCompone
               type: IndexUpdateEventType.RENT,
               contractAddress: listing.contractAddress,
               tokenId: "100",
+              signer: lessor,
               newIndex: "1",
             },
           },
