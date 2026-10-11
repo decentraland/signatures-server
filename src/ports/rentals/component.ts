@@ -515,7 +515,15 @@ export async function createRentalsComponent(
     const rentalData = rentalQueryResult.rows[0]
     const signature = generateECDSASignatureWithValidV(rentalData.signature)
     const [indexerRentals, [indexerNFT], indexerIndexesUpdate] = await Promise.all([
-      getRentalsFromIndexer({ first: 1, filterBy: { signature } }),
+      getRentalsFromIndexer({
+        first: 1,
+        filterBy: {
+          signature,
+          contractAddress: rentalData.contract_address.toLowerCase(),
+          tokenId: rentalData.token_id,
+          lessor: rentalData.lessor.toLowerCase(),
+        },
+      }),
       getNFTsFromIndexer({
         filterBy: { contractAddress: rentalData.contract_address, tokenId: rentalData.token_id },
         first: 1,
@@ -790,6 +798,9 @@ export async function createRentalsComponent(
                 AND (rentals.signature = ${rental.signature} OR rentals.signature = ${generateECDSASignatureWithInvalidV(
                 rental.signature
               )})
+                AND lower(rentals.contract_address) = lower(${rental.contractAddress})
+                AND rentals.token_id = ${rental.tokenId}
+                AND lower(rentals_listings.lessor) = lower(${rental.lessor})
               `
             )
             logger.debug(

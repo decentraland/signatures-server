@@ -1261,7 +1261,12 @@ describe("when refreshing rental listings", () => {
       })
 
       it("should have queried the graph with a signature based on the original that contains a valid V", () => {
-        expect(rentalsSubgraphQueryMock).toHaveBeenCalledWith(expect.anything(), { signature: newSignature })
+        expect(rentalsSubgraphQueryMock).toHaveBeenCalledWith(expect.anything(), {
+          signature: newSignature,
+          contractAddress: rentalFromDb.contract_address.toLowerCase(),
+          tokenId: rentalFromDb.token_id,
+          lessor: rentalFromDb.lessor.toLowerCase(),
+        })
       })
     })
   })
