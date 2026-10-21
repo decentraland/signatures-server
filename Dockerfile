@@ -1,6 +1,6 @@
 ARG RUN
 
-FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd as builderenv
+FROM node:24-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d as builderenv
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN yarn install --prod --frozen-lockfile
 
 
 ########################## END OF BUILD STAGE ##########################
-FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
+FROM node:24-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d
 
 RUN apk update
 RUN apk add --no-cache tini
